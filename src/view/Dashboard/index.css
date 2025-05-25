@@ -1,0 +1,46 @@
+/* src/components/DashboardLayout.css */
+.dashboard-container {
+    padding-top: 50px;
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 2fr; /* 左右列宽度比例 1:2 */
+    gap: 16px;
+    /* padding: 16px; */
+    background: #f0f2f5;
+    overflow: hidden;
+  }
+  
+  /* 通用面板样式 */
+  .left-panel, .right-panel {
+    display: grid;
+    gap: 16px;
+  }
+  
+  /* 左侧面板布局 */
+  .left-panel {
+    grid-template-rows: 1fr 1fr; /* 上下均分高度 */
+  }
+  
+  /* 右侧面板布局 */
+  .right-panel {
+    grid-template-rows: 1fr 2fr; /* 下部区域高度是上部的两倍 */
+  }
+  
+  /* 内容区块公共样式 */
+  .left-top, .left-bottom,
+  .right-top, .right-bottom {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 16px;
+    overflow: auto;
+  }
+  
+  /* 占位符样式 */
+  .content-placeholder {
+    height: 100%;
+    background: #f8f9fa;
+    border: 2px dashed #e9ecef;
+    border-radius: 4px;
+  }
