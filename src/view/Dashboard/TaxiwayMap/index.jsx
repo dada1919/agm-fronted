@@ -50,7 +50,8 @@ const TaxiwayMap = observer(() => {
                 'case',
                 ['==', ['get', 'name'], null],
                 '#888',  // 未命名滑行道颜色
-                '#ff0000' // 命名滑行道颜色
+                // '#ff0000' // 命名滑行道颜色
+                '#e9e9e9'
               ],
               'line-width': 4,
               'line-opacity': 0.9
@@ -60,6 +61,16 @@ const TaxiwayMap = observer(() => {
               'line-join': 'round'
             }
           });
+
+
+          // 必须启用地形
+          // map.current.addSource('terrain', {
+          //   type: 'raster-dem',
+          //   tiles: ['https://demotiles.maplibre.org/terrain/{z}/{x}/{y}.png'],
+          //   tileSize: 256,
+          //   maxzoom: 14
+          // });
+          // map.current.setTerrain({ source: 'terrain', exaggeration: 1.5 });
 
 
           // 自动适应视图
@@ -85,81 +96,9 @@ const TaxiwayMap = observer(() => {
       })
       .catch(error => console.error('数据加载失败:', error));
 
+    const colors = ['rgb(228,26,28)','rgb(55,126,184)','rgb(77,175,74)','rgb(152,78,163)','rgb(255,127,0)','rgb(255,255,51)','rgb(166,86,40)','rgb(247,129,191)']
 
-    // const updatePlane = () => {
-    //   // console.log('planePosition:', websocketStore.planePosition);
-    //   console.log('更新飞机位置');
-    //   if (!map.current) return; // 确保地图已加载
-    //   // if (planePosition.length === 0) return; // 如果没有飞机位置数据，则不进行更新
-
-    //   // 首先清理目前的标记
-    //   // console.log(markers.current);
-    //   Object.values(markers.current).forEach(marker => marker.remove());
-    //   markers.current = {}; // 清空标记记录
-
-    //   // 添加新标记
-    //   websocketStore.planePosition.forEach(plane => {
-    //       const marker = new Marker()
-    //           .setLngLat([plane.coords[0], plane.coords[1]]) // 设置标记位置
-    //           .setPopup(new Popup().setHTML(`<h1>${plane.id}</h1>`))
-    //           .addTo(map.current)
-    //       markers.current[plane.id] = marker; // 存储到字典中
-    //   });
-
-    // }
-    
-    // const updatePlane = () => {
-    //   console.log('更新飞机位置');
-    //   if (!map.current) return; // 确保地图已加载
-  
-    //   // 记录当前存在的飞机ID以及它们的计数
-    //   const existingPlaneIds = new Set(Object.keys(markers.current));
-    //   const updatedPlaneIds = new Set();
-  
-    //   // 处理现有和新飞机标记
-    //   websocketStore.planePosition.forEach(plane => {
-    //       const { id, coords } = plane;
-  
-    //       // 新增飞机
-    //       if (!existingPlaneIds.has(id)) {
-    //           const marker = new Marker()
-    //               .setLngLat([coords[0], coords[1]]) // 设置标记位置
-    //               .setPopup(new Popup().setHTML(`<h1>${id}</h1>`))
-    //               .addTo(map.current);
-    //           markers.current[id] = marker; // 存储新标记
-    //       } else {
-    //           // 更新已有飞机标记的位置
-    //           const marker = markers.current[id];
-    //           marker.setLngLat([coords[0], coords[1]]); // 更新位置
-  
-    //           // 这里可以使用 gsap 或 CSS 动画来平滑过渡位置
-    //           // 例如：marker.getElement().style.transition = "transform 0.5s";
-    //           // marker.getElement().style.transform = `translate(${...})`; // 这是一个简化方案
-    //       }
-  
-    //       // 记录更新的飞机ID
-    //       updatedPlaneIds.add(id);
-    //   });
-  
-    //   // 删除超过赛车次数未出现的飞机标记
-    //   Object.keys(markers.current).forEach(id => {
-    //       if (!updatedPlaneIds.has(id)) {
-    //           if (!markers.current[id].count) {
-    //               markers.current[id].count = 1; // 初始化计数
-    //           } else if (markers.current[id].count < 10) {
-    //               markers.current[id].count += 1; // 增加计数
-    //           } else {
-    //               // 超过5次未出现，移除该标记
-    //               markers.current[id].remove();
-    //               delete markers.current[id]; // 从字典中删除标记记录
-    //               console.log(`移除飞机: ${id}`);
-    //           }
-    //       } else {
-    //           markers.current[id].count = 0; // 重置计数
-    //       }
-    //   });
-    // };
-    const colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f','#bf5b17','#666666', '#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666']
+    // const colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f','#bf5b17','#666666', '#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666']
     const colorSet = new Set(); // 使用 Set 来存储颜色，避免重复
     const colorMap = new Map();
     const getColor = (id) => {
@@ -197,50 +136,58 @@ const TaxiwayMap = observer(() => {
       // 获取当前的轨迹图层
       let trajectoryLayerId = 'plane-trajectories';
 
-      //|coords[0] = [40.078311811606845,116.5924545365713] 40.05957986775247|116.60989032423797|
-      // const acolor = '#000000';
-      // const amarker = new Marker({acolor}) // 使用指定颜色创建标记
-      //   .setLngLat([116.5924545365713, 40.078311811606845]) // 设置标记位置
-      //   // .setPopup(new Popup().setHTML(`<h1>${id}</h1>`))
-      //   .addTo(map.current);
 
-      // const bmarker = new Marker({acolor}) // 使用指定颜色创建标记
-      //   .setLngLat([116.60989032423797, 40.05957986775247]) // 设置标记位置
-      //   // .setPopup(new Popup().setHTML(`<h1>${id}</h1>`))
-      //   .addTo(map.current);
 
   
       // 处理现有和新飞机标记
       websocketStore.planePosition.forEach(plane => {
-          const { id, coords, cur_path } = plane;
+          const { id, coords, cur_path, trajectory } = plane;
           const color = getColor(id); // 根据飞机ID设置颜色，默认黑色
 
-          // if (id == 'CCA1642') {
-          //   console.log(coords);
-          //   const acolor = '#000000'; // 使用指定颜色创建标记
-          //   const amarker = new Marker({acolor}) // 使用指定颜色创建标记
-          //         .setLngLat([coords[0], coords[1]]) // 设置标记位置
-          //         .setPopup(new Popup().setHTML(`<h1>${id}</h1>`))
-          //         .addTo(map.current);
-          // }
+    
+
+          // 飞机 SVG 生成器（支持颜色、旋转角度）
+          function createAirplaneMarker(color = '#FF3B30', size = 32, rotation = 0) {
+            const el = document.createElement('div');
+            el.className = 'airplane-marker';
+            el.innerHTML = `
+              <svg viewBox="0 0 1024 1024" 
+                  width="${size}" 
+                  height="${size}" 
+                  style="color: ${color}"> <!-- 通过 color 控制主色 -->
+                <path fill="currentColor" d="M512 174.933333c23.466667 0 42.666667 8.533333 59.733333 25.6s25.6 36.266667 25.6 59.733334v192l206.933334 185.6c6.4 4.266667 10.666667 12.8 14.933333 21.333333s6.4 17.066667 6.4 25.6v23.466667c0 8.533333-2.133333 12.8-6.4 14.933333s-10.666667 2.133333-17.066667-2.133333l-204.8-140.8v149.333333c38.4 36.266667 57.6 57.6 57.6 64v36.266667c0 8.533333-2.133333 12.8-6.4 17.066666-4.266667 2.133333-10.666667 2.133333-19.2 0l-117.333333-72.533333-117.333333 72.533333c-6.4 4.266667-12.8 4.266667-19.2 0s-6.4-8.533333-6.4-17.066666v-36.266667c0-8.533333 19.2-29.866667 57.6-64v-149.333333l-204.8 140.8c-6.4 4.266667-12.8 6.4-17.066667 2.133333-4.266667-2.133333-6.4-8.533333-6.4-14.933333V684.8c0-8.533333 2.133333-17.066667 6.4-25.6 4.266667-8.533333 8.533333-17.066667 14.933333-21.333333l206.933334-185.6v-192c0-23.466667 8.533333-42.666667 25.6-59.733334s36.266667-25.6 59.733333-25.6z"/>
+              </svg>
+            `;
+ 
+            el.querySelector('svg').style.transform = `rotate(${rotation}deg)`;
+            return el;
+          }
+
+        
   
           // 新增飞机
           if (!existingPlaneIds.has(id)) {
-              const marker = new Marker({ color }) // 使用指定颜色创建标记
-                  .setLngLat([coords[0], coords[1]]) // 设置标记位置
-                  .setPopup(new Popup().setHTML(`<h1>${id}</h1>`))
-                  .addTo(map.current);
-  
-              markers.current[id] = { marker, trajectory: [] }; // 存储新标记和轨迹数据
+
+            const marker = new Marker({ element:createAirplaneMarker(color) }) // 使用指定颜色创建标记
+                .setLngLat([coords[0], coords[1]]) // 设置标记位置
+                .setPopup(new Popup().setHTML(`<h1>${id}</h1>`))
+                .addTo(map.current);
+
+            markers.current[id] = { marker }; // 存储新标记和轨迹数据
           } else {
               // 更新已有飞机标记的位置
-              const { marker, trajectory } = markers.current[id];
+              const { marker } = markers.current[id];
               marker.setLngLat([coords[0], coords[1]]); // 更新位置
               // marker.getElement().style.transition = "transform 0.5s";
   
               // 添加到轨迹中
-              trajectory.push([coords[0], coords[1]]);
-              drawTrajectory(id, trajectory, color); // 绘制轨迹
+              // removeTrajectory(id); // 移除轨迹
+              // trajectory.push([coords[0], coords[1]]);
+              const keysArray = Array.from(colorMap.keys());
+              console.log('keysArray', keysArray);
+              console.log('id', id);
+              console.log(keysArray.indexOf(id))
+              drawTrajectory(id, trajectory, color, keysArray.indexOf(id)); // 绘制轨迹
   
               // 重置计数
               markers.current[id].count = 0; 
@@ -259,7 +206,7 @@ const TaxiwayMap = observer(() => {
                     markers.current[id].count += 1; // 增加计数
                 } else {
                     // 超过5次未出现，移除该标记和轨迹
-                    const { marker, trajectory } = markers.current[id];
+                    const { marker } = markers.current[id];
                     marker.remove();
                     removeTrajectory(id); // 移除轨迹
                     delete markers.current[id]; // 从字典中删除标记记录
@@ -269,47 +216,105 @@ const TaxiwayMap = observer(() => {
             }
         });
     };
+
+    function generateAlphaVariants(rgbColor, steps = 10, times = 5) {
+     
+      // 提取RGB数值
+      const [_, r, g, b] = rgbColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      
+      // 生成透明度阶梯（从1.00到0.00）
+      return Array.from({length: times}, (_, i) => {
+        const alpha = (1 - i/(steps)).toFixed(2); // 保留两位小数
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      });
+      
+    }
+
+    const grayScale = [
+      '#FFE5E5',
+      '#FFCCCC',
+      '#FFB2B2',
+      '#FF9999',
+      '#FF7F7F',
+      '#FF6666',
+      '#FF4C4C',
+      '#FF3232',
+      '#FF1919',
+      '#FF0000'
+    ];
+    
+    grayScale.reverse(); // 反转灰度颜色数组
   
     // 绘制飞机的轨迹
-    const drawTrajectory = (id, trajectory, color) => {
-        if (!map.current.getSource(id)) {
-            map.current.addSource(id, {
-                type: 'geojson',
-                data: {
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: trajectory
-                    },
-                },
-            });
+    const drawTrajectory = (id, trajectorys, color, h) => {
+      let geodata = {type: 'FeatureCollection', features: []}; // 初始化地理数据对象
+      let index = 0;
+      const multiColor = generateAlphaVariants(color, 10, 5); // 生成颜色透明度阶梯
+
+      // console.log('绘制轨迹', id, trajectorys);
+
     
-            map.current.addLayer({
-                id: id,
-                type: 'line',
-                source: id,
-                layout: {
-                    "line-join": "round",
-                    "line-cap": "round"
+      trajectorys.forEach(trajectory => {
+        // console.log('绘制轨迹',  trajectory);
+        if (trajectory.length > 0) {
+            geodata.features.push({
+                type: 'Feature',
+                properties: { 
+                  color: grayScale[Math.min((index++) , 9)] ,
+                  height: h ? h : 0, // 如果没有高度，默认为0
                 },
-                paint: {
-                    "line-color": color, // 使用指定颜色
-                    "line-width": 3
+                geometry: {
+                    type: 'MultiLineString',
+                    coordinates: trajectory
                 }
             });
-        } else {
-            // 更新轨迹数据
-            const source = map.current.getSource(id);
-            if (source) {
-                source.setData({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: trajectory
-                    },
-                });
-            }
         }
+      })
+
+      // console.log( JSON.stringify(geodata, null, 2) );
+      // console.log(geodata);
+      if (!map.current.getSource(id)) {
+          map.current.addSource(id, {
+              type: 'geojson',
+              data: geodata
+          });
+  
+          map.current.addLayer({
+              id: id,
+              type: 'line',
+              source: id,
+              layout: {
+                  "line-join": "round",
+                  "line-cap": "round"
+              },
+              paint: {
+                
+                "line-color": ['get','color'], // 使用指定颜色
+                "line-width": 2,
+                'line-offset': [
+                  '*',
+                  ['get', 'height'], // 车道序号(0,1,2...)
+                  // ['interpolate', ['linear'], ['zoom'],
+                  //   10, 3,  // 缩放小时间距小
+                  //   15, 8   // 放大地图时间距大
+                  // ]
+                ],
+                // 'line-translate': [2, 2], // [x, y] 偏移量
+                // 'line-translate-anchor': 'map', // 相对视口偏移
+                // 添加3D效果
+                'line-opacity': 0.8,
+                'line-blur': 0.5
+              }
+          });
+      } else {
+          // 更新轨迹数据
+          const source = map.current.getSource(id);
+          if (source) {
+              source.setData(
+                geodata
+               );
+          }
+      }
     };
   
     // 移除飞机的轨迹
