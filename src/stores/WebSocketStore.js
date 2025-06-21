@@ -6,7 +6,7 @@ class WebSocketStore {
     socket = null;
     planePosition = [];
     isConnected = false;
-    conflicts = [];
+    conflicts = null;
 
     constructor() {
         makeAutoObservable(this);
@@ -25,7 +25,7 @@ class WebSocketStore {
         });
         this.socket.on('conflict_alert', (data) => {
             console.log("Received conflict update:", data);
-            this.conflicts = data;
+            this.updateConflicts(data);
         });
 
         // 连接成功和断开连接事件
@@ -45,6 +45,10 @@ class WebSocketStore {
 
     updatePlanePosition(newPosition) {
         this.planePosition = newPosition;
+    }
+
+    updateConflicts(newConflicts) {
+        this.conflicts = newConflicts;
     }
 }
 

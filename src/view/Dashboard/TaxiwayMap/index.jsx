@@ -53,24 +53,24 @@ const TaxiwayMap = observer(() => {
                 // '#ff0000' // 命名滑行道颜色
                 '#e9e9e9'
               ],
-              'line-width': 4,
-              'line-opacity': 0.9
+              'line-width':  [
+                'interpolate', // 使用插值函数
+                ['linear'], // 线性插值
+                ['zoom'], // 使用缩放级别
+                0,  // 在缩放级别 0 时，线宽为 1
+                1, // 线宽为 1
+                12, // 在缩放级别 12 时，线宽为 4
+                4, // 线宽为 4
+                18, // 在最大缩放级别 18 时，线宽为 10
+                10 // 线宽为 10
+            ],
+              'line-opacity': 0.8
             },
             layout: {
               'line-cap': 'round',
               'line-join': 'round'
             }
           });
-
-
-          // 必须启用地形
-          // map.current.addSource('terrain', {
-          //   type: 'raster-dem',
-          //   tiles: ['https://demotiles.maplibre.org/terrain/{z}/{x}/{y}.png'],
-          //   tileSize: 256,
-          //   maxzoom: 14
-          // });
-          // map.current.setTerrain({ source: 'terrain', exaggeration: 1.5 });
 
 
           // 自动适应视图
@@ -90,7 +90,17 @@ const TaxiwayMap = observer(() => {
 
           console.log('地图加载完成');
 
+          // drawTest('test', [], colors[0], 0); // 绘制初始轨迹
+
           websocketStore.startSimulate(); // 启动模拟
+
+          // map.current.on('click', 'test', (e) => {
+          //   const features = map.current.queryRenderedFeatures(e.point, { layers: ['line-layer'] });
+          //   if (features.length) {
+          //     const segmentOrder = features[0].properties.order; // 获取线段顺序
+          //     console.log(`这是第 ${segmentOrder} 段`);
+          //   }
+          // });
 
         });
       })
@@ -144,27 +154,7 @@ const TaxiwayMap = observer(() => {
           const { id, coords, cur_path, trajectory } = plane;
           const color = getColor(id); // 根据飞机ID设置颜色，默认黑色
 
-    
-
-          // 飞机 SVG 生成器（支持颜色、旋转角度）
-          function createAirplaneMarker(color = '#FF3B30', size = 32, rotation = 0) {
-            const el = document.createElement('div');
-            el.className = 'airplane-marker';
-            el.innerHTML = `
-              <svg viewBox="0 0 1024 1024" 
-                  width="${size}" 
-                  height="${size}" 
-                  style="color: ${color}"> <!-- 通过 color 控制主色 -->
-                <path fill="currentColor" d="M512 174.933333c23.466667 0 42.666667 8.533333 59.733333 25.6s25.6 36.266667 25.6 59.733334v192l206.933334 185.6c6.4 4.266667 10.666667 12.8 14.933333 21.333333s6.4 17.066667 6.4 25.6v23.466667c0 8.533333-2.133333 12.8-6.4 14.933333s-10.666667 2.133333-17.066667-2.133333l-204.8-140.8v149.333333c38.4 36.266667 57.6 57.6 57.6 64v36.266667c0 8.533333-2.133333 12.8-6.4 17.066666-4.266667 2.133333-10.666667 2.133333-19.2 0l-117.333333-72.533333-117.333333 72.533333c-6.4 4.266667-12.8 4.266667-19.2 0s-6.4-8.533333-6.4-17.066666v-36.266667c0-8.533333 19.2-29.866667 57.6-64v-149.333333l-204.8 140.8c-6.4 4.266667-12.8 6.4-17.066667 2.133333-4.266667-2.133333-6.4-8.533333-6.4-14.933333V684.8c0-8.533333 2.133333-17.066667 6.4-25.6 4.266667-8.533333 8.533333-17.066667 14.933333-21.333333l206.933334-185.6v-192c0-23.466667 8.533333-42.666667 25.6-59.733334s36.266667-25.6 59.733333-25.6z"/>
-              </svg>
-            `;
- 
-            el.querySelector('svg').style.transform = `rotate(${rotation}deg)`;
-            return el;
-          }
-
         
-  
           // 新增飞机
           if (!existingPlaneIds.has(id)) {
 
@@ -188,6 +178,8 @@ const TaxiwayMap = observer(() => {
               console.log('id', id);
               console.log(keysArray.indexOf(id))
               drawTrajectory(id, trajectory, color, keysArray.indexOf(id)); // 绘制轨迹
+
+              
   
               // 重置计数
               markers.current[id].count = 0; 
@@ -217,6 +209,24 @@ const TaxiwayMap = observer(() => {
         });
     };
 
+
+    // 飞机 SVG 生成器（支持颜色、旋转角度）
+    function createAirplaneMarker(color = '#FF3B30', size = 32, rotation = 0) {
+      const el = document.createElement('div');
+      el.className = 'airplane-marker';
+      el.innerHTML = `
+        <svg viewBox="0 0 1024 1024" 
+            width="${size}" 
+            height="${size}" 
+            style="color: ${color}"> <!-- 通过 color 控制主色 -->
+          <path fill="currentColor" d="M512 174.933333c23.466667 0 42.666667 8.533333 59.733333 25.6s25.6 36.266667 25.6 59.733334v192l206.933334 185.6c6.4 4.266667 10.666667 12.8 14.933333 21.333333s6.4 17.066667 6.4 25.6v23.466667c0 8.533333-2.133333 12.8-6.4 14.933333s-10.666667 2.133333-17.066667-2.133333l-204.8-140.8v149.333333c38.4 36.266667 57.6 57.6 57.6 64v36.266667c0 8.533333-2.133333 12.8-6.4 17.066666-4.266667 2.133333-10.666667 2.133333-19.2 0l-117.333333-72.533333-117.333333 72.533333c-6.4 4.266667-12.8 4.266667-19.2 0s-6.4-8.533333-6.4-17.066666v-36.266667c0-8.533333 19.2-29.866667 57.6-64v-149.333333l-204.8 140.8c-6.4 4.266667-12.8 6.4-17.066667 2.133333-4.266667-2.133333-6.4-8.533333-6.4-14.933333V684.8c0-8.533333 2.133333-17.066667 6.4-25.6 4.266667-8.533333 8.533333-17.066667 14.933333-21.333333l206.933334-185.6v-192c0-23.466667 8.533333-42.666667 25.6-59.733334s36.266667-25.6 59.733333-25.6z"/>
+        </svg>
+      `;
+
+      el.querySelector('svg').style.transform = `rotate(${rotation}deg)`;
+      return el;
+    }
+
     function generateAlphaVariants(rgbColor, steps = 10, times = 5) {
      
       // 提取RGB数值
@@ -244,16 +254,96 @@ const TaxiwayMap = observer(() => {
     ];
     
     grayScale.reverse(); // 反转灰度颜色数组
+
+    const drawTest = (id, trajectorys, color, h) => {
+      const geodata = {
+        "type":"FeatureCollection","features":[
+          {"type":"Feature","properties":{"color":"#FF1919"},"geometry":{"type":"MultiLineString","coordinates":[[[116.60957629798676,40.07072042269285],[116.60961207779839,40.07049230443101]],[[116.60961207779839,40.07049230443101],[116.60963321741602,40.07035752551841]],[[116.60963321741602,40.07035752551841],[116.60965000451456,40.07025049637292]],[[116.60965000451456,40.07025049637292],[116.60965485000008,40.070219605000034]],[[116.60965485000008,40.070219605000034],[116.6096962291351,40.06995578124849]],[[116.6096962291351,40.06995578124849],[116.60972500800007,40.06977229400008]],[[116.60972500800007,40.06977229400008],[116.60971822385996,40.06968795905062]],[[116.60971822385996,40.06968795905062],[116.60971402993081,40.06966143549661]],[[116.60971402993081,40.06966143549661],[116.60969898350422,40.06960770804471]],[[116.60969898350422,40.06960770804471],[116.60967780773305,40.069556088079956]],[[116.60967780773305,40.069556088079956],[116.60965078838404,40.06950727221347]],[[116.60965078838404,40.06950727221347],[116.60961829008313,40.069461919214866]],[[116.60961829008313,40.069461919214866],[116.60958075139463,40.06942064112253]],[[116.60958075139463,40.06942064112253],[116.6095645741975,40.0694065504]],[[116.6095645741975,40.0694065504],[116.60950016253007,40.06936079056222]],[[116.60950016253007,40.06936079056222],[116.60937563129383,40.069304415965526]]]}},
+          {"type":"Feature","properties":{"color":"#FF3232", "index":3},"geometry":{"type":"MultiLineString","coordinates":[[[116.60937563129383,40.069304415965526],[116.60953867890284,40.06938399498392]],[[116.60953867890284,40.06938399498392],[116.60944325710257,40.069326507543295]],[[116.60944325710257,40.069326507543295],[116.60934724367137,40.069295142473926]],[[116.60934724367137,40.069295142473926],[116.60781169709529,40.06915322543125]]]}}]
+      }
+
+      const marker1 = new Marker({ element:createAirplaneMarker(color) }) // 使用指定颜色创建标记
+                .setLngLat([116.60937563129383,40.069304415965526]) // 设置标记位置
+                .setPopup(new Popup().setHTML(`<h1>1</h1>`))
+                .addTo(map.current);
+
+      const marker2 = new Marker({ element:createAirplaneMarker(color) }) // 使用指定颜色创建标记
+      .setLngLat([116.60953867890284,40.06938399498392]) // 设置标记位置
+      .setPopup(new Popup().setHTML(`<h1>2</h1>`))
+      .addTo(map.current);
+
+
+      const marker3 = new Marker({ element:createAirplaneMarker(color) }) // 使用指定颜色创建标记
+      .setLngLat([116.60944325710257,40.069326507543295]) // 设置标记位置
+      .setPopup(new Popup().setHTML(`<h1>3</h1>`))
+      .addTo(map.current);
+
+      const marker4 = new Marker({ element:createAirplaneMarker(color) }) // 使用指定颜色创建标记
+      .setLngLat([116.60957629798676,40.07072042269285]) // 设置标记位置
+      .setPopup(new Popup().setHTML(`<h1>4</h1>`))
+      .addTo(map.current);
+      
+      // 遍历轨迹数据，添加图层
+      geodata.features.forEach((feature, index) => {
+        // 创建唯一源 ID
+        const sourceId = `segment-${index}`;
+        
+        // 添加数据源
+        map.current.addSource(sourceId, {
+          type: 'geojson',
+          data: feature // 每个特征单独作为源
+        });
+      
+        // 添加图层
+        map.current.addLayer({
+          id: sourceId, // 使用源 ID
+          type: 'line',
+          source: sourceId,
+          layout: {
+            "line-join": "round",
+            "line-cap": "round"
+          },
+          paint: {
+            "line-color": feature.properties.color, // 使用特征中的颜色属性
+            "line-width": 2,
+            "line-opacity": 0.8,
+            "line-blur": 0.5
+          }
+        });
+      });
+
+
+      map.current.on('click', (e) => {
+        // 查询用户点击的位置的特征
+        const features = map.current.queryRenderedFeatures(e.point, {
+          layers: geodata.features.map((_, index) => `segment-${index}`) // 获取所有添加的图层
+        });
+      
+        // 检查是否点击了某个线段
+        if (features.length > 0) {
+          const clickedSegmentId = features[0].layer.id; // 获取被点击线段的 ID
+
+          console.log('Clicked segment ID:', clickedSegmentId);
+      
+          // 遍历所有图层，将被点击的线段高亮显示
+          geodata.features.forEach((feature, index) => {
+            const sourceId = `segment-${index}`;
+            const color = (sourceId === clickedSegmentId) ? '#FFFF00' : feature.properties.color; // 高亮为黄色
+            map.current.setPaintProperty(sourceId, 'line-color', color);
+          });
+        }
+      });
+    
+    }
   
     // 绘制飞机的轨迹
     const drawTrajectory = (id, trajectorys, color, h) => {
       let geodata = {type: 'FeatureCollection', features: []}; // 初始化地理数据对象
       let index = 0;
-      const multiColor = generateAlphaVariants(color, 10, 5); // 生成颜色透明度阶梯
+      // const multiColor = generateAlphaVariants(color, 10, 5); // 生成颜色透明度阶梯
 
       // console.log('绘制轨迹', id, trajectorys);
 
-    
       trajectorys.forEach(trajectory => {
         // console.log('绘制轨迹',  trajectory);
         if (trajectory.length > 0) {
@@ -261,7 +351,8 @@ const TaxiwayMap = observer(() => {
                 type: 'Feature',
                 properties: { 
                   color: grayScale[Math.min((index++) , 9)] ,
-                  height: h ? h : 0, // 如果没有高度，默认为0
+                  height: h,
+                  // color: grayScale[(index++) % 10] ,
                 },
                 geometry: {
                     type: 'MultiLineString',
@@ -270,6 +361,8 @@ const TaxiwayMap = observer(() => {
             });
         }
       })
+
+      // console.log(JSON.stringify(geodata));
 
       // console.log( JSON.stringify(geodata, null, 2) );
       // console.log(geodata);
@@ -290,7 +383,7 @@ const TaxiwayMap = observer(() => {
               paint: {
                 
                 "line-color": ['get','color'], // 使用指定颜色
-                "line-width": 2,
+                "line-width": 3,
                 'line-offset': [
                   '*',
                   ['get', 'height'], // 车道序号(0,1,2...)
@@ -299,10 +392,7 @@ const TaxiwayMap = observer(() => {
                   //   15, 8   // 放大地图时间距大
                   // ]
                 ],
-                // 'line-translate': [2, 2], // [x, y] 偏移量
-                // 'line-translate-anchor': 'map', // 相对视口偏移
-                // 添加3D效果
-                'line-opacity': 0.8,
+                'line-opacity': 1.0,
                 'line-blur': 0.5
               }
           });
@@ -328,16 +418,96 @@ const TaxiwayMap = observer(() => {
     };
 
     // 观察 messages 数组的变化
-    const disposer = autorun(() => {
+    const disposer1 = autorun(() => {
       if (websocketStore.planePosition.length > 0) {
         updatePlane();
       }
     });
 
+
+    const disposer2 = autorun(() => {
+      console.log('冲突数据变化:', websocketStore.conflicts);
+      if (websocketStore.conflicts != null) {
+          const conflict = websocketStore.conflicts;
+          // const { id1, id2, time, coords1, coords2, distance } = websocketStore.conflicts;
+          console.log('冲突数据:', conflict);
+          const color = '#984ea3'; // 根据飞机ID设置颜色，默认黑色
+          const trajectory = [[
+            [conflict.pos1, conflict.pos2]]
+          ];
+          drawConflict(conflict.id1+'-'+conflict.id2, trajectory, color, 0); // 绘制轨迹
+
+      }
+    });
+
+
+    // 绘制冲突连线
+    const drawConflict = (id, trajectorys, color, h) => {
+      let geodata = {type: 'FeatureCollection', features: []}; // 初始化地理数据对象
+      let index = 0;
+      // const multiColor = generateAlphaVariants(color, 10, 5); // 生成颜色透明度阶梯
+
+      // console.log('绘制轨迹', id, trajectorys);
+
+      trajectorys.forEach(trajectory => {
+        // console.log('绘制轨迹',  trajectory);
+        if (trajectory.length > 0) {
+            geodata.features.push({
+                type: 'Feature',
+                geometry: {
+                    type: 'MultiLineString',
+                    coordinates: trajectory
+                }
+            });
+        }
+      })
+
+      console.log('绘制冲突连线', id);
+      console.log(JSON.stringify(geodata));
+
+      if (!map.current.getSource(id)) {
+          map.current.addSource(id, {
+              type: 'geojson',
+              data: geodata
+          });
+  
+          map.current.addLayer({
+              id: id,
+              type: 'line',
+              source: id,
+              layout: {
+                  "line-join": "round",
+                  "line-cap": "round"
+              },
+              paint: {
+                
+                "line-color": color, // 使用指定颜色
+                "line-width": 10,
+                'line-offset': [
+                  '*',
+                  ['get', 'height'], 
+                ],
+                'line-opacity': 0.8,
+                'line-blur': 0.5
+              }
+          });
+      } else {
+          // 更新轨迹数据
+          const source = map.current.getSource(id);
+          if (source) {
+              source.setData(
+                geodata
+               );
+          }
+      }
+    };
+
+
     return () => {
       console.log('清理地图');
       map.current?.remove();
-      disposer(); // 清理观察者
+      disposer1(); // 清理观察者
+      disposer2(); // 清理观察者
     }
   }, []);
 

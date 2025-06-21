@@ -1,6 +1,10 @@
 import React from "react";
 import TaxiwayMap from "./TaxiwayMap";
+import ThreeDMap from "./3Dmap";
 import "./index.css";
+import Test from "./Test";
+
+
 
 const Dashboard = () => {
     return (
@@ -23,6 +27,8 @@ const Dashboard = () => {
             <div className="right-bottom">
               <div className="content-placeholder">
                 <TaxiwayMap geoJsonUrl="/taxiwayline2.geojson" />
+                {/* <ThreeDMap /> */}
+                {/* <Test /> */}
               </div>
               
             </div>
