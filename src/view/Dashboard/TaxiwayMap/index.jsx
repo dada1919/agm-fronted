@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { observer } from 'mobx-react-lite';
 import websocketStore from '@/stores/WebSocketStore';
 import { autorun } from 'mobx';
+import * as d3 from 'd3';
 // import { WebSocketContext } from '@/websocket/WebsocketProvider';
 
 const TaxiwayMap = observer(() => {
@@ -436,7 +437,7 @@ const TaxiwayMap = observer(() => {
             [conflict.pos1, conflict.pos2]]
           ];
           drawConflict(conflict.id1+'-'+conflict.id2, trajectory, color, 0); // 绘制轨迹
-
+          drawConflictArea(conflict.id1+'-'+conflict.id2, conflict.pos1, conflict.pos2, 0.0003, 'rgba(255,165,0,0.7)');
       }
     });
 
@@ -500,14 +501,145 @@ const TaxiwayMap = observer(() => {
                );
           }
       }
+
+
+      //绘制面积图
+      if (trajectorys.length > 0 && trajectorys[0].length === 2) {
+        const pos1 = trajectorys[0][0];
+        const pos2 = trajectorys[0][1];
+        drawConflictArea(id, pos1, pos2, 10, 'rgba(255,165,0,0.7)');
+      }
     };
 
+ 
+    // 生成面积图分段函数点集
+    function getAreaPoints(length, maxY, steps = 30) {
+      // 三段分段函数
+      const segs = [
+        { a: 0, b: 1, c: 2, from: 0, to: length / 3 },
+        { a: 0, b: 1, c: 0.3, from: length / 3, to: 2 * length / 3 },
+        { a: 9000, b: 3, c: 0.7, from: 2 * length / 3, to: length }
+      ];
+      const points = [];
+      const totalSteps = steps;
+      // 先计算所有y，找最大绝对值
+      let maxAbsY = 0;
+      segs.forEach(seg => {
+        const step = (seg.to - seg.from) / Math.ceil(totalSteps / segs.length);
+        for (let x = seg.from; x <= seg.to; x += step) {
+          let y = seg.b !== 0 ? -(seg.a * x + seg.c) / seg.b : 0;
+          maxAbsY = Math.max(maxAbsY, Math.abs(y));
+        }
+      });
+      // 再生成归一化后的点
+      segs.forEach(seg => {
+        const step = (seg.to - seg.from) / Math.ceil(totalSteps / segs.length);
+        for (let x = seg.from; x <= seg.to; x += step) {
+          let y = seg.b !== 0 ? -(seg.a * x + seg.c) / seg.b : 0;
+          // 归一化到 maxY
+          if (maxAbsY > 0) y = y / maxAbsY * maxY;
+          points.push([x, y]);
+        }
+      });
+      return points;
+    }
+
+    // 只绘制冲突线段左侧面积图
+    function drawConflictArea(id, pos1, pos2, maxYMeters = 10, color = 'rgba(255,165,0,0.7)', leftOffset = -0.00006) {
+      const [x1, y1] = pos1, [x2, y2] = pos2;
+      const dx = x2 - x1, dy = y2 - y1;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      if (length === 0) return;
+
+      // 1. 生成面积图的函数点集（只正向，代表左侧）
+      const areaPoints = getAreaPoints(length, maxYMeters);
+
+      // 2. 直接以冲突连线为基准生成多边形点集
+      //    pos1 + x * (dx/length, dy/length) + y * (-dy/length, dx/length)
+      const ux = dx / length, uy = dy / length;
+      let polygonPoints = areaPoints.map(([x, y]) => [
+        x1 + x * ux - y * uy,
+        y1 + x * uy + y * ux
+      ]);
+
+      // 3. 整体向左平移
+      const offsetX = -uy * leftOffset;
+      const offsetY = ux * leftOffset;
+      polygonPoints = polygonPoints.map(([px, py]) => [px + offsetX, py + offsetY]);
+
+      // 4. 闭合多边形
+      const polygon = [...polygonPoints, 
+        [x2 + offsetX, y2 + offsetY], 
+        [x1 + offsetX, y1 + offsetY], 
+        polygonPoints[0]
+      ];
+
+      // 添加到地图
+      const sourceId = id + '-area';
+      const layerId = id + '-area';
+      if (!map.current.getSource(sourceId)) {
+        map.current.addSource(sourceId, {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              geometry: {
+                type: 'Polygon',
+                coordinates: [polygon]
+              }
+            }]
+          }
+        });
+        map.current.addLayer({
+          id: layerId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': color,
+            'fill-opacity': 0.7
+          }
+        });
+      } else {
+        // 更新数据
+        const source = map.current.getSource(sourceId);
+        if (source) {
+          source.setData({
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              geometry: {
+                type: 'Polygon',
+                coordinates: [polygon]
+              }
+            }]
+          });
+        }
+      }
+    }
+
+    // 移除面积图
+    function removeConflictArea(id) {
+      const sourceId = id + '-area';
+      const layerId = id + '-area';
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+      if (map.current.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+    }
 
     return () => {
       console.log('清理地图');
       map.current?.remove();
       disposer1(); // 清理观察者
       disposer2(); // 清理观察者
+      // 清理所有冲突面积图
+      if (websocketStore.conflicts) {
+        const conflict = websocketStore.conflicts;
+        removeConflictArea(conflict.id1+'-'+conflict.id2);
+      }
     }
   }, []);
 
