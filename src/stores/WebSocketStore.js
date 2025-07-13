@@ -7,6 +7,7 @@ class WebSocketStore {
     planePosition = [];
     isConnected = false;
     conflicts = null;
+    overlapTaxiways = null; // 新增：存储重叠滑行道数据
 
     constructor() {
         makeAutoObservable(this);
@@ -26,6 +27,11 @@ class WebSocketStore {
         this.socket.on('conflict_alert', (data) => {
             console.log("Received conflict update:", data);
             this.updateConflicts(data);
+        });
+        // 新增：处理重叠滑行道更新事件
+        this.socket.on('overlap_taxiways_update', (data) => {
+            console.log("Received overlap taxiways update:", data);
+            this.updateOverlapTaxiways(data);
         });
 
         // 连接成功和断开连接事件
@@ -49,6 +55,11 @@ class WebSocketStore {
 
     updateConflicts(newConflicts) {
         this.conflicts = newConflicts;
+    }
+
+    // 新增：更新重叠滑行道数据的方法
+    updateOverlapTaxiways(newOverlapTaxiways) {
+        this.overlapTaxiways = newOverlapTaxiways;
     }
 }
 

@@ -4,7 +4,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { observer } from 'mobx-react-lite';
 import websocketStore from '@/stores/WebSocketStore';
 import { autorun } from 'mobx';
-import * as d3 from 'd3';
 // import { WebSocketContext } from '@/websocket/WebsocketProvider';
 
 const TaxiwayMap = observer(() => {
@@ -437,7 +436,7 @@ const TaxiwayMap = observer(() => {
             [conflict.pos1, conflict.pos2]]
           ];
           drawConflict(conflict.id1+'-'+conflict.id2, trajectory, color, 0); // 绘制轨迹
-          drawConflictArea(conflict.id1+'-'+conflict.id2, conflict.pos1, conflict.pos2, 0.0003, 'rgba(255,165,0,0.7)');
+
       }
     });
 
@@ -501,145 +500,210 @@ const TaxiwayMap = observer(() => {
                );
           }
       }
-
-
-      //绘制面积图
-      if (trajectorys.length > 0 && trajectorys[0].length === 2) {
-        const pos1 = trajectorys[0][0];
-        const pos2 = trajectorys[0][1];
-        drawConflictArea(id, pos1, pos2, 10, 'rgba(255,165,0,0.7)');
-      }
     };
 
- 
-    // 生成面积图分段函数点集
-    function getAreaPoints(length, maxY, steps = 30) {
-      // 三段分段函数
-      const segs = [
-        { a: 0, b: 1, c: 2, from: 0, to: length / 3 },
-        { a: 0, b: 1, c: 0.3, from: length / 3, to: 2 * length / 3 },
-        { a: 9000, b: 3, c: 0.7, from: 2 * length / 3, to: length }
-      ];
-      const points = [];
-      const totalSteps = steps;
-      // 先计算所有y，找最大绝对值
-      let maxAbsY = 0;
-      segs.forEach(seg => {
-        const step = (seg.to - seg.from) / Math.ceil(totalSteps / segs.length);
-        for (let x = seg.from; x <= seg.to; x += step) {
-          let y = seg.b !== 0 ? -(seg.a * x + seg.c) / seg.b : 0;
-          maxAbsY = Math.max(maxAbsY, Math.abs(y));
-        }
-      });
-      // 再生成归一化后的点
-      segs.forEach(seg => {
-        const step = (seg.to - seg.from) / Math.ceil(totalSteps / segs.length);
-        for (let x = seg.from; x <= seg.to; x += step) {
-          let y = seg.b !== 0 ? -(seg.a * x + seg.c) / seg.b : 0;
-          // 归一化到 maxY
-          if (maxAbsY > 0) y = y / maxAbsY * maxY;
-          points.push([x, y]);
-        }
-      });
-      return points;
-    }
+    let highlightTimer = null;
+    let highlightLayers = [];
+    let geojsonData = null; // 保存原始geojson
 
-    // 只绘制冲突线段左侧面积图
-    function drawConflictArea(id, pos1, pos2, maxYMeters = 10, color = 'rgba(255,165,0,0.7)', leftOffset = -0.00006) {
-      const [x1, y1] = pos1, [x2, y2] = pos2;
-      const dx = x2 - x1, dy = y2 - y1;
-      const length = Math.sqrt(dx * dx + dy * dy);
-      if (length === 0) return;
-
-      // 1. 生成面积图的函数点集（只正向，代表左侧）
-      const areaPoints = getAreaPoints(length, maxYMeters);
-
-      // 2. 直接以冲突连线为基准生成多边形点集
-      //    pos1 + x * (dx/length, dy/length) + y * (-dy/length, dx/length)
-      const ux = dx / length, uy = dy / length;
-      let polygonPoints = areaPoints.map(([x, y]) => [
-        x1 + x * ux - y * uy,
-        y1 + x * uy + y * ux
-      ]);
-
-      // 3. 整体向左平移
-      const offsetX = -uy * leftOffset;
-      const offsetY = ux * leftOffset;
-      polygonPoints = polygonPoints.map(([px, py]) => [px + offsetX, py + offsetY]);
-
-      // 4. 闭合多边形
-      const polygon = [...polygonPoints, 
-        [x2 + offsetX, y2 + offsetY], 
-        [x1 + offsetX, y1 + offsetY], 
-        polygonPoints[0]
-      ];
-
-      // 添加到地图
-      const sourceId = id + '-area';
-      const layerId = id + '-area';
-      if (!map.current.getSource(sourceId)) {
-        map.current.addSource(sourceId, {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              geometry: {
-                type: 'Polygon',
-                coordinates: [polygon]
-              }
-            }]
-          }
+    // 加载GeoJSON数据
+    fetch(geoJsonUrl)
+      .then(response => response.json())
+      .then(data => {
+        geojsonData = data; // 保存原始geojson
+        // 确保每个 feature 都有 id 字段
+        geojsonData.features.forEach(f => {
+          f.id = String(parseInt(f.properties.id));
         });
-        map.current.addLayer({
-          id: layerId,
-          type: 'fill',
-          source: sourceId,
-          paint: {
-            'fill-color': color,
-            'fill-opacity': 0.7
-          }
-        });
-      } else {
-        // 更新数据
-        const source = map.current.getSource(sourceId);
-        if (source) {
-          source.setData({
-            type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              geometry: {
-                type: 'Polygon',
-                coordinates: [polygon]
+        // 轨迹绘制法高亮taxiway_id
+        function highlightTaxiwayByLayer(ids) {
+          if (!map.current || !geojsonData) return;
+          // 先移除旧的高亮层
+          highlightLayers.forEach(id => {
+            const layerId = 'highlight-' + id;
+            if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+            if (map.current.getSource(layerId)) map.current.removeSource(layerId);
+          });
+          console.log('geojsonData', geojsonData);
+          highlightLayers = [];
+          ids.forEach(id => {
+            // 用 id 字段查找，注意类型转换
+           
+            const feature = geojsonData.features.find(f => String(parseInt(f.id)) === String(id));
+          
+            if (!feature) return;
+            const sourceId = 'highlight-' + id;
+            map.current.addSource(sourceId, {
+              type: 'geojson',
+              data: feature
+            });
+            map.current.addLayer({
+              id: sourceId,
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-color': '#00ff1b',
+                'line-width': 8,
+                'line-opacity': 1
               }
-            }]
+            });
+            highlightLayers.push(id);
           });
         }
-      }
-    }
+        function unhighlightTaxiwayByLayer() {
+          if (!map.current) return;
+          highlightLayers.forEach(id => {
+            const layerId = 'highlight-' + id;
+            if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+            if (map.current.getSource(layerId)) map.current.removeSource(layerId);
+          });
+          highlightLayers = [];
+        }
 
-    // 移除面积图
-    function removeConflictArea(id) {
-      const sourceId = id + '-area';
-      const layerId = id + '-area';
-      if (map.current.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
-      }
-      if (map.current.getSource(sourceId)) {
-        map.current.removeSource(sourceId);
-      }
-    }
+        // 监听overlapTaxiways变化
+        const disposer3 = autorun(() => {
+          const overlapTaxiways = websocketStore.overlapTaxiways;
+          if (overlapTaxiways && Array.isArray(overlapTaxiways) && overlapTaxiways.length > 0) {
+            const ids = overlapTaxiways.map(item => String(item.taxiway_id));
+            console.log('ids', ids);
+          
+            highlightTaxiwayByLayer(ids);
+            highlightTaxiwayByLayerWithArea(overlapTaxiways);
+            if (highlightTimer) clearTimeout(highlightTimer);
+            highlightTimer = setTimeout(() => {
+              unhighlightTaxiwayByLayer();
+            }, 10000);
+          } else {
+            // 没有数据时立即取消高亮
+            unhighlightTaxiwayByLayer();
+            if (highlightTimer) {
+              clearTimeout(highlightTimer);
+              highlightTimer = null;
+            }
+          }
+        });
+
+        function highlightTaxiwayByLayerWithArea(overlapData) {
+          if (!map.current || !geojsonData) return;
+
+          // 先移除旧的面积图层
+          if (window._areaLayers) {
+            window._areaLayers.forEach(id => {
+              if (map.current.getLayer(id)) map.current.removeLayer(id);
+              if (map.current.getSource(id)) map.current.removeSource(id);
+            });
+          }
+          window._areaLayers = [];
+
+          overlapData.forEach(item => {
+            const { taxiway_id, data } = item;
+            // 找到该taxiway的polyline
+            console.log('taxiway_id', taxiway_id,'data',data);
+            const feature = geojsonData.features.find(f => String(parseInt(f.id)) === String(taxiway_id));
+            console.log('feature', feature);
+            if (!feature) return;
+            const line = feature.geometry.coordinates[0]; // 只取第一段
+            const dists = getCumulativeDistances(line);
+
+            data.forEach((seg, idx) => {
+              const { x1, x2, a, b, c } = seg;
+              const sampleStep = 1; // 1米采样
+              const leftPoints = [];
+              const rightPoints = [];
+              const scale = 0.001; // 或更小
+              //  const maxWidth = 100; // 最大宽度（米）
+              for (let x = x1; x <= x2; x += sampleStep) {
+                const pt = getPointAtDistance(line, dists, x);
+                const tangent = getTangentAtDistance(line, dists, x);
+                // 法线方向
+                const normal = [-tangent[1], tangent[0]];
+                // 归一化
+                const normLen = Math.sqrt(normal[0]**2 + normal[1]**2) || 1;
+                const n = [normal[0]/normLen, normal[1]/normLen];
+                let y = (a * x * x + b * x + c) * scale;
+                // y = Math.max(-maxWidth, Math.min(maxWidth, y));
+                // 左右偏移
+                leftPoints.push(offsetPoint(pt, n, y/2));
+                rightPoints.push(offsetPoint(pt, [-n[0], -n[1]], y/2));
+              }
+              // 闭合顺序
+              const polygonCoords = [
+                ...leftPoints,
+                ...rightPoints.reverse(),
+                leftPoints[0]
+              ];
+
+              const polygon = {
+                type: 'Feature',
+                properties: { data: seg, taxiway_id, idx },
+                geometry: { type: 'Polygon', coordinates: [polygonCoords] }
+              };
+              // 绘制
+              const leftId = `area-left-${taxiway_id}-${idx}`;
+              const rightId = `area-right-${taxiway_id}-${idx}`;
+              map.current.addSource(leftId, { type: 'geojson', data: polygon });
+              map.current.addLayer({
+                id: leftId,
+                type: 'fill',
+                source: leftId,
+                paint: {
+                  'fill-color': 'rgba(255,165,0,0.5)',
+                  'fill-opacity': 0.5
+                },
+                interactive: true
+              });
+              map.current.on('click', leftId, (e) => {
+                if (e.features && e.features.length > 0) {
+                  const props = e.features[0].properties;
+                  new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(`<pre>${JSON.stringify(props.data, null, 2)}</pre>`)
+                    .addTo(map.current);
+                }
+              });
+              map.current.addSource(rightId, { type: 'geojson', data: polygon });
+              map.current.addLayer({
+                id: rightId,
+                type: 'fill',
+                source: rightId,
+                paint: {
+                  'fill-color': 'rgba(255,165,0,0.5)',
+                  'fill-opacity': 0.5
+                }
+              });
+              map.current.on('click', rightId, (e) => {
+                if (e.features && e.features.length > 0) {
+                  const props = e.features[0].properties;
+                  new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(`<pre>${JSON.stringify(props.data, null, 2)}</pre>`)
+                    .addTo(map.current);
+                }
+              });
+              window._areaLayers.push(leftId, rightId);
+            });
+          });
+        }
+      
+      })
+      .catch(error => console.error('数据加载失败:', error));
+
 
     return () => {
       console.log('清理地图');
       map.current?.remove();
       disposer1(); // 清理观察者
       disposer2(); // 清理观察者
-      // 清理所有冲突面积图
-      if (websocketStore.conflicts) {
-        const conflict = websocketStore.conflicts;
-        removeConflictArea(conflict.id1+'-'+conflict.id2);
+      if (highlightTimer) clearTimeout(highlightTimer);
+      unhighlightTaxiwayByLayer();
+      if (window._areaLayers) {
+        window._areaLayers.forEach(id => {
+          if (map.current.getLayer(id)) map.current.removeLayer(id);
+          if (map.current.getSource(id)) map.current.removeSource(id);
+        });
+        window._areaLayers = [];
       }
+      disposer3 && disposer3();
     }
   }, []);
 
@@ -652,3 +716,72 @@ const TaxiwayMap = observer(() => {
 })
 
 export default TaxiwayMap;
+
+// 计算两点间距离（米，WGS84球面近似）
+function getDistance(lon1, lat1, lon2, lat2) {
+  const R = 6378137; // 地球半径（米）
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat/2) ** 2 +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon/2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// 计算polyline每个点的累计距离
+function getCumulativeDistances(line) {
+  let dists = [0];
+  for (let i = 1; i < line.length; i++) {
+    const [lon1, lat1] = line[i-1];
+    const [lon2, lat2] = line[i];
+    dists.push(dists[i-1] + getDistance(lon1, lat1, lon2, lat2));
+  }
+  return dists;
+}
+
+// 在polyline上找到距离为x的点（线性插值）
+function getPointAtDistance(line, dists, x) {
+  for (let i = 1; i < dists.length; i++) {
+    if (x <= dists[i]) {
+      const t = (x - dists[i-1]) / (dists[i] - dists[i-1]);
+      const [lon1, lat1] = line[i-1];
+      const [lon2, lat2] = line[i];
+      return [
+        lon1 + (lon2 - lon1) * t,
+        lat1 + (lat2 - lat1) * t
+      ];
+    }
+  }
+  // 超出polyline末端
+  return line[line.length - 1];
+}
+
+// 计算polyline上距离为x点的切线方向（单位向量，经纬度差）
+function getTangentAtDistance(line, dists, x) {
+  for (let i = 1; i < dists.length; i++) {
+    if (x <= dists[i]) {
+      const [lon1, lat1] = line[i-1];
+      const [lon2, lat2] = line[i];
+      let dx = lon2 - lon1;
+      let dy = lat2 - lat1;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      if (len === 0) return [0, 0];
+      return [dx/len, dy/len];
+    }
+  }
+  // 末端
+  return [0, 0];
+}
+
+// 经纬度偏移（以米为单位，近似公式，适合小范围）
+function offsetPoint([lon, lat], [nx, ny], d) {
+  // nx, ny为单位向量（经度、纬度方向）
+  // d为米
+  const R = 6378137;
+  const dLat = (d * ny) / R;
+  const dLon = (d * nx) / (R * Math.cos(Math.PI * lat / 180));
+  return [
+    lon + dLon * 180 / Math.PI,
+    lat + dLat * 180 / Math.PI
+  ];
+}
