@@ -3,6 +3,7 @@ import TaxiwayMap from "./TaxiwayMap";
 import ThreeDMap from "./3Dmap";
 import "./index.css";
 import Test from "./Test";
+import PlanningView from "./PlanningView";
 
 
 
@@ -12,7 +13,9 @@ const Dashboard = () => {
           {/* 左侧主栏 */}
           <div className="left-panel">
             <div className="left-top">
-              <div className="content-placeholder" />
+              <div className="content-placeholder">
+                <PlanningView />
+              </div>
             </div>
             <div className="left-bottom">
               <div className="content-placeholder" />

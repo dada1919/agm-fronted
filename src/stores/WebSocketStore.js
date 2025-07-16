@@ -7,6 +7,7 @@ class WebSocketStore {
     planePosition = [];
     isConnected = false;
     conflicts = null;
+    plannedPath = null; // 新增 plannedPath 属性
 
     constructor() {
         makeAutoObservable(this);
@@ -27,6 +28,10 @@ class WebSocketStore {
             console.log("Received conflict update:", data);
             this.updateConflicts(data);
         });
+        this.socket.on('path_planning_result', (data) => {
+            console.log("Received planned path:", data);
+            this.updatePlannedPath(data);
+        })
 
         // 连接成功和断开连接事件
         this.socket.on('connect', () => console.log('Connected to WebSocket server'));
@@ -49,6 +54,10 @@ class WebSocketStore {
 
     updateConflicts(newConflicts) {
         this.conflicts = newConflicts;
+    }
+
+    updatePlannedPath(newPlannedPath) {
+        this.plannedPath = newPlannedPath;
     }
 }
 
