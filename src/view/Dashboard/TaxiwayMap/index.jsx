@@ -516,49 +516,7 @@ const TaxiwayMap = observer(() => {
           f.id = String(parseInt(f.properties.id));
         });
         // 轨迹绘制法高亮taxiway_id
-        function highlightTaxiwayByLayer(ids) {
-          if (!map.current || !geojsonData) return;
-          // 先移除旧的高亮层
-          highlightLayers.forEach(id => {
-            const layerId = 'highlight-' + id;
-            if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
-            if (map.current.getSource(layerId)) map.current.removeSource(layerId);
-          });
-          console.log('geojsonData', geojsonData);
-          highlightLayers = [];
-          ids.forEach(id => {
-            // 用 id 字段查找，注意类型转换
-           
-            const feature = geojsonData.features.find(f => String(parseInt(f.id)) === String(id));
-          
-            if (!feature) return;
-            const sourceId = 'highlight-' + id;
-            map.current.addSource(sourceId, {
-              type: 'geojson',
-              data: feature
-            });
-            map.current.addLayer({
-              id: sourceId,
-              type: 'line',
-              source: sourceId,
-              paint: {
-                'line-color': '#00ff1b',
-                'line-width': 8,
-                'line-opacity': 1
-              }
-            });
-            highlightLayers.push(id);
-          });
-        }
-        function unhighlightTaxiwayByLayer() {
-          if (!map.current) return;
-          highlightLayers.forEach(id => {
-            const layerId = 'highlight-' + id;
-            if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
-            if (map.current.getSource(layerId)) map.current.removeSource(layerId);
-          });
-          highlightLayers = [];
-        }
+    
 
         // 监听overlapTaxiways变化
         const disposer3 = autorun(() => {
@@ -567,15 +525,8 @@ const TaxiwayMap = observer(() => {
             const ids = overlapTaxiways.map(item => String(item.taxiway_id));
             console.log('ids', ids);
           
-            highlightTaxiwayByLayer(ids);
+          
             highlightTaxiwayByLayerWithArea(overlapTaxiways);
-            if (highlightTimer) clearTimeout(highlightTimer);
-            highlightTimer = setTimeout(() => {
-              unhighlightTaxiwayByLayer();
-            }, 10000);
-          } else {
-            // 没有数据时立即取消高亮
-            unhighlightTaxiwayByLayer();
             if (highlightTimer) {
               clearTimeout(highlightTimer);
               highlightTimer = null;
@@ -607,26 +558,43 @@ const TaxiwayMap = observer(() => {
 
             data.forEach((seg, idx) => {
               const { x1, x2, a, b, c } = seg;
-              const sampleStep = 1; // 1米采样
+              const scale = 0.1; // 你原有的scale
+              // 采样步长可以适当大一点，比如1米
+              const sampleStep = 1;
+
+              // 1. 取出polyline
+              const rawLine = feature.geometry.coordinates[0];
+              const dists = getCumulativeDistances(rawLine);
+
+              // 2. 计算x1、x2对应的y1、y2
+              let y1 = b !== 0 ? (-(a * x1 + c) / b) * scale : 0;
+              let y2 = b !== 0 ? (-(a * x2 + c) / b) * scale : 0;
+              console.log("x1,x2,y1,y2",x1,x2,y1,y2)
+              // 3. 采样x1到x2区间的所有点
+              const totalDist = dists[dists.length - 1];
               const leftPoints = [];
               const rightPoints = [];
-              const scale = 0.001; // 或更小
-              //  const maxWidth = 100; // 最大宽度（米）
-              for (let x = x1; x <= x2; x += sampleStep) {
-                const pt = getPointAtDistance(line, dists, x);
-                const tangent = getTangentAtDistance(line, dists, x);
-                // 法线方向
+              const nSamples = Math.max(2, Math.ceil((x2 - x1) / sampleStep));
+              for (let i = 0; i <= nSamples; i++) {
+                // 当前采样点在x1-x2区间的距离
+                const x = x1 + (x2 - x1) * (i / nSamples);
+                // 线性插值y
+                const y = y1 + (y2 - y1) * (i / nSamples);
+
+                // 取出该点在polyline上的经纬度
+                const pt = getPointAtDistance(rawLine, dists, x);
+                // 取出该点的法线方向
+                const tangent = getTangentAtDistance(rawLine, dists, x);
                 const normal = [-tangent[1], tangent[0]];
-                // 归一化
                 const normLen = Math.sqrt(normal[0]**2 + normal[1]**2) || 1;
                 const n = [normal[0]/normLen, normal[1]/normLen];
-                let y = (a * x * x + b * x + c) * scale;
-                // y = Math.max(-maxWidth, Math.min(maxWidth, y));
+
                 // 左右偏移
                 leftPoints.push(offsetPoint(pt, n, y/2));
                 rightPoints.push(offsetPoint(pt, [-n[0], -n[1]], y/2));
               }
-              // 闭合顺序
+
+              // 4. 组合多边形（左边界+右边界逆序+闭合）
               const polygonCoords = [
                 ...leftPoints,
                 ...rightPoints.reverse(),
@@ -638,21 +606,21 @@ const TaxiwayMap = observer(() => {
                 properties: { data: seg, taxiway_id, idx },
                 geometry: { type: 'Polygon', coordinates: [polygonCoords] }
               };
-              // 绘制
-              const leftId = `area-left-${taxiway_id}-${idx}`;
-              const rightId = `area-right-${taxiway_id}-${idx}`;
-              map.current.addSource(leftId, { type: 'geojson', data: polygon });
+
+              // 5. 绘制
+              const areaId = `area-${taxiway_id}-${idx}`;
+              map.current.addSource(areaId, { type: 'geojson', data: polygon });
               map.current.addLayer({
-                id: leftId,
+                id: areaId,
                 type: 'fill',
-                source: leftId,
+                source: areaId,
                 paint: {
-                  'fill-color': 'rgba(255,165,0,0.5)',
+                  'fill-color': 'rgba(255,165,0, 0.5)',
                   'fill-opacity': 0.5
                 },
                 interactive: true
               });
-              map.current.on('click', leftId, (e) => {
+              map.current.on('click', areaId, (e) => {
                 if (e.features && e.features.length > 0) {
                   const props = e.features[0].properties;
                   new maplibregl.Popup()
@@ -661,26 +629,7 @@ const TaxiwayMap = observer(() => {
                     .addTo(map.current);
                 }
               });
-              map.current.addSource(rightId, { type: 'geojson', data: polygon });
-              map.current.addLayer({
-                id: rightId,
-                type: 'fill',
-                source: rightId,
-                paint: {
-                  'fill-color': 'rgba(255,165,0,0.5)',
-                  'fill-opacity': 0.5
-                }
-              });
-              map.current.on('click', rightId, (e) => {
-                if (e.features && e.features.length > 0) {
-                  const props = e.features[0].properties;
-                  new maplibregl.Popup()
-                    .setLngLat(e.lngLat)
-                    .setHTML(`<pre>${JSON.stringify(props.data, null, 2)}</pre>`)
-                    .addTo(map.current);
-                }
-              });
-              window._areaLayers.push(leftId, rightId);
+              window._areaLayers.push(areaId);
             });
           });
         }
@@ -695,7 +644,6 @@ const TaxiwayMap = observer(() => {
       disposer1(); // 清理观察者
       disposer2(); // 清理观察者
       if (highlightTimer) clearTimeout(highlightTimer);
-      unhighlightTaxiwayByLayer();
       if (window._areaLayers) {
         window._areaLayers.forEach(id => {
           if (map.current.getLayer(id)) map.current.removeLayer(id);
