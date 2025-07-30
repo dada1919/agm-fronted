@@ -8,6 +8,9 @@ class WebSocketStore {
     isConnected = false;
     conflicts = null;
     plannedPath = null; // 新增 plannedPath 属性
+    plannedFlights = {}; // 计划航班数据
+    activeFlights = {}; // 活跃航班数据
+    pathConflicts = []; // 路径冲突数据
 
     constructor() {
         makeAutoObservable(this);
@@ -21,7 +24,7 @@ class WebSocketStore {
 
         // 处理接收到的消息
         this.socket.on('plane_position_update', (data) => {
-            // console.log("Received plane position update:", data);
+            console.log("Received plane position update:", data);
             this.updatePlanePosition(data);
         });
         this.socket.on('conflict_alert', (data) => {
@@ -50,6 +53,7 @@ class WebSocketStore {
 
     updatePlanePosition(newPosition) {
         this.planePosition = newPosition;
+        console.log('planePosition', this.planePosition);
     }
 
     updateConflicts(newConflicts) {
@@ -57,7 +61,12 @@ class WebSocketStore {
     }
 
     updatePlannedPath(newPlannedPath) {
+        // 适配新的后端数据格式
+        // 新格式: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
         this.plannedPath = newPlannedPath;
+        this.plannedFlights = newPlannedPath.planned_flights || {};
+        this.activeFlights = newPlannedPath.active_flights || {};
+        this.pathConflicts = newPlannedPath.conflicts || [];
     }
 }
 
