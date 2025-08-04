@@ -1,37 +1,19 @@
 import React from "react";
 import TaxiwayMap from "./TaxiwayMap";
-import ThreeDMap from "./3Dmap";
 import "./index.css";
-import Test from "./Test";
-
-
+import PlanningView from "./PlanningView";
 
 const Dashboard = () => {
     return (
         <div className="dashboard-container">
-          {/* 左侧主栏 */}
-          <div className="left-panel">
-            <div className="left-top">
-              <div className="content-placeholder" />
-            </div>
-            <div className="left-bottom">
-              <div className="content-placeholder" />
-            </div>
+          {/* 上方 PlanningView */}
+          <div className="top-panel">
+            <PlanningView />
           </div>
     
-          {/* 右侧主栏 */}
-          <div className="right-panel">
-            <div className="right-top">
-              <div className="content-placeholder" />
-            </div>
-            <div className="right-bottom">
-              <div className="content-placeholder">
-                <TaxiwayMap geoJsonUrl="/taxiwayline2.geojson" />
-                {/* <ThreeDMap /> */}
-                {/* <Test /> */}
-              </div>
-              
-            </div>
+          {/* 下方 TaxiwayMap */}
+          <div className="bottom-panel">
+            <TaxiwayMap geoJsonUrl="/taxiwayline2.geojson" />
           </div>
         </div>
     )

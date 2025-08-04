@@ -27,7 +27,8 @@ const TaxiwayMap = observer(() => {
           container: mapContainer.current,
           style: { version: 8, sources: {}, layers: [] },
           center: [116.593238, 40.051893],  // 初始中心点
-          zoom: 17
+          zoom: 17,
+          bearing: 90  // 向右旋转90度
         });
 
         map.current.on('load', () => {
@@ -84,7 +85,8 @@ const TaxiwayMap = observer(() => {
           if (!bounds.isEmpty()) {
             map.current.fitBounds(bounds, {
               padding: 50,
-              duration: 1000
+              duration: 1000,
+              bearing: 90  // 保持旋转角度
             });
           }
 
@@ -151,6 +153,7 @@ const TaxiwayMap = observer(() => {
   
       // 处理现有和新飞机标记
       websocketStore.planePosition.forEach(plane => {
+        console.log('plane1', plane);
           const { id, coords, cur_path, trajectory } = plane;
           const color = getColor(id); // 根据飞机ID设置颜色，默认黑色
 

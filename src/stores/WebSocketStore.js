@@ -9,6 +9,13 @@ class WebSocketStore {
     conflicts = null;
     overlapTaxiways = null; // 新增：存储重叠滑行道数据
 
+
+    
+    plannedPath = null; // 新增 plannedPath 属性
+    plannedFlights = {}; // 计划航班数据
+    activeFlights = {}; // 活跃航班数据
+    pathConflicts = []; // 路径冲突数据
+
     constructor() {
         makeAutoObservable(this);
         this.connect();
@@ -21,7 +28,7 @@ class WebSocketStore {
 
         // 处理接收到的消息
         this.socket.on('plane_position_update', (data) => {
-            // console.log("Received plane position update:", data);
+            console.log("Received plane position update:", data);
             this.updatePlanePosition(data);
         });
         this.socket.on('conflict_alert', (data) => {
@@ -33,6 +40,10 @@ class WebSocketStore {
             console.log("Received overlap taxiways update:", data);
             this.updateOverlapTaxiways(data);
         });
+        this.socket.on('path_planning_result', (data) => {
+            console.log("Received planned path:", data);
+            this.updatePlannedPath(data);
+        })
 
         // 连接成功和断开连接事件
         this.socket.on('connect', () => console.log('Connected to WebSocket server'));
@@ -51,6 +62,7 @@ class WebSocketStore {
 
     updatePlanePosition(newPosition) {
         this.planePosition = newPosition;
+        console.log('planePosition', this.planePosition);
     }
 
     updateConflicts(newConflicts) {
@@ -60,6 +72,14 @@ class WebSocketStore {
     // 新增：更新重叠滑行道数据的方法
     updateOverlapTaxiways(newOverlapTaxiways) {
         this.overlapTaxiways = newOverlapTaxiways;
+    }
+    updatePlannedPath(newPlannedPath) {
+        // 适配新的后端数据格式
+        // 新格式: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
+        this.plannedPath = newPlannedPath;
+        this.plannedFlights = newPlannedPath.planned_flights || {};
+        this.activeFlights = newPlannedPath.active_flights || {};
+        this.pathConflicts = newPlannedPath.conflicts || [];
     }
 }
 
