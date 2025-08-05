@@ -3,8 +3,115 @@ import websocketStore from '@/stores/WebSocketStore';
 import { observer } from 'mobx-react';
 import { autorun } from 'mobx';
 import * as d3 from 'd3';
+import { Table } from 'antd';
+import { createStyles } from 'antd-style';
+
+const useStyle = createStyles(({ css, token }) => {
+  const { antCls } = token;
+  return {
+    customTable: css`
+      ${antCls}-table {
+        ${antCls}-table-container {
+          ${antCls}-table-body,
+          ${antCls}-table-content {
+            scrollbar-width: thin;
+            scrollbar-color: #eaeaea transparent;
+            scrollbar-gutter: stable;
+          }
+        }
+      }
+    `,
+  };
+});
+
+const columns = [
+  {
+    title: 'Full Name',
+    width: 100,
+    dataIndex: 'name',
+    key: 'name',
+    fixed: 'left',
+  },
+  {
+    title: 'Age',
+    width: 100,
+    dataIndex: 'age',
+    key: 'age',
+    fixed: 'left',
+  },
+  {
+    title: 'Column 1',
+    dataIndex: 'address',
+    key: '1',
+    width: 150,
+  },
+  {
+    title: 'Column 2',
+    dataIndex: 'address',
+    key: '2',
+    width: 150,
+  },
+  {
+    title: 'Column 3',
+    dataIndex: 'address',
+    key: '3',
+    width: 150,
+  },
+  {
+    title: 'Column 4',
+    dataIndex: 'address',
+    key: '4',
+    width: 150,
+  },
+  {
+    title: 'Column 5',
+    dataIndex: 'address',
+    key: '5',
+    width: 150,
+  },
+  {
+    title: 'Column 6',
+    dataIndex: 'address',
+    key: '6',
+    width: 150,
+  },
+  {
+    title: 'Column 7',
+    dataIndex: 'address',
+    key: '7',
+    width: 150,
+  },
+  { title: 'Column 8', dataIndex: 'address', key: '8' },
+  { title: 'Column 9', dataIndex: 'address', key: '9' },
+  { title: 'Column 10', dataIndex: 'address', key: '10' },
+  { title: 'Column 11', dataIndex: 'address', key: '11' },
+  { title: 'Column 12', dataIndex: 'address', key: '12' },
+  { title: 'Column 13', dataIndex: 'address', key: '13' },
+  { title: 'Column 14', dataIndex: 'address', key: '14' },
+  { title: 'Column 15', dataIndex: 'address', key: '15' },
+  { title: 'Column 16', dataIndex: 'address', key: '16' },
+  { title: 'Column 17', dataIndex: 'address', key: '17' },
+  { title: 'Column 18', dataIndex: 'address', key: '18' },
+  { title: 'Column 19', dataIndex: 'address', key: '19' },
+  { title: 'Column 20', dataIndex: 'address', key: '20' },
+  {
+    title: 'Action',
+    key: 'operation',
+    fixed: 'right',
+    width: 100,
+    render: () => <a>action</a>,
+  },
+];
+
+const dataSource = Array.from({ length: 100 }).map((_, i) => ({
+  key: i,
+  name: `Edward King ${i}`,
+  age: 32,
+  address: `London, Park Lane no. ${i}`,
+}));
 
 const PlanningView = observer(() => {
+    const { styles } = useStyle();
     const width = 1200, height = 400; // 增加尺寸以容纳更多数据
     const svgRef = useRef();
     const d3Container = useRef({});
@@ -679,23 +786,47 @@ const PlanningView = observer(() => {
                 测试新数据格式
             </button>
             <div style={{ 
+                display: 'flex',
                 width: '100%', 
                 height: 'calc(100% - 60px)', // 减去按钮的高度
-                overflow: 'hidden'
+                gap: '10px'
             }}>
-                <svg 
-                    ref={svgRef} 
-                    width="100%" 
-                    height="100%"
-                    viewBox={`0 0 ${width} ${height}`}
-                    preserveAspectRatio="xMidYMid meet"
-                    style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: '100%',
-                        display: 'block'
-                    }}
-                >
-                </svg>
+                {/* 左侧表格 */}
+                <div style={{ 
+                    width: '40%', 
+                    height: '100%',
+                    overflow: 'hidden'
+                }}>
+                    <Table
+                        className={styles.customTable}
+                        columns={columns}
+                        dataSource={dataSource}
+                        scroll={{ x: 'max-content', y: 55 * 5 }}
+                        size="small"
+                        pagination={false}
+                    />
+                </div>
+                
+                {/* 右侧图表 */}
+                <div style={{ 
+                    width: '60%', 
+                    height: '100%',
+                    overflow: 'auto'
+                }}>
+                    <svg 
+                        ref={svgRef} 
+                        width="100%" 
+                        height="100%"
+                        viewBox={`0 0 ${width} ${height}`}
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{ 
+                            maxWidth: '100%', 
+                            maxHeight: '100%',
+                            display: 'block'
+                        }}
+                    >
+                    </svg>
+                </div>
             </div>
         </div>
     );
