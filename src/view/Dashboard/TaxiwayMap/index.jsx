@@ -6,49 +6,7 @@ import websocketStore from '@/stores/WebSocketStore';
 import { autorun } from 'mobx';
 // import { WebSocketContext } from '@/websocket/WebsocketProvider';
 // ... 其他import
-const testOverlapData = [
-  {
-    flight1_id: "TEST001",
-    flight2_id: "TEST002",
-    taxiway_sequence: [64,2716],
-    conflict_time: "2025-08-03T13:05:21.911602",
-    merged_functions: [
-      
-      { x1: 0, x2: 48.25, a: 10, b: -75, c: 33193 },
-      { x1: 48.25, x2: 100, a: 10, b: -75, c: 3200 },
-      { x1: 100, x2: 200, a: 10, b: -75, c: 37893},
-      { x1: 0, x2: 48.25, a: 10, b: -75, c: 32317 }
 
-    ],
-    total_conflict_length: 382.11
-  },
-  {
-    flight1_id: "TEST003",
-    flight2_id: "TEST004",
-    taxiway_sequence: [2627, 2930, 904],
-    conflict_time: "2025-08-03T13:05:21.123456",
-    merged_functions: [
-      { x1: 0, x2: 25.5, a: 5, b: -30, c: 654 },
-      { x1: 25.5, x2: 45.2, a: 8, b: -40, c: 678 },
-      { x1: 0, x2: 30.0, a: 12, b: -60, c: 0.0 },
-      { x1: 0, x2: 120.0, a: 6, b: -35, c: 0.0 },
-      { x1: 120.0, x2: 235.0, a: 9, b: -45, c: 0.0 }
-    ],
-    total_conflict_length: 310.2
-  },
-  {
-    flight1_id: "TEST005",
-    flight2_id: "TEST006",
-    taxiway_sequence: [817],
-    conflict_time: "2025-08-03T13:05:21.789012",
-    merged_functions: [
-      { x1: 0, x2: 15.0, a: 3, b: -20, c: 0.0 },
-      { x1: 15.0, x2: 40.0, a: 7, b: -50, c: 0.0 },
-      { x1: 40.0, x2: 60.0, a: 11, b: -70, c: 0.0 }
-    ],
-    total_conflict_length: 60.0
-  }
-];
 const TaxiwayMap = observer(() => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -57,6 +15,23 @@ const TaxiwayMap = observer(() => {
   // const { socket } = useContext(WebSocketContext);
   // const [inputMessage, setInputMessage] = useState('taxiway');
 
+  async function fetchConflictsTxt() {
+    const res = await fetch('/conflicts.txt');
+    const text = await res.text();
+    // 提取 detected_conflicts: 后面的内容
+    const match = text.match(/detected_conflicts:\s*(\[.*\])$/s);
+    if (match) {
+      try {
+        // 将单引号替换为双引号，方便JSON解析
+        const jsonStr = match[1].replace(/'/g, '"');
+        return JSON.parse(jsonStr);
+      } catch (e) {
+        console.error('conflicts.txt 解析失败:', e);
+        return [];
+      }
+    }
+    return [];
+  }
 
   useEffect(() => {
 
@@ -603,10 +578,18 @@ const TaxiwayMap = observer(() => {
           let overlapTaxiways = websocketStore.overlapTaxiways;
           console.log('WebSocket overlapTaxiways:', overlapTaxiways);
 
-          // 如果没有数据，自动使用示例数据
           if (!overlapTaxiways || !Array.isArray(overlapTaxiways) || overlapTaxiways.length === 0) {
             console.log('Using test data instead');
-            overlapTaxiways = testOverlapData;
+            fetchConflictsTxt().then(data => {
+              console.log('overlapTaxiwaysqqqqqqqqqq:', data);
+              // 在这里直接处理 data，而不是赋值给 overlapTaxiways
+              if (data && Array.isArray(data) && data.length > 0) {
+                highlightTaxiwayByLayerWithArea(data);
+              }
+            });
+          } else {
+            // 处理已有数据的情况
+            highlightTaxiwayByLayerWithArea(overlapTaxiways);
           }
 
           if (overlapTaxiways && Array.isArray(overlapTaxiways) && overlapTaxiways.length > 0) {
@@ -622,6 +605,7 @@ const TaxiwayMap = observer(() => {
         });
 
         function highlightTaxiwayByLayerWithArea(overlapData) {
+          console.log('highlightTaxiwayByLayerWithArea', overlapData);
           if (!map.current || !geojsonData) return;
 
           // 先移除旧的面积图层
@@ -641,95 +625,237 @@ const TaxiwayMap = observer(() => {
               return;
             }
 
-            // // 按道路分组处理merged_functions
-            // let currentTaxiwayIndex = 0;
-            // let currentTaxiwayId = taxiway_sequence[currentTaxiwayIndex];
-            // let currentFunctions = [];
 
-            // merged_functions.forEach((func, funcIdx) => {
-            //   // 如果x1为0，说明是新道路的开始
-            //   if (func.x1 === 0 && funcIdx > 0) {
-            //     // 处理当前道路的函数
-            //     processTaxiwayFunctions(currentTaxiwayId, currentFunctions, conflictIdx, conflictItem);
+            // const allLeftPoints = [];
+            // const allRightPoints = [];
+            // let taxiwayIdx = 0;
 
-            //     // 移动到下一个道路
-            //     currentTaxiwayIndex++;
-            //     if (currentTaxiwayIndex < taxiway_sequence.length) {
-            //       currentTaxiwayId = taxiway_sequence[currentTaxiwayIndex];
-            //       currentFunctions = [func];
-            //     }
-            //   } else {
-            //     // 添加到当前道路的函数列表
-            //     currentFunctions.push(func);
+            // merged_functions.forEach((seg, idx) => {
+            //   // 按顺序取对应道路
+            //   // 如果分段函数数量大于道路数量，最后一个道路用于剩余分段
+            //   if (seg.x1 === 0 && idx > 0) {
+            //     taxiwayIdx++;
+
             //   }
+
+            //   const taxiwayId = taxiway_sequence[Math.min(taxiwayIdx, taxiway_sequence.length - 1)];
+            //   const feature = geojsonData.features.find(f => String(parseInt(f.id)) === String(taxiwayId));
+            //   if (!feature) {
+            //     console.warn('Feature not found for taxiway_id:', taxiwayId);
+            //     return;
+            //   }
+            //   const rawLine = feature.geometry.coordinates[0];
+            //   const dists = getCumulativeDistances(rawLine);
+
+            //   const { x1, x2, a, b, c } = seg;
+            //   const scale = 1;
+            //   const sampleStep = 1;
+            //   let y1 = b !== 0 ? (-(a * x1 + c) / b) * scale : 0;
+            //   let y2 = b !== 0 ? (-(a * x2 + c) / b) * scale : 0;
+
+            //   const nSamples = Math.max(2, Math.ceil((x2 - x1) / sampleStep));
+            //   const segmentLeftPoints = [];
+            //   const segmentRightPoints = [];
+
+            //   for (let i = 0; i <= nSamples; i++) {
+            //     const x = x1 + (x2 - x1) * (i / nSamples);
+            //     const y = y1 + (y2 - y1) * (i / nSamples);
+
+            //     const pt = getPointAtDistance(rawLine, dists, x);
+            //     const tangent = getTangentAtDistance(rawLine, dists, x);
+            //     const normal = [-tangent[1], tangent[0]];
+            //     const normLen = Math.sqrt(normal[0] ** 2 + normal[1] ** 2) || 1;
+            //     const n = [normal[0] / normLen, normal[1] / normLen];
+
+            //     segmentLeftPoints.push(offsetPoint(pt, n, y / 2));
+            //     segmentRightPoints.push(offsetPoint(pt, [-n[0], -n[1]], y / 2));
+            //   }
+
+            //   // 拼接所有分段函数的点
+            //   if (idx === 0) {
+            //     allLeftPoints.push(...segmentLeftPoints);
+            //     allRightPoints.push(...segmentRightPoints);
+            //   } else {
+            //     allLeftPoints.push(...segmentLeftPoints.slice(1));
+            //     allRightPoints.push(...segmentRightPoints.slice(1));
+            //   }
+
             // });
 
-            // // 处理最后一个道路的函数
-            // if (currentFunctions.length > 0 && currentTaxiwayIndex < taxiway_sequence.length) {
-            //   processTaxiwayFunctions(currentTaxiwayId, currentFunctions, conflictIdx, conflictItem);
-            // }
-            // 采样所有分段函数的边界点
+
+
+            // 采样所有分段函数的边界点（跨道路分段）
+            // Step 1: Get all segments and orient them to form a continuous path
+            const features = taxiway_sequence
+              .map(id => geojsonData.features.find(f => String(parseInt(f.id)) === String(id)))
+              .filter(Boolean);
+
+            const orientedSegments = [];
+            if (features.length > 0) {
+              // Start with the first segment. We will orient it based on the second, if it exists.
+              const firstSegment = [...features[0].geometry.coordinates[0]];
+
+              if (features.length > 1) {
+                const secondSegment = features[1].geometry.coordinates[0];
+                
+                const firstStart = firstSegment[0];
+                const firstEnd = firstSegment[firstSegment.length - 1];
+                const secondStart = secondSegment[0];
+                const secondEnd = secondSegment[secondSegment.length - 1];
+
+                const distStartToSecond = Math.min(
+                  getDistance(firstStart[0], firstStart[1], secondStart[0], secondStart[1]),
+                  getDistance(firstStart[0], firstStart[1], secondEnd[0], secondEnd[1])
+                );
+
+                const distEndToSecond = Math.min(
+                  getDistance(firstEnd[0], firstEnd[1], secondStart[0], secondStart[1]),
+                  getDistance(firstEnd[0], firstEnd[1], secondEnd[0], secondEnd[1])
+                );
+
+                // If the original start point is closer to the next segment, reverse the segment.
+                // This ensures the path flows from the "far" point to the "near" point.
+                if (distStartToSecond < distEndToSecond) {
+                  firstSegment.reverse();
+                }
+              }
+              orientedSegments.push(firstSegment);
+
+              // Orient subsequent segments based on the previously oriented one
+              for (let i = 1; i < features.length; i++) {
+                const prevSegment = orientedSegments[i - 1];
+                const currentSegment = [...features[i].geometry.coordinates[0]];
+                
+                const prevEnd = prevSegment[prevSegment.length - 1];
+                const currentStart = currentSegment[0];
+                const currentEnd = currentSegment[currentSegment.length - 1];
+
+                if (getDistance(prevEnd[0], prevEnd[1], currentEnd[0], currentEnd[1]) < getDistance(prevEnd[0], prevEnd[1], currentStart[0], currentStart[1])) {
+                  currentSegment.reverse();
+                }
+                orientedSegments.push(currentSegment);
+              }
+            }
+
+            // Step 2: Build the final continuous path and add markers
+            const continuousPath = [];
+            let lastPoint = null;
+            
+            orientedSegments.forEach((segment, index) => {
+                // Add a red marker at the start of each segment for debugging
+                new maplibregl.Marker({ color: 'red' })
+                  .setLngLat(segment[0])
+                  .setPopup(new maplibregl.Popup().setText(`道路${features[index].properties.id} 0点`))
+                  .addTo(map.current);
+
+                // Add points to the continuous path, avoiding duplicates at junctions
+                if (index === 0) {
+                  continuousPath.push(...segment);
+                } else {
+                  continuousPath.push(...segment.slice(1));
+                }
+                lastPoint = continuousPath[continuousPath.length - 1];
+            });
+
+            // Step 2: Calculate cumulative distances for the entire continuous path
+            const pathDists = getCumulativeDistances(continuousPath);
+            const totalPathLength = pathDists[pathDists.length - 1];
+
+            // Step 3: Generate points for the area polygon based on merged_functions
             const allLeftPoints = [];
             const allRightPoints = [];
-            let taxiwayIdx = 0;
-         
-            merged_functions.forEach((seg, idx) => {
-              // 按顺序取对应道路
-              // 如果分段函数数量大于道路数量，最后一个道路用于剩余分段
-              if (seg.x1 === 0 && idx > 0) {
-                  taxiwayIdx++;
-                  
-                }
-           
-              const taxiwayId = taxiway_sequence[Math.min(taxiwayIdx, taxiway_sequence.length - 1)];
-              const feature = geojsonData.features.find(f => String(parseInt(f.id)) === String(taxiwayId));
-              if (!feature) {
-                console.warn('Feature not found for taxiway_id:', taxiwayId);
-                return;
-              }
-              const rawLine = feature.geometry.coordinates[0];
-              const dists = getCumulativeDistances(rawLine);
 
+            merged_functions.forEach(seg => {
               const { x1, x2, a, b, c } = seg;
-              const scale = 0.1;
-              const sampleStep = 1;
-              let y1 = b !== 0 ? (-(a * x1 + c) / b) * scale : 0;
-              let y2 = b !== 0 ? (-(a * x2 + c) / b) * scale : 0;
 
-              const nSamples = Math.max(2, Math.ceil((x2 - x1) / sampleStep));
-              const segmentLeftPoints = [];
-              const segmentRightPoints = [];
+              // Clamp the function's domain to the actual path length
+              const globalStart = Math.max(0, x1);
+              const globalEnd = Math.min(totalPathLength, x2);
+
+              if (globalEnd <= globalStart) return;
+
+              const scale = 1;
+              const sampleStep = 1; // Sample every 1 meter
+              const nSamples = Math.max(2, Math.ceil((globalEnd - globalStart) / sampleStep));
 
               for (let i = 0; i <= nSamples; i++) {
-                const x = x1 + (x2 - x1) * (i / nSamples);
-                const y = y1 + (y2 - y1) * (i / nSamples);
+                const dist = globalStart + (globalEnd - globalStart) * (i / nSamples);
+                const y = b !== 0 ? (-(a * dist + c) / b) * scale : 0;
 
-                const pt = getPointAtDistance(rawLine, dists, x);
-                const tangent = getTangentAtDistance(rawLine, dists, x);
+                const pt = getPointAtDistance(continuousPath, pathDists, dist);
+                const tangent = getTangentAtDistance(continuousPath, pathDists, dist);
                 const normal = [-tangent[1], tangent[0]];
                 const normLen = Math.sqrt(normal[0] ** 2 + normal[1] ** 2) || 1;
                 const n = [normal[0] / normLen, normal[1] / normLen];
 
-                segmentLeftPoints.push(offsetPoint(pt, n, y / 2));
-                segmentRightPoints.push(offsetPoint(pt, [-n[0], -n[1]], y / 2));
-              }
+                const leftPt = offsetPoint(pt, n, y / 2);
+                const rightPt = offsetPoint(pt, [-n[0], -n[1]], y / 2);
 
-              // 拼接所有分段函数的点
-              if (idx === 0) {
-                allLeftPoints.push(...segmentLeftPoints);
-                allRightPoints.push(...segmentRightPoints);
-              } else {
-                allLeftPoints.push(...segmentLeftPoints.slice(1));
-                allRightPoints.push(...segmentRightPoints.slice(1));
+                allLeftPoints.push(leftPt);
+                allRightPoints.push(rightPt);
               }
-             
             });
+
             // 组合多边形点
+            // const polygonCoords = [
+            //   ...allLeftPoints,
+            //   ...allRightPoints.reverse(),
+            //   allLeftPoints[0]
+            // ];
+
+            // const polygon = {
+            //   type: 'Feature',
+            //   properties: {
+            //     data: merged_functions,
+            //     taxiway_sequence,
+            //     conflict_idx: conflictIdx,
+            //     flight1_id,
+            //     flight2_id
+            //   },
+            //   geometry: { type: 'Polygon', coordinates: [polygonCoords] }
+            // };
+
+            // const areaId = `area-${flight1_id}-${flight2_id}-${conflictIdx}`;
+            // try {
+            //   map.current.addSource(areaId, { type: 'geojson', data: polygon });
+            //   map.current.addLayer({
+            //     id: areaId,
+            //     type: 'fill',
+            //     source: areaId,
+            //     paint: {
+            //       'fill-color': 'rgba(255,165,0, 0.5)',
+            //       'fill-opacity': 0.5
+            //     },
+            //     interactive: true
+            //   });
+            //   map.current.on('click', areaId, (e) => {
+            //     if (e.features && e.features.length > 0) {
+            //       const props = e.features[0].properties;
+            //       new maplibregl.Popup()
+            //         .setLngLat(e.lngLat)
+            //         .setHTML(`<pre>${JSON.stringify(props.data, null, 2)}</pre>`)
+            //         .addTo(map.current);
+            //     }
+            //   });
+            //   window._areaLayers.push(areaId);
+            // } catch (error) {
+            //   console.error('Error creating merged area layer:', areaId, error);
+            // }
+
+
+
+
+
+
+
             const polygonCoords = [
               ...allLeftPoints,
-              ...allRightPoints.reverse(),
-              allLeftPoints[0]
+              ...allRightPoints.reverse()
             ];
+
+            polygonCoords.push([...allLeftPoints[0]]);
+
+
 
             const polygon = {
               type: 'Feature',
@@ -745,6 +871,7 @@ const TaxiwayMap = observer(() => {
 
             const areaId = `area-${flight1_id}-${flight2_id}-${conflictIdx}`;
             try {
+
               map.current.addSource(areaId, { type: 'geojson', data: polygon });
               map.current.addLayer({
                 id: areaId,
@@ -756,6 +883,34 @@ const TaxiwayMap = observer(() => {
                 },
                 interactive: true
               });
+              // // 外边框线图层
+              // const borderId = `${areaId}-border`;
+              // map.current.addSource(borderId, {
+              //   type: 'geojson',
+              //   data: {
+              //     type: 'Feature',
+              //     geometry: {
+              //       type: 'LineString',
+              //       coordinates: polygonCoords
+              //     }
+              //   }
+              // });
+              // map.current.addLayer({
+              //   id: borderId,
+              //   type: 'line',
+              //   source: borderId,
+              //   paint: {
+              //     // 渐变红色
+              //     'line-width': 4,
+              //     'line-color': [
+              //       'interpolate',
+              //       ['linear'],
+              //       ['line-progress'],
+              //       0, 'red',
+              //       1, 'yellow'
+              //     ]
+              //   }
+              // });
               map.current.on('click', areaId, (e) => {
                 if (e.features && e.features.length > 0) {
                   const props = e.features[0].properties;
@@ -770,7 +925,10 @@ const TaxiwayMap = observer(() => {
               console.error('Error creating merged area layer:', areaId, error);
             }
 
+
           });
+
+
         }
 
         function processTaxiwayFunctions(taxiwayId, functions, conflictIdx, conflictItem) {
