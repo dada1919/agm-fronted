@@ -126,6 +126,10 @@ const PlanningView = observer(() => {
         const updatePlanningView = (plannedData) => {
             // 适配新的数据格式
             // plannedData: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
+            console.log('PlanningView received data:', plannedData);
+            console.log('planned_flights:', plannedData?.planned_flights);
+            console.log('active_flights:', plannedData?.active_flights);
+            
             let maxTime = 0;
             let aircraftIds = [];
             let left_times = [];
@@ -139,24 +143,32 @@ const PlanningView = observer(() => {
                 Object.entries(plannedData.planned_flights).forEach(([flightId, flightData]) => {
                     aircraftIds.push(flightId);
                     
-                    // 转换为原有格式，添加类型标识
+                    // planned_flights的start_time是数字（秒），需要转换为分钟
+                    const startTimeMinutes = flightData.start_time / 60;
+                    const taxiTimeMinutes = flightData.taxi_time / 60;
+                    
                     const convertedData = {
                         aircraft_id: flightId,
-                        type: 'planning', // 添加类型标识
+                        type: 'planning', // 计划航班类型
+                        time_to_start: startTimeMinutes,
+                        taxi_time: taxiTimeMinutes,
                         paths: [{
-                            time: flightData.taxi_time / 60, // 转换为分钟
+                            start_time: startTimeMinutes, // 开始时间
+                            end_time: startTimeMinutes + taxiTimeMinutes, // 结束时间
+                            duration: taxiTimeMinutes, // 持续时间
                             path: flightData.path
                         }],
-                        left_time: 0, // 计划航班没有剩余时间
                         conflicts: [] // 后续处理冲突
                     };
                     
                     plannedResults.push(convertedData);
                     left_times.push(0);
-                    plan_times.push(flightData.taxi_time / 60);
+                    plan_times.push(taxiTimeMinutes);
                     
-                    if (flightData.taxi_time / 60 > maxTime) {
-                        maxTime = flightData.taxi_time / 60;
+                    // 计算planned flight的结束时间作为maxTime的参考
+                    const endTime = startTimeMinutes + taxiTimeMinutes;
+                    if (endTime > maxTime) {
+                        maxTime = endTime;
                     }
                 });
             }
@@ -166,29 +178,35 @@ const PlanningView = observer(() => {
                 Object.entries(plannedData.active_flights).forEach(([flightId, flightData]) => {
                     aircraftIds.push(flightId);
                     
+                    // active_flights的remaining_taxi_time是剩余时间（秒），转换为分钟
+                    const remainingTimeMinutes = (flightData.remaining_taxi_time || 0) / 60;
+                    
                     const convertedData = {
                         aircraft_id: flightId,
-                        type: 'active', // 添加类型标识
+                        type: 'active', // 活跃航班类型
                         paths: [{
-                            time: flightData.remaining_taxi_time / 60, // 转换为分钟
+                            time: remainingTimeMinutes, // 剩余时间
                             path: flightData.path
                         }],
-                        left_time: flightData.remaining_taxi_time / 60,
-                        conflicts: []
+                        left_time: remainingTimeMinutes,
+                        conflicts: [] // 后续处理冲突
                     };
                     
                     plannedResults.push(convertedData);
-                    left_times.push(flightData.remaining_taxi_time / 60);
+                    left_times.push(remainingTimeMinutes);
                     plan_times.push(0); // 活跃航班没有计划时间
                     
-                    if (flightData.remaining_taxi_time / 60 > maxTime) {
-                        maxTime = flightData.remaining_taxi_time / 60;
+                    if (remainingTimeMinutes > maxTime) {
+                        maxTime = remainingTimeMinutes;
                     }
                 });
             }
 
             console.log("aircraftIds:", aircraftIds);
             console.log("Max Time:", maxTime);
+            console.log("plannedResults:", plannedResults);
+            console.log("Active flights count:", plannedResults.filter(r => r.type === 'active').length);
+            console.log("Planning flights count:", plannedResults.filter(r => r.type === 'planning').length);
 
             maxTime = Math.ceil(maxTime)
             setTimeScale({ min: 0, max: maxTime });
@@ -314,8 +332,14 @@ const PlanningView = observer(() => {
                     .data(plannedResult.paths)
                     .enter()
                     .append("line")
-                    .attr("x1", d => xScale(0))
-                    .attr("x2", d => xScale(d.time))
+                    .attr("x1", d => {
+                        // 对于planned flights，从start_time开始；对于active flights，从0开始
+                        return plannedResult.type === 'planning' ? xScale(d.start_time) : xScale(0);
+                    })
+                    .attr("x2", d => {
+                        // 对于planned flights，到end_time结束；对于active flights，到time结束
+                        return plannedResult.type === 'planning' ? xScale(d.end_time) : xScale(d.time);
+                    })
                     .attr("y1", (d, j) => yScale(plannedResult.aircraft_id) + j * 3)
                     .attr("y2", (d, j) => yScale(plannedResult.aircraft_id) + j * 3)
                     .attr("stroke", color)
@@ -329,7 +353,10 @@ const PlanningView = observer(() => {
                     .enter()
                     .append("circle")
                     .attr("class", "start-point")
-                    .attr("cx", d => xScale(0))
+                    .attr("cx", d => {
+                        // 对于planned flights，起始点在start_time；对于active flights，起始点在0
+                        return plannedResult.type === 'planning' ? xScale(d.start_time) : xScale(0);
+                    })
                     .attr("cy", (d, j) => yScale(plannedResult.aircraft_id) + j * 3)
                     .attr("r", plannedResult.type === 'active' ? 6 : 4)
                     .attr("fill", color)
@@ -342,7 +369,10 @@ const PlanningView = observer(() => {
                     .enter()
                     .append("circle")
                     .attr("class", "end-point")
-                    .attr("cx", d => xScale(d.time))
+                    .attr("cx", d => {
+                        // 对于planned flights，结束点在end_time；对于active flights，结束点在time
+                        return plannedResult.type === 'planning' ? xScale(d.end_time) : xScale(d.time);
+                    })
                     .attr("cy", (d, j) => yScale(plannedResult.aircraft_id) + j * 3)
                     .attr("r", plannedResult.type === 'active' ? 6 : 4)
                     .attr("fill", plannedResult.type === 'active' ? color : "white")
@@ -357,7 +387,7 @@ const PlanningView = observer(() => {
                         .append("polygon")
                         .attr("class", "active-indicator")
                         .attr("points", d => {
-                            const x = xScale(d.time);
+                            const x = plannedResult.type === 'planning' ? xScale(d.end_time) : xScale(d.time);
                             const y = yScale(plannedResult.aircraft_id) - 10;
                             return `${x},${y} ${x-5},${y-8} ${x+5},${y-8}`;
                         })
@@ -373,7 +403,7 @@ const PlanningView = observer(() => {
                         .enter()
                         .append("rect")
                         .attr("class", "planning-indicator")
-                        .attr("x", d => xScale(d.time) - 4)
+                        .attr("x", d => xScale(d.end_time) - 4)
                         .attr("y", yScale(plannedResult.aircraft_id) - 14)
                         .attr("width", 8)
                         .attr("height", 8)
@@ -708,14 +738,16 @@ const PlanningView = observer(() => {
 
         //这里的逻辑应该是前端按按钮向后端传要规划的飞机id,后端返回结果
         const disposer = autorun(() => {
-            if (websocketStore.plannedPath != null) {
-                console.log("Planned Path:", JSON.stringify(websocketStore.plannedPath));
+            if (websocketStore.plannedFlights != null) {
+
+                // console.log("Planned Path:", JSON.stringify(websocketStore.plannedPath));
                 console.log("Planned Flights:", websocketStore.plannedFlights);
-                console.log("Active Flights:", websocketStore.activeFlights);
+                // console.log("Active Flights:", websocketStore.activeFlights);
                 console.log("Path Conflicts:", websocketStore.pathConflicts);
                 
                 // 使用新的数据格式更新视图
-                updatePlanningView(websocketStore.plannedPath);
+                updatePlanningView(websocketStore.plannedFlights);
+
             }
         })
 

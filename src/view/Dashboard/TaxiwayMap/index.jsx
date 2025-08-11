@@ -480,11 +480,11 @@ const TaxiwayMap = observer(() => {
 
 
     const disposer2 = autorun(() => {
-      console.log('冲突数据变化:', websocketStore.conflicts);
+      // console.log('冲突数据变化:', websocketStore.conflicts);
       if (websocketStore.conflicts != null) {
         const conflict = websocketStore.conflicts;
         // const { id1, id2, time, coords1, coords2, distance } = websocketStore.conflicts;
-        console.log('冲突数据:', conflict);
+        // console.log('冲突数据:', conflict);
         const color = '#984ea3'; // 根据飞机ID设置颜色，默认黑色
         const trajectory = [[
           [conflict.pos1, conflict.pos2]]
@@ -743,10 +743,10 @@ const TaxiwayMap = observer(() => {
             
             orientedSegments.forEach((segment, index) => {
                 // Add a red marker at the start of each segment for debugging
-                new maplibregl.Marker({ color: 'red' })
-                  .setLngLat(segment[0])
-                  .setPopup(new maplibregl.Popup().setText(`道路${features[index].properties.id} 0点`))
-                  .addTo(map.current);
+                // new maplibregl.Marker({ color: 'red' })
+                //   .setLngLat(segment[0])
+                //   .setPopup(new maplibregl.Popup().setText(`道路${features[index].properties.id} 0点`))
+                //   .addTo(map.current);
 
                 // Add points to the continuous path, avoiding duplicates at junctions
                 if (index === 0) {
