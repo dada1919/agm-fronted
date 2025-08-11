@@ -7,9 +7,9 @@ import { Table } from 'antd';
 import { createStyles } from 'antd-style';
 
 const useStyle = createStyles(({ css, token }) => {
-  const { antCls } = token;
-  return {
-    customTable: css`
+    const { antCls } = token;
+    return {
+        customTable: css`
       ${antCls}-table {
         ${antCls}-table-container {
           ${antCls}-table-body,
@@ -21,93 +21,112 @@ const useStyle = createStyles(({ css, token }) => {
         }
       }
     `,
-  };
+    };
 });
 
+const testData = {
+             'planned_flights': {'CCA1642': {'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': 6, 'origin': '775', 'destination': '1818', 'time_to_takeoff': 7}, 
+             'CHH7538': {'path': [['344', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2123', 1], ['2122', 1], ['2130', 0], ['2132', 0]], 'node_path': ['294', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '1550', '1549', '1554', '1968'], 'taxiway_sequence': ['344', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2123', '2122', '2130', '2132'], 'taxi_time': 576.7686521583825, 'start_time': 116, 'origin': '294', 'destination': '1968', 'time_to_takeoff': 11}, 
+             'ETH605': {'path': [['1389', 1], ['1388', 1], ['160', 1], ['159', 1], ['158', 1], ['157', 1], ['156', 1], ['155', 1], ['154', 1], ['153', 1], ['152', 1], ['151', 1], ['150', 1], ['149', 1], ['148', 1], ['147', 1], ['146', 1], ['2639', 1], ['893', 1], ['2627', 0], ['818', 1], ['817', 1], ['816', 1], ['2724', 1], ['658', 1], ['2720', 0], ['186', 1], ['185', 1], ['184', 1], ['183', 1], ['182', 1], ['181', 1], ['2716', 1], ['64', 1]], 'node_path': ['1996', '1149', '131', '130', '129', '128', '127', '126', '125', '124', '123', '122', '121', '120', '119', '118', '117', '116', '824', '823', '1745', '751', '750', '749', '598', '597', '152', '151', '150', '149', '148', '147', '146', '42', '41'], 'taxiway_sequence': ['1389', '1388', '160', '159', '158', '157', '156', '155', '154', '153', '152', '151', '150', '149', '148', '147', '146', '2639', '893', '2627', '818', '817', '816', '2724', '658', '2720', '186', '185', '184', '183', '182', '181', '2716', '64'], 'taxi_time': 1179.5237413367543, 'start_time': 118, 'origin': '1996', 'destination': '41', 'time_to_takeoff': 21}, 
+             'CHH7716': {'path': [['1618', 0], ['797', 1], ['796', 1], ['795', 1], ['794', 1], ['793', 1], ['792', 1], ['937', 1], ['791', 1], ['790', 1], ['789', 1], ['788', 1], ['787', 1], ['786', 1], ['1771', 0], ['880', 0], ['881', 0], ['882', 0], ['1932', 0], ['1934', 0], ['1936', 0], ['1785', 0], ['1786', 0], ['1787', 0]], 'node_path': ['745', '731', '730', '729', '728', '727', '726', '725', '863', '724', '723', '722', '721', '720', '719', '811', '812', '813', '814', '1456', '1457', '1391', '1392', '1393', '1920'], 'taxiway_sequence': ['1618', '797', '796', '795', '794', '793', '792', '937', '791', '790', '789', '788', '787', '786', '1771', '880', '881', '882', '1932', '1934', '1936', '1785', '1786', '1787'], 'taxi_time': 925.6569040229369, 'start_time': 258, 'origin': '745', 'destination': '1920', 'time_to_takeoff': 19},
+              'CHH7184': {'path': [['1563', 1], ['2895', 1], ['2894', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2127', 1], ['841', 0], ['842', 0], ['843', 0], ['844', 0], ['847', 0], ['848', 0], ['849', 0], ['850', 0], ['851', 0], ['852', 0], ['2098', 0], ['1459', 1], ['1458', 1], ['1457', 1], ['1456', 1], ['1455', 1], ['1454', 1], ['1453', 1], ['1452', 1], ['1451', 1], ['1654', 1]], 'node_path': ['397', '1278', '1845', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '774', '775', '776', '777', '778', '779', '780', '781', '782', '783', '784', '1203', '1202', '1201', '1200', '1199', '1198', '1197', '1196', '1195', '1194', '1329'], 'taxiway_sequence': ['1563', '2895', '2894', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2127', '841', '842', '843', '844', '847', '848', '849', '850', '851', '852', '2098', '1459', '1458', '1457', '1456', '1455', '1454', '1453', '1452', '1451', '1654'], 'taxi_time': 1193.6505629027668, 'start_time': 577, 'origin': '397', 'destination': '1329', 'time_to_takeoff': 29}, 
+              'UZB502': {'path': [['2968', 1]], 'node_path': ['1868', '1869'], 'taxiway_sequence': ['2968'], 'taxi_time': 55.24926167354947, 'start_time': 99, 'origin': '1868', 'destination': '1869', 'time_to_takeoff': 2}, 
+             'CCA1346': {'path': [['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['2675', 0]], 'node_path': ['834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '2003'], 'taxiway_sequence': ['2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '2675'], 'taxi_time': 254.48942158563852, 'start_time': 201, 'origin': '834', 'destination': '2003', 'time_to_takeoff': 7}, 
+             'UAE307': {'path': [['2716', 1], ['64', 1]], 'node_path': ['146', '42', '41'], 'taxiway_sequence': ['2716', '64'], 'taxi_time': 118.44060108174774, 'start_time': 118, 'origin': '146', 'destination': '41', 'time_to_takeoff': 3}, 
+             'CCD1918': {'path': [['1588', 1], ['2610', 1], ['2607', 1], ['2605', 1], ['193', 1], ['2624', 1], ['891', 0], ['2628', 1], ['2630', 0], ['904', 0], ['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['127', 1], ['126', 1], ['125', 1], ['124', 1], ['2661', 0], ['254', 0], ['2477', 0], ['552', 1], ['551', 1], ['550', 1], ['549', 1], ['548', 1], ['547', 1], ['546', 1], ['545', 1], ['544', 1], ['543', 1], ['542', 1], ['541', 1], ['540', 1], ['539', 1], ['538', 1], ['537', 1], ['536', 1], ['535', 1], ['2556', 1], ['2572', 0]], 'node_path': ['398', '1294', '1743', '1741', '159', '158', '821', '822', '1745', '833', '834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '95', '94', '214', '215', '495', '494', '493', '492', '491', '490', '489', '488', '487', '486', '485', '484', '483', '482', '481', '480', '479', '478', '477', '1724', '2050'], 'taxiway_sequence': ['1588', '2610', '2607', '2605', '193', '2624', '891', '2628', '2630', '904', '2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '127', '126', '125', '124', '2661', '254', '2477', '552', '551', '550', '549', '548', '547', '546', '545', '544', '543', '542', '541', '540', '539', '538', '537', '536', '535', '2556', '2572'], 'taxi_time': 1257.0560552121317, 'start_time': 459, 'origin': '398', 'destination': '2050', 'time_to_takeoff': 28}
+            },
+            "active_flights": {'CCA1642': {'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': '2023-11-02T00:00:06', 'origin': '775', 'destination': '1818', 'remaining_taxi_time': 15.807982103858414, 'time_to_takeoff': 0}},
+            "conflicts": [('841', ['CCA1642', 'CHH7184'], 0.8035963), 
+            ('2716', ['ETH605', 'UAE307'], 0.8578078833333334),
+             ('345', ['CHH7184', 'CHH7538'], 0.80629805),
+              ('2642', ['CCA1346', 'CCD1918'], 0.7778488166666667)]
+        };
+
+
 const columns = [
-  {
-    title: 'Full Name',
-    width: 100,
-    dataIndex: 'name',
-    key: 'name',
-    fixed: 'left',
-  },
-  {
-    title: 'Age',
-    width: 100,
-    dataIndex: 'age',
-    key: 'age',
-    fixed: 'left',
-  },
-  {
-    title: 'Column 1',
-    dataIndex: 'address',
-    key: '1',
-    width: 150,
-  },
-  {
-    title: 'Column 2',
-    dataIndex: 'address',
-    key: '2',
-    width: 150,
-  },
-  {
-    title: 'Column 3',
-    dataIndex: 'address',
-    key: '3',
-    width: 150,
-  },
-  {
-    title: 'Column 4',
-    dataIndex: 'address',
-    key: '4',
-    width: 150,
-  },
-  {
-    title: 'Column 5',
-    dataIndex: 'address',
-    key: '5',
-    width: 150,
-  },
-  {
-    title: 'Column 6',
-    dataIndex: 'address',
-    key: '6',
-    width: 150,
-  },
-  {
-    title: 'Column 7',
-    dataIndex: 'address',
-    key: '7',
-    width: 150,
-  },
-  { title: 'Column 8', dataIndex: 'address', key: '8' },
-  { title: 'Column 9', dataIndex: 'address', key: '9' },
-  { title: 'Column 10', dataIndex: 'address', key: '10' },
-  { title: 'Column 11', dataIndex: 'address', key: '11' },
-  { title: 'Column 12', dataIndex: 'address', key: '12' },
-  { title: 'Column 13', dataIndex: 'address', key: '13' },
-  { title: 'Column 14', dataIndex: 'address', key: '14' },
-  { title: 'Column 15', dataIndex: 'address', key: '15' },
-  { title: 'Column 16', dataIndex: 'address', key: '16' },
-  { title: 'Column 17', dataIndex: 'address', key: '17' },
-  { title: 'Column 18', dataIndex: 'address', key: '18' },
-  { title: 'Column 19', dataIndex: 'address', key: '19' },
-  { title: 'Column 20', dataIndex: 'address', key: '20' },
-  {
-    title: 'Action',
-    key: 'operation',
-    fixed: 'right',
-    width: 100,
-    render: () => <a>action</a>,
-  },
+    {
+        title: 'Full Name',
+        width: 100,
+        dataIndex: 'name',
+        key: 'name',
+        fixed: 'left',
+    },
+    {
+        title: 'Age',
+        width: 100,
+        dataIndex: 'age',
+        key: 'age',
+        fixed: 'left',
+    },
+    {
+        title: 'Column 1',
+        dataIndex: 'address',
+        key: '1',
+        width: 150,
+    },
+    {
+        title: 'Column 2',
+        dataIndex: 'address',
+        key: '2',
+        width: 150,
+    },
+    {
+        title: 'Column 3',
+        dataIndex: 'address',
+        key: '3',
+        width: 150,
+    },
+    {
+        title: 'Column 4',
+        dataIndex: 'address',
+        key: '4',
+        width: 150,
+    },
+    {
+        title: 'Column 5',
+        dataIndex: 'address',
+        key: '5',
+        width: 150,
+    },
+    {
+        title: 'Column 6',
+        dataIndex: 'address',
+        key: '6',
+        width: 150,
+    },
+    {
+        title: 'Column 7',
+        dataIndex: 'address',
+        key: '7',
+        width: 150,
+    },
+    { title: 'Column 8', dataIndex: 'address', key: '8' },
+    { title: 'Column 9', dataIndex: 'address', key: '9' },
+    { title: 'Column 10', dataIndex: 'address', key: '10' },
+    { title: 'Column 11', dataIndex: 'address', key: '11' },
+    { title: 'Column 12', dataIndex: 'address', key: '12' },
+    { title: 'Column 13', dataIndex: 'address', key: '13' },
+    { title: 'Column 14', dataIndex: 'address', key: '14' },
+    { title: 'Column 15', dataIndex: 'address', key: '15' },
+    { title: 'Column 16', dataIndex: 'address', key: '16' },
+    { title: 'Column 17', dataIndex: 'address', key: '17' },
+    { title: 'Column 18', dataIndex: 'address', key: '18' },
+    { title: 'Column 19', dataIndex: 'address', key: '19' },
+    { title: 'Column 20', dataIndex: 'address', key: '20' },
+    {
+        title: 'Action',
+        key: 'operation',
+        fixed: 'right',
+        width: 100,
+        render: () => <a>action</a>,
+    },
 ];
 
 const dataSource = Array.from({ length: 100 }).map((_, i) => ({
-  key: i,
-  name: `Edward King ${i}`,
-  age: 32,
-  address: `London, Park Lane no. ${i}`,
+    key: i,
+    name: `Edward King ${i}`,
+    age: 32,
+    address: `London, Park Lane no. ${i}`,
 }));
 
 const PlanningView = observer(() => {
@@ -119,9 +138,9 @@ const PlanningView = observer(() => {
 
     useEffect(() => {
         const svg = d3.select(svgRef.current);
-    
+
         // 创建 D3 元素引用
-       
+
 
         const updatePlanningView = (plannedData) => {
             // 适配新的数据格式
@@ -129,24 +148,24 @@ const PlanningView = observer(() => {
             console.log('PlanningView received data:', plannedData);
             console.log('planned_flights:', plannedData?.planned_flights);
             console.log('active_flights:', plannedData?.active_flights);
-            
+
             let maxTime = 0;
             let aircraftIds = [];
             let left_times = [];
             let plan_times = [];
-            
+
             // 转换新数据格式为可视化需要的格式
             const plannedResults = [];
-            
+
             // 处理计划航班
             if (plannedData.planned_flights) {
                 Object.entries(plannedData.planned_flights).forEach(([flightId, flightData]) => {
                     aircraftIds.push(flightId);
-                    
+
                     // planned_flights的start_time是数字（秒），需要转换为分钟
                     const startTimeMinutes = flightData.start_time / 60;
                     const taxiTimeMinutes = flightData.taxi_time / 60;
-                    
+
                     const convertedData = {
                         aircraft_id: flightId,
                         type: 'planning', // 计划航班类型
@@ -160,11 +179,11 @@ const PlanningView = observer(() => {
                         }],
                         conflicts: [] // 后续处理冲突
                     };
-                    
+
                     plannedResults.push(convertedData);
                     left_times.push(0);
                     plan_times.push(taxiTimeMinutes);
-                    
+
                     // 计算planned flight的结束时间作为maxTime的参考
                     const endTime = startTimeMinutes + taxiTimeMinutes;
                     if (endTime > maxTime) {
@@ -172,15 +191,15 @@ const PlanningView = observer(() => {
                     }
                 });
             }
-            
+
             // 处理活跃航班
             if (plannedData.active_flights) {
                 Object.entries(plannedData.active_flights).forEach(([flightId, flightData]) => {
                     aircraftIds.push(flightId);
-                    
+
                     // active_flights的remaining_taxi_time是剩余时间（秒），转换为分钟
                     const remainingTimeMinutes = (flightData.remaining_taxi_time || 0) / 60;
-                    
+
                     const convertedData = {
                         aircraft_id: flightId,
                         type: 'active', // 活跃航班类型
@@ -191,11 +210,11 @@ const PlanningView = observer(() => {
                         left_time: remainingTimeMinutes,
                         conflicts: [] // 后续处理冲突
                     };
-                    
+
                     plannedResults.push(convertedData);
                     left_times.push(remainingTimeMinutes);
                     plan_times.push(0); // 活跃航班没有计划时间
-                    
+
                     if (remainingTimeMinutes > maxTime) {
                         maxTime = remainingTimeMinutes;
                     }
@@ -215,84 +234,84 @@ const PlanningView = observer(() => {
 
             const svg = d3.select(svgRef.current);
             const width = 1200; // 与组件定义的宽度保持一致
-            
+
             // 根据飞机数量动态计算所需高度
             const minHeightPerAircraft = 50; // 每架飞机最少需要的高度
             const requiredHeight = aircraftIds.length * minHeightPerAircraft;
             const baseHeight = 400;
             const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
-            
+
             const margin = { top: 80, right: 250, bottom: 80, left: 150 }; // 增加各边距以容纳图例和标签
-            
+
             // 清除之前的内容
             svg.selectAll("*").remove();
-            
+
             // 设置SVG尺寸
             svg.attr("width", width)
                 .attr("height", height)
                 .attr("viewBox", [0, 0, width, height])
                 .attr("style", "max-width: 100%; height: auto;");
-            
+
             // 创建主容器
             const g = svg.append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
-            
+
             // 计算实际绘图区域尺寸
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
-            
+
             console.log(maxTime, aircraftIds);
 
             // 创建时间比例尺
             const xScale = d3.scaleLinear()
-                            .domain([0, maxTime])
-                            .range([0, innerWidth]);
-            
+                .domain([0, maxTime])
+                .range([0, innerWidth]);
+
             // 创建飞机ID比例尺（点比例尺）
             // 根据飞机数量动态调整高度
             const actualHeight = Math.max(innerHeight, requiredHeight);
-            
+
             const yScale = d3.scalePoint()
-                            .domain(aircraftIds)
-                            .range([0, actualHeight])
-                            .padding(0.5); // 增加间距以避免重叠
-            
+                .domain(aircraftIds)
+                .range([0, actualHeight])
+                .padding(0.5); // 增加间距以避免重叠
+
             // 创建X轴
             const xAxis = d3.axisBottom(xScale)
-                        .tickFormat(d => `T+${d.toFixed(0)}`)
-                        .tickSizeOuter(0);
-            
+                .tickFormat(d => `T+${d.toFixed(0)}`)
+                .tickSizeOuter(0);
+
             // 创建Y轴
             const yAxis = d3.axisLeft(yScale);
 
             const color = '#000000'; // 默认颜色
-            
+
             // 绘制X轴
             g.append("g")
-            .attr("class", "x-axis")
-            .attr("transform", `translate(0, ${actualHeight})`)
-            .call(xAxis)
-            .append("text")
-            .attr("x", innerWidth / 2)
-            .attr("y", 40)
-            .attr("stroke", color)
-            .attr("fill", color)
-            .attr("text-anchor", "middle")
-            .text("时间 (分钟)");
-            
+                .attr("class", "x-axis")
+                .attr("transform", `translate(0, ${actualHeight})`)
+                .call(xAxis)
+                .append("text")
+                .attr("x", innerWidth / 2)
+                .attr("y", 40)
+                .attr("stroke", color)
+                .attr("fill", color)
+                .attr("text-anchor", "middle")
+                .text("时间 (分钟)");
+
             // 绘制Y轴
             g.append("g")
-            .attr("class", "y-axis")
-            .call(yAxis)
-            .append("text")
-            .attr("x", -40)
-            .attr("y", -30)
-            .attr("fill", color)
-            .attr("stroke", color)
-            .attr("text-anchor", "end")
-            .attr("transform", "rotate(-90)")
-            .text("飞机 ID");
-            
+                .attr("class", "y-axis")
+                .call(yAxis)
+                .append("text")
+                .attr("x", -40)
+                .attr("y", -30)
+                .attr("fill", color)
+                .attr("stroke", color)
+                .attr("text-anchor", "end")
+                .attr("transform", "rotate(-90)")
+                .text("飞机 ID");
+
             // 绘制时间线
 
             // 为不同类型的飞机定义不同的颜色和样式
@@ -301,7 +320,7 @@ const PlanningView = observer(() => {
 
             let activeIndex = 0;
             let planningIndex = 0;
-            
+
             const flights = g.selectAll(".flight-group")
                 .data(plannedResults) // 绑定所有飞机的数据
                 .enter()
@@ -310,9 +329,9 @@ const PlanningView = observer(() => {
                 .attr("id", d => `flight-${d.aircraft_id}`); // 使用飞机ID作为DOM的ID，便于调试
 
             // 在每个飞机分组内，根据类型设置不同样式
-            flights.each(function(plannedResult, i) {
+            flights.each(function (plannedResult, i) {
                 const flightGroup = d3.select(this);
-                
+
                 // 根据飞机类型选择颜色和样式
                 let color, strokeWidth, strokeDasharray;
                 if (plannedResult.type === 'active') {
@@ -346,7 +365,7 @@ const PlanningView = observer(() => {
                     .attr("stroke-width", strokeWidth)
                     .attr("stroke-linecap", "round")
                     .attr("stroke-dasharray", strokeDasharray);
-                
+
                 // 添加起始点图标
                 flightGroup.selectAll(".start-point")
                     .data(plannedResult.paths)
@@ -362,7 +381,7 @@ const PlanningView = observer(() => {
                     .attr("fill", color)
                     .attr("stroke", "white")
                     .attr("stroke-width", 2);
-                
+
                 // 添加结束点图标
                 flightGroup.selectAll(".end-point")
                     .data(plannedResult.paths)
@@ -378,7 +397,7 @@ const PlanningView = observer(() => {
                     .attr("fill", plannedResult.type === 'active' ? color : "white")
                     .attr("stroke", color)
                     .attr("stroke-width", 2);
-                
+
                 // 为活跃飞机添加特殊标识（三角形）
                 if (plannedResult.type === 'active') {
                     flightGroup.selectAll(".active-indicator")
@@ -389,13 +408,13 @@ const PlanningView = observer(() => {
                         .attr("points", d => {
                             const x = plannedResult.type === 'planning' ? xScale(d.end_time) : xScale(d.time);
                             const y = yScale(plannedResult.aircraft_id) - 10;
-                            return `${x},${y} ${x-5},${y-8} ${x+5},${y-8}`;
+                            return `${x},${y} ${x - 5},${y - 8} ${x + 5},${y - 8}`;
                         })
                         .attr("fill", color)
                         .attr("stroke", "white")
                         .attr("stroke-width", 1);
                 }
-                
+
                 // 为计划飞机添加特殊标识（方形）
                 if (plannedResult.type === 'planning') {
                     flightGroup.selectAll(".planning-indicator")
@@ -437,7 +456,7 @@ const PlanningView = observer(() => {
 
             //     flights.push(flight);
 
-                
+
             // }
 
 
@@ -453,7 +472,7 @@ const PlanningView = observer(() => {
             //     })
             //     .attr("stroke-width", 4)
             //     .attr("stroke-linecap", "round");   
-            
+
             // // 绘制起始点
             // flights.append("circle")
             //     .attr("cx", d => xScale(d.t0))
@@ -466,7 +485,7 @@ const PlanningView = observer(() => {
             //     })
             //     .attr("stroke", "white")
             //     .attr("stroke-width", 1);
-            
+
             // // 绘制结束点
             // flights.append("circle")
             //     .attr("cx", d => xScale(d.t1))
@@ -479,7 +498,7 @@ const PlanningView = observer(() => {
             //     })
             //     .attr("stroke", "white")
             //     .attr("stroke-width", 1);
-            
+
             // // 添加时间标签
             // flights.append("text")
             //     .attr("x", d => xScale(d.t0) - 5)
@@ -508,16 +527,16 @@ const PlanningView = observer(() => {
 
             aircraftIds.forEach((id, i) => {
                 const yBase = yScale(id) - barWidth; // 柱状图纵向中心
-                
+
                 // 找到对应的飞机数据以确定类型
                 const aircraftData = plannedResults.find(result => result.aircraft_id === id);
                 const isActive = aircraftData && aircraftData.type === 'active';
-                
+
                 // 根据飞机类型设置柱状图颜色和样式
                 const leftTimeColor = isActive ? "#FF6B6B" : "#4ECDC4"; // 活跃飞机用暖色，计划飞机用冷色
                 const planTimeColor = isActive ? "#FF8E53" : "#45B7D1";
                 const barOpacity = isActive ? 0.8 : 0.6; // 活跃飞机更不透明
-                
+
                 // left_time 柱（剩余时间）
                 if (left_times[i] > 0) {
                     barGroup.append("rect")
@@ -530,7 +549,7 @@ const PlanningView = observer(() => {
                         .attr("stroke", isActive ? "#C44569" : "#2C3E50")
                         .attr("stroke-width", isActive ? 2 : 1);
                 }
-                
+
                 // plan_time 柱（计划时间）
                 if (plan_times[i] > 0) {
                     barGroup.append("rect")
@@ -565,7 +584,7 @@ const PlanningView = observer(() => {
             const legendGroup = svg.append("g")
                 .attr("class", "legend")
                 .attr("transform", `translate(${width - 250}, 30)`); // 调整图例位置，确保在可视区域内
-            
+
             // 图例背景
             legendGroup.append("rect")
                 .attr("x", -10)
@@ -576,7 +595,7 @@ const PlanningView = observer(() => {
                 .attr("stroke", "#ccc")
                 .attr("stroke-width", 1)
                 .attr("rx", 5);
-            
+
             // 图例标题
             legendGroup.append("text")
                 .attr("x", 0)
@@ -585,11 +604,11 @@ const PlanningView = observer(() => {
                 .attr("font-weight", "bold")
                 .attr("fill", "#333")
                 .text("飞机类型");
-            
+
             // Active Aircraft 图例
             const activeLegend = legendGroup.append("g")
                 .attr("transform", "translate(0, 25)");
-            
+
             activeLegend.append("line")
                 .attr("x1", 0)
                 .attr("x2", 20)
@@ -598,7 +617,7 @@ const PlanningView = observer(() => {
                 .attr("stroke", "#FF6B6B")
                 .attr("stroke-width", 4)
                 .attr("stroke-linecap", "round");
-            
+
             activeLegend.append("circle")
                 .attr("cx", 20)
                 .attr("cy", 0)
@@ -606,25 +625,25 @@ const PlanningView = observer(() => {
                 .attr("fill", "#FF6B6B")
                 .attr("stroke", "white")
                 .attr("stroke-width", 2);
-            
+
             activeLegend.append("polygon")
                 .attr("points", "20,0 15,-8 25,-8")
                 .attr("fill", "#FF6B6B")
                 .attr("stroke", "white")
                 .attr("stroke-width", 1)
                 .attr("transform", "translate(0, -10)");
-            
+
             activeLegend.append("text")
                 .attr("x", 35)
                 .attr("y", 5)
                 .attr("font-size", "12px")
                 .attr("fill", "#333")
                 .text("活跃飞机 (Active)");
-            
+
             // Planning Aircraft 图例
             const planningLegend = legendGroup.append("g")
                 .attr("transform", "translate(0, 55)");
-            
+
             planningLegend.append("line")
                 .attr("x1", 0)
                 .attr("x2", 20)
@@ -634,7 +653,7 @@ const PlanningView = observer(() => {
                 .attr("stroke-width", 2)
                 .attr("stroke-linecap", "round")
                 .attr("stroke-dasharray", "5,5");
-            
+
             planningLegend.append("circle")
                 .attr("cx", 20)
                 .attr("cy", 0)
@@ -642,7 +661,7 @@ const PlanningView = observer(() => {
                 .attr("fill", "white")
                 .attr("stroke", "#4ECDC4")
                 .attr("stroke-width", 2);
-            
+
             planningLegend.append("rect")
                 .attr("x", 16)
                 .attr("y", -14)
@@ -651,14 +670,14 @@ const PlanningView = observer(() => {
                 .attr("fill", "white")
                 .attr("stroke", "#4ECDC4")
                 .attr("stroke-width", 2);
-            
+
             planningLegend.append("text")
                 .attr("x", 35)
                 .attr("y", 5)
                 .attr("font-size", "12px")
                 .attr("fill", "#333")
                 .text("计划飞机 (Planning)");
-            
+
             // 样式说明
             legendGroup.append("text")
                 .attr("x", 0)
@@ -666,7 +685,7 @@ const PlanningView = observer(() => {
                 .attr("font-size", "10px")
                 .attr("fill", "#666")
                 .text("• 实线/粗线：活跃飞机");
-            
+
             legendGroup.append("text")
                 .attr("x", 0)
                 .attr("y", 100)
@@ -679,19 +698,19 @@ const PlanningView = observer(() => {
             if (plannedData.conflicts && plannedData.conflicts.length > 0) {
                 plannedData.conflicts.forEach(conflict => {
                     console.log("Processing conflict:", conflict);
-                    
+
                     // 根据新的冲突数据格式处理：flight1, flight2, time
                     if (conflict.flight1 && conflict.flight2 && conflict.time !== undefined) {
                         const flight1Id = conflict.flight1;
                         const flight2Id = conflict.flight2;
                         const conflictTime = conflict.time;
-                        
+
                         // 检查两架飞机是否都在aircraftIds中
                         if (aircraftIds.includes(flight1Id) && aircraftIds.includes(flight2Id)) {
                             const y1 = yScale(flight1Id);
                             const y2 = yScale(flight2Id);
                             const x = xScale(conflictTime); // 冲突时间点的x坐标
-                            
+
                             // 绘制冲突点（在每架飞机的时间线上）
                             g.append("circle")
                                 .attr("cx", x)
@@ -700,7 +719,7 @@ const PlanningView = observer(() => {
                                 .attr("fill", "red")
                                 .attr("stroke", "white")
                                 .attr("stroke-width", 2);
-                                
+
                             g.append("circle")
                                 .attr("cx", x)
                                 .attr("cy", y2)
@@ -708,7 +727,7 @@ const PlanningView = observer(() => {
                                 .attr("fill", "red")
                                 .attr("stroke", "white")
                                 .attr("stroke-width", 2);
-                            
+
                             // 绘制连接两架飞机的冲突线
                             g.append("line")
                                 .attr("x1", x)
@@ -719,7 +738,7 @@ const PlanningView = observer(() => {
                                 .attr("stroke-width", 3)
                                 .attr("stroke-dasharray", "5,5")
                                 .attr("opacity", 0.8);
-                                
+
                             // 添加冲突标识文本
                             g.append("text")
                                 .attr("x", x + 10)
@@ -738,17 +757,23 @@ const PlanningView = observer(() => {
 
         //这里的逻辑应该是前端按按钮向后端传要规划的飞机id,后端返回结果
         const disposer = autorun(() => {
-            if (websocketStore.plannedFlights != null) {
+        //     if (websocketStore.plannedFlights != null) {
 
-                // console.log("Planned Path:", JSON.stringify(websocketStore.plannedPath));
-                console.log("Planned Flights:", websocketStore.plannedFlights);
-                // console.log("Active Flights:", websocketStore.activeFlights);
-                console.log("Path Conflicts:", websocketStore.pathConflicts);
+        //         // console.log("Planned Path:", JSON.stringify(websocketStore.plannedPath));
+        //         console.log("Planned Flights:", websocketStore.plannedFlights);
+        //         // console.log("Active Flights:", websocketStore.activeFlights);
+        //         console.log("Path Conflicts:", websocketStore.pathConflicts);
                 
-                // 使用新的数据格式更新视图
-                updatePlanningView(websocketStore.plannedFlights);
+        //         // 使用新的数据格式更新视图
+        //         updatePlanningView(websocketStore.plannedFlights);
 
-            }
+        //     }
+        //     else {
+        //     console.log("WebSocket data not received, using test data...");
+        //     testNewDataFormat(); // 使用测试数据填充
+        // }
+         console.log("WebSocket data not received, using test data...");
+         updatePlanningView(testData); // 使用测试数据填充
         })
 
         return () => {
@@ -757,54 +782,18 @@ const PlanningView = observer(() => {
         };
     }, []);
 
-    // 测试函数：模拟新的后端数据格式
-    const testNewDataFormat = () => {
-        const testData = {
-            "planned_flights": {
-                "CONFLICT_A": {
-                    "path": ["2041", "1704", "1703", "1702", "551", "1718", "1719", "471", "470", "469", "1084", "2018"],
-                    "taxi_time": 152.70205381271265,
-                    "start_time": "2025-07-28T12:28:00",
-                    "origin": "2041",
-                    "destination": "2018"
-                },
-                "CONFLICT_B": {
-                    "path": ["2041", "1704", "1703", "1702", "551", "1718", "1719", "471", "470", "469", "1084", "2018"],
-                    "taxi_time": 152.70205381271265,
-                    "start_time": "2025-07-28T12:29:30",
-                    "origin": "2041",
-                    "destination": "2018"
-                },
-                "CONFLICT_C": {
-                    "path": ["2041", "1704", "1703", "1702", "551", "1718", "1719", "471", "470", "469", "1084", "2018"],
-                    "taxi_time": 152.70205381271265,
-                    "start_time": "2025-07-28T12:29:00",
-                    "origin": "2041",
-                    "destination": "2018"
-                }
-            },
-            "active_flights": {},
-            "conflicts": [
-                {"flight1": "CONFLICT_B", "flight2": "CONFLICT_C", "node": "2041", "time": 1},
-                {"flight1": "CONFLICT_B", "flight2": "CONFLICT_A", "node": "2041", "time": 2},
-                // {"flight1": "CONFLICT_B", "flight2": "CONFLICT_C", "node": "2041", "time": 3}
-            ]
-        };
-        
-        // 模拟WebSocket数据更新
-        websocketStore.updatePlannedPath(testData);
-    };
+
 
     return (
-        <div style={{ 
-            width: '100%', 
-            height: '100%', 
+        <div style={{
+            width: '100%',
+            height: '100%',
             overflow: 'hidden', // 防止出现滚动条
             padding: '10px',
             boxSizing: 'border-box'
         }}>
-            <button 
-                onClick={testNewDataFormat}
+            <button
+                // onClick={testNewDataFormat}
                 style={{
                     margin: '10px 0',
                     padding: '8px 16px',
@@ -817,15 +806,15 @@ const PlanningView = observer(() => {
             >
                 测试新数据格式
             </button>
-            <div style={{ 
+            <div style={{
                 display: 'flex',
-                width: '100%', 
+                width: '100%',
                 height: 'calc(100% - 60px)', // 减去按钮的高度
                 gap: '10px'
             }}>
                 {/* 左侧表格 */}
-                <div style={{ 
-                    width: '40%', 
+                <div style={{
+                    width: '40%',
                     height: '100%',
                     overflow: 'hidden'
                 }}>
@@ -838,21 +827,21 @@ const PlanningView = observer(() => {
                         pagination={false}
                     />
                 </div>
-                
+
                 {/* 右侧图表 */}
-                <div style={{ 
-                    width: '60%', 
+                <div style={{
+                    width: '60%',
                     height: '100%',
                     overflow: 'auto'
                 }}>
-                    <svg 
-                        ref={svgRef} 
-                        width="100%" 
+                    <svg
+                        ref={svgRef}
+                        width="100%"
                         height="100%"
                         viewBox={`0 0 ${width} ${height}`}
                         preserveAspectRatio="xMidYMid meet"
-                        style={{ 
-                            maxWidth: '100%', 
+                        style={{
+                            maxWidth: '100%',
                             maxHeight: '100%',
                             display: 'block'
                         }}
