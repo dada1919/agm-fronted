@@ -11,6 +11,7 @@ const TaxiwayMap = observer(() => {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef({}); // 存储飞机标记（以便于更新和删除）
+  const areaTimers = useRef({});
   const geoJsonUrl = '/taxiwayline2.geojson'; // 文件需放在public目录下
   // const { socket } = useContext(WebSocketContext);
   // const [inputMessage, setInputMessage] = useState('taxiway');
@@ -34,7 +35,7 @@ const TaxiwayMap = observer(() => {
   }
 
   useEffect(() => {
-
+    let disposer3;
     // 加载GeoJSON数据
     fetch(geoJsonUrl)
       .then(response => response.json())
@@ -573,7 +574,7 @@ const TaxiwayMap = observer(() => {
 
 
         // 监听overlapTaxiways变化
-        const disposer3 = autorun(() => {
+        disposer3 = autorun(() => {
 
           let overlapTaxiways = websocketStore.overlapTaxiways;
           console.log('WebSocket overlapTaxiways:', overlapTaxiways);
@@ -618,7 +619,8 @@ const TaxiwayMap = observer(() => {
           window._areaLayers = [];
 
           overlapData.forEach((conflictItem, conflictIdx) => {
-            const { merged_functions, taxiway_sequence, flight1_id, flight2_id } = conflictItem;
+            const { merged_functions, taxiway_sequence, flight1_id, flight2_id, conflict_time } = conflictItem;
+
 
             if (!merged_functions || !Array.isArray(merged_functions) || !taxiway_sequence || !Array.isArray(taxiway_sequence)) {
               console.warn('Invalid data format:', conflictItem);
@@ -697,7 +699,7 @@ const TaxiwayMap = observer(() => {
 
               if (features.length > 1) {
                 const secondSegment = features[1].geometry.coordinates[0];
-                
+
                 const firstStart = firstSegment[0];
                 const firstEnd = firstSegment[firstSegment.length - 1];
                 const secondStart = secondSegment[0];
@@ -725,7 +727,7 @@ const TaxiwayMap = observer(() => {
               for (let i = 1; i < features.length; i++) {
                 const prevSegment = orientedSegments[i - 1];
                 const currentSegment = [...features[i].geometry.coordinates[0]];
-                
+
                 const prevEnd = prevSegment[prevSegment.length - 1];
                 const currentStart = currentSegment[0];
                 const currentEnd = currentSegment[currentSegment.length - 1];
@@ -740,21 +742,21 @@ const TaxiwayMap = observer(() => {
             // Step 2: Build the final continuous path and add markers
             const continuousPath = [];
             let lastPoint = null;
-            
-            orientedSegments.forEach((segment, index) => {
-                // Add a red marker at the start of each segment for debugging
-                // new maplibregl.Marker({ color: 'red' })
-                //   .setLngLat(segment[0])
-                //   .setPopup(new maplibregl.Popup().setText(`道路${features[index].properties.id} 0点`))
-                //   .addTo(map.current);
 
-                // Add points to the continuous path, avoiding duplicates at junctions
-                if (index === 0) {
-                  continuousPath.push(...segment);
-                } else {
-                  continuousPath.push(...segment.slice(1));
-                }
-                lastPoint = continuousPath[continuousPath.length - 1];
+            orientedSegments.forEach((segment, index) => {
+              // Add a red marker at the start of each segment for debugging
+              // new maplibregl.Marker({ color: 'red' })
+              //   .setLngLat(segment[0])
+              //   .setPopup(new maplibregl.Popup().setText(`道路${features[index].properties.id} 0点`))
+              //   .addTo(map.current);
+
+              // Add points to the continuous path, avoiding duplicates at junctions
+              if (index === 0) {
+                continuousPath.push(...segment);
+              } else {
+                continuousPath.push(...segment.slice(1));
+              }
+              lastPoint = continuousPath[continuousPath.length - 1];
             });
 
             // Step 2: Calculate cumulative distances for the entire continuous path
@@ -864,7 +866,8 @@ const TaxiwayMap = observer(() => {
                 taxiway_sequence,
                 conflict_idx: conflictIdx,
                 flight1_id,
-                flight2_id
+                flight2_id,
+                conflict_time
               },
               geometry: { type: 'Polygon', coordinates: [polygonCoords] }
             };
@@ -921,6 +924,35 @@ const TaxiwayMap = observer(() => {
                 }
               });
               window._areaLayers.push(areaId);
+              if (conflict_time && typeof conflict_time === 'number' && conflict_time > 0) {
+                const timeoutMs = conflict_time * 1000 *20; // 转换为毫秒
+
+                //console.log(`设置面积图 ${areaId} 在 ${conflict_time} 秒后清除`);
+
+                const timerId = setTimeout(() => {
+                 // console.log(`自动清除面积图: ${areaId}`);
+
+                  // 清除地图图层和数据源
+                  if (map.current && map.current.getLayer(areaId)) {
+                    map.current.removeLayer(areaId);
+                  }
+                  if (map.current && map.current.getSource(areaId)) {
+                    map.current.removeSource(areaId);
+                  }
+
+                  // 从全局数组中移除
+                  const index = window._areaLayers.indexOf(areaId);
+                  if (index > -1) {
+                    window._areaLayers.splice(index, 1);
+                  }
+
+                  // 清除定时器记录
+                  delete areaTimers.current[areaId];
+                }, timeoutMs);
+
+                // 保存定时器ID
+                areaTimers.current[areaId] = timerId;
+              }
             } catch (error) {
               console.error('Error creating merged area layer:', areaId, error);
             }
@@ -1059,11 +1091,17 @@ const TaxiwayMap = observer(() => {
 
 
     return () => {
-      console.log('清理地图');
+
       map.current?.remove();
       disposer1(); // 清理观察者
       disposer2(); // 清理观察者
       if (highlightTimer) clearTimeout(highlightTimer);
+      // 新增：清理所有面积图定时器
+      Object.values(areaTimers.current).forEach(timerId => {
+        clearTimeout(timerId);
+      });
+      areaTimers.current = {};
+
       if (window._areaLayers) {
         window._areaLayers.forEach(id => {
           if (map.current.getLayer(id)) map.current.removeLayer(id);
