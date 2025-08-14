@@ -40,7 +40,7 @@ class WebSocketStore {
             });
             this.updateConflicts(data.conflicts);
         });
-        this.socket.on('conflict_alert', (data) => {
+        this.socket.on('conflict_update', (data) => {
             console.log("Received conflict update:", data);
             this.updateConflicts(data);
         });
@@ -78,7 +78,8 @@ class WebSocketStore {
                 id: aircraftId,
                 coords: aircraftData.coords,             // 直接使用 coords 字段
                 cur_path: [],                            // 暂时设为空数组，如果后续有路径数据可以更新
-                trajectory: [],                          // 暂时设为空数组，如果后续有轨迹数据可以更新
+                trajectory: aircraftData.trajectory,                          // 暂时设为空数组，如果后续有轨迹数据可以更新
+
                 speed: aircraftData.speed,
                 state: aircraftData.state,
                 path_progress: aircraftData.path_progress,
