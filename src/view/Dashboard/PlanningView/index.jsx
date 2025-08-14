@@ -6,6 +6,217 @@ import * as d3 from 'd3';
 import { Table } from 'antd';
 import { createStyles } from 'antd-style';
 
+// SVG表格组件
+const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef }) => {
+    const svgTableRef = useRef();
+    const containerRef = useRef();
+    
+    // 计算表格尺寸
+    const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
+    const totalHeight = headerHeight + dataSource.length * rowHeight;
+    
+    useEffect(() => {
+        if (tableRef) {
+            tableRef.current = containerRef.current;
+        }
+    }, [tableRef]);
+    
+    // 渲染单元格内容
+    const renderCellContent = (column, record, value) => {
+        if (column.render) {
+            return column.render(value, record);
+        }
+        return value || '-';
+    };
+    
+    // 获取单元格文本颜色
+    const getCellTextColor = (column, record, value) => {
+        if (column.key === 'flight_id') {
+            return record.status === 'normal' ? '#52c41a' : '#1890ff';
+        }
+        return '#000000';
+    };
+    
+    // 格式化显示文本
+    const formatDisplayText = (column, record, value) => {
+        if (column.key === 'taxi_time') {
+            return value ? value.toFixed(1) : '-';
+        }
+        if (column.key === 'start_time') {
+            if (typeof value === 'string') {
+                return new Date(value).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            } else if (typeof value === 'number') {
+                return `T+${(value / 60).toFixed(1)}`;
+            }
+            return '-';
+        }
+        if (column.key === 'time_to_takeoff') {
+            return value !== undefined ? value.toFixed(1) : '-';
+        }
+        if (column.key === 'remaining_taxi_time') {
+            return value ? (value / 60).toFixed(1) : '-';
+        }
+        return value || '-';
+    };
+    
+    return (
+        <div 
+            ref={containerRef}
+            onScroll={onScroll}
+            style={{
+                width: '100%',
+                height: '100%',
+                overflow: 'auto',
+                backgroundColor: '#ffffff'
+            }}
+            className="svg-table-container"
+        >
+            <svg
+                ref={svgTableRef}
+                width={tableWidth}
+                height={totalHeight}
+                style={{
+                    display: 'block',
+                    backgroundColor: '#ffffff',
+                    overflow: 'auto'
+                }}
+            >
+                {/* 表头背景 */}
+                <rect
+                    x={0}
+                    y={0}
+                    width={tableWidth}
+                    height={headerHeight}
+                    fill="#fafafa"
+                    stroke="#f0f0f0"
+                    strokeWidth={1}
+                />
+                
+                {/* 表头文本和分割线 */}
+                {columns.map((column, colIndex) => {
+                    const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
+                    return (
+                        <g key={`header-${colIndex}`}>
+                            {/* 表头文本 */}
+                            <text
+                                x={x + column.width / 2}
+                                y={headerHeight / 2}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fontSize="12px"
+                                fontWeight="bold"
+                                fill="#000000"
+                            >
+                                {column.title}
+                            </text>
+                            
+                            {/* 列分割线 */}
+                            {colIndex < columns.length - 1 && (
+                                <line
+                                    x1={x + column.width}
+                                    y1={0}
+                                    x2={x + column.width}
+                                    y2={headerHeight}
+                                    stroke="#f0f0f0"
+                                    strokeWidth={1}
+                                />
+                            )}
+                        </g>
+                    );
+                })}
+                
+                {/* 表格数据行 */}
+                {dataSource.map((record, rowIndex) => {
+                    const y = headerHeight + rowIndex * rowHeight;
+                    return (
+                        <g key={`row-${rowIndex}`}>
+                            {/* 行背景 */}
+                            <rect
+                                x={0}
+                                y={y}
+                                width={tableWidth}
+                                height={rowHeight}
+                                fill="#ffffff"
+                                stroke="#f0f0f0"
+                                strokeWidth={1}
+                                className="table-row"
+                                style={{
+                                    cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.target.setAttribute('fill', '#f5f5f5');
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.setAttribute('fill', '#ffffff');
+                                }}
+                            />
+                            
+                            {/* 行中心线（用于与右侧对齐） */}
+                            <line
+                                x1={0}
+                                y1={y + rowHeight / 2}
+                                x2={tableWidth}
+                                y2={y + rowHeight / 2}
+                                stroke="transparent"
+                                strokeWidth={1}
+                                className="row-center-line"
+                            />
+                            
+                            {/* 单元格内容 */}
+                            {columns.map((column, colIndex) => {
+                                const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
+                                const value = record[column.dataIndex];
+                                const displayText = formatDisplayText(column, record, value);
+                                const textColor = getCellTextColor(column, record, value);
+                                
+                                return (
+                                    <g key={`cell-${rowIndex}-${colIndex}`}>
+                                        {/* 单元格文本 */}
+                                        <text
+                                            x={x + column.width / 2}
+                                            y={y + rowHeight / 2}
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            fontSize="12px"
+                                            fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
+                                            fill={textColor}
+                                        >
+                                            {displayText}
+                                        </text>
+                                        
+                                        {/* 列分割线 */}
+                                        {colIndex < columns.length - 1 && (
+                                            <line
+                                                x1={x + column.width}
+                                                y1={y}
+                                                x2={x + column.width}
+                                                y2={y + rowHeight}
+                                                stroke="#f0f0f0"
+                                                strokeWidth={1}
+                                            />
+                                        )}
+                                    </g>
+                                );
+                            })}
+                        </g>
+                    );
+                })}
+                
+                {/* 表格外边框 */}
+                <rect
+                    x={0}
+                    y={0}
+                    width={tableWidth}
+                    height={totalHeight}
+                    fill="none"
+                    stroke="#f0f0f0"
+                    strokeWidth={1}
+                />
+            </svg>
+        </div>
+    );
+};
+
 const useStyle = createStyles(({ css, token }) => {
     const { antCls } = token;
     return {
@@ -94,23 +305,24 @@ const useStyle = createStyles(({ css, token }) => {
 });
 
 const testData = {
-             'planned_flights': {'CCA1642': {'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': 6, 'origin': '775', 'destination': '1818', 'time_to_takeoff': 7}, 
-             'CHH7538': {'path': [['344', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2123', 1], ['2122', 1], ['2130', 0], ['2132', 0]], 'node_path': ['294', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '1550', '1549', '1554', '1968'], 'taxiway_sequence': ['344', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2123', '2122', '2130', '2132'], 'taxi_time': 576.7686521583825, 'start_time': 116, 'origin': '294', 'destination': '1968', 'time_to_takeoff': 11}, 
-             'ETH605': {'path': [['1389', 1], ['1388', 1], ['160', 1], ['159', 1], ['158', 1], ['157', 1], ['156', 1], ['155', 1], ['154', 1], ['153', 1], ['152', 1], ['151', 1], ['150', 1], ['149', 1], ['148', 1], ['147', 1], ['146', 1], ['2639', 1], ['893', 1], ['2627', 0], ['818', 1], ['817', 1], ['816', 1], ['2724', 1], ['658', 1], ['2720', 0], ['186', 1], ['185', 1], ['184', 1], ['183', 1], ['182', 1], ['181', 1], ['2716', 1], ['64', 1]], 'node_path': ['1996', '1149', '131', '130', '129', '128', '127', '126', '125', '124', '123', '122', '121', '120', '119', '118', '117', '116', '824', '823', '1745', '751', '750', '749', '598', '597', '152', '151', '150', '149', '148', '147', '146', '42', '41'], 'taxiway_sequence': ['1389', '1388', '160', '159', '158', '157', '156', '155', '154', '153', '152', '151', '150', '149', '148', '147', '146', '2639', '893', '2627', '818', '817', '816', '2724', '658', '2720', '186', '185', '184', '183', '182', '181', '2716', '64'], 'taxi_time': 1179.5237413367543, 'start_time': 118, 'origin': '1996', 'destination': '41', 'time_to_takeoff': 21}, 
-             'CHH7716': {'path': [['1618', 0], ['797', 1], ['796', 1], ['795', 1], ['794', 1], ['793', 1], ['792', 1], ['937', 1], ['791', 1], ['790', 1], ['789', 1], ['788', 1], ['787', 1], ['786', 1], ['1771', 0], ['880', 0], ['881', 0], ['882', 0], ['1932', 0], ['1934', 0], ['1936', 0], ['1785', 0], ['1786', 0], ['1787', 0]], 'node_path': ['745', '731', '730', '729', '728', '727', '726', '725', '863', '724', '723', '722', '721', '720', '719', '811', '812', '813', '814', '1456', '1457', '1391', '1392', '1393', '1920'], 'taxiway_sequence': ['1618', '797', '796', '795', '794', '793', '792', '937', '791', '790', '789', '788', '787', '786', '1771', '880', '881', '882', '1932', '1934', '1936', '1785', '1786', '1787'], 'taxi_time': 925.6569040229369, 'start_time': 258, 'origin': '745', 'destination': '1920', 'time_to_takeoff': 19},
-              'CHH7184': {'path': [['1563', 1], ['2895', 1], ['2894', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2127', 1], ['841', 0], ['842', 0], ['843', 0], ['844', 0], ['847', 0], ['848', 0], ['849', 0], ['850', 0], ['851', 0], ['852', 0], ['2098', 0], ['1459', 1], ['1458', 1], ['1457', 1], ['1456', 1], ['1455', 1], ['1454', 1], ['1453', 1], ['1452', 1], ['1451', 1], ['1654', 1]], 'node_path': ['397', '1278', '1845', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '774', '775', '776', '777', '778', '779', '780', '781', '782', '783', '784', '1203', '1202', '1201', '1200', '1199', '1198', '1197', '1196', '1195', '1194', '1329'], 'taxiway_sequence': ['1563', '2895', '2894', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2127', '841', '842', '843', '844', '847', '848', '849', '850', '851', '852', '2098', '1459', '1458', '1457', '1456', '1455', '1454', '1453', '1452', '1451', '1654'], 'taxi_time': 1193.6505629027668, 'start_time': 577, 'origin': '397', 'destination': '1329', 'time_to_takeoff': 29}, 
-              'UZB502': {'path': [['2968', 1]], 'node_path': ['1868', '1869'], 'taxiway_sequence': ['2968'], 'taxi_time': 55.24926167354947, 'start_time': 99, 'origin': '1868', 'destination': '1869', 'time_to_takeoff': 2}, 
-             'CCA1346': {'path': [['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['2675', 0]], 'node_path': ['834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '2003'], 'taxiway_sequence': ['2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '2675'], 'taxi_time': 254.48942158563852, 'start_time': 201, 'origin': '834', 'destination': '2003', 'time_to_takeoff': 7}, 
-             'UAE307': {'path': [['2716', 1], ['64', 1]], 'node_path': ['146', '42', '41'], 'taxiway_sequence': ['2716', '64'], 'taxi_time': 118.44060108174774, 'start_time': 118, 'origin': '146', 'destination': '41', 'time_to_takeoff': 3}, 
-             'CCD1918': {'path': [['1588', 1], ['2610', 1], ['2607', 1], ['2605', 1], ['193', 1], ['2624', 1], ['891', 0], ['2628', 1], ['2630', 0], ['904', 0], ['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['127', 1], ['126', 1], ['125', 1], ['124', 1], ['2661', 0], ['254', 0], ['2477', 0], ['552', 1], ['551', 1], ['550', 1], ['549', 1], ['548', 1], ['547', 1], ['546', 1], ['545', 1], ['544', 1], ['543', 1], ['542', 1], ['541', 1], ['540', 1], ['539', 1], ['538', 1], ['537', 1], ['536', 1], ['535', 1], ['2556', 1], ['2572', 0]], 'node_path': ['398', '1294', '1743', '1741', '159', '158', '821', '822', '1745', '833', '834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '95', '94', '214', '215', '495', '494', '493', '492', '491', '490', '489', '488', '487', '486', '485', '484', '483', '482', '481', '480', '479', '478', '477', '1724', '2050'], 'taxiway_sequence': ['1588', '2610', '2607', '2605', '193', '2624', '891', '2628', '2630', '904', '2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '127', '126', '125', '124', '2661', '254', '2477', '552', '551', '550', '549', '548', '547', '546', '545', '544', '543', '542', '541', '540', '539', '538', '537', '536', '535', '2556', '2572'], 'taxi_time': 1257.0560552121317, 'start_time': 459, 'origin': '398', 'destination': '2050', 'time_to_takeoff': 28}
-            },
-            "active_flights": {'CCA1642': {'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': '2023-11-02T00:00:06', 'origin': '775', 'destination': '1818', 'remaining_taxi_time': 15.807982103858414, 'time_to_takeoff': 0}},
-            "conflicts": 
-              [
-                {"flight1": "CCA1642", "flight2": "CHH7184", "node": "841", "time": 1},
-                {"flight1": "ETH605", "flight2": "UAE307", "node": "2716", "time": 2},
-             ]
-        };
+    'planned_flights': {
+        'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': 6, 'origin': '775', 'destination': '1818', 'time_to_takeoff': 7 },
+        'CHH7538': { 'path': [['344', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2123', 1], ['2122', 1], ['2130', 0], ['2132', 0]], 'node_path': ['294', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '1550', '1549', '1554', '1968'], 'taxiway_sequence': ['344', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2123', '2122', '2130', '2132'], 'taxi_time': 576.7686521583825, 'start_time': 116, 'origin': '294', 'destination': '1968', 'time_to_takeoff': 11 },
+        'ETH605': { 'path': [['1389', 1], ['1388', 1], ['160', 1], ['159', 1], ['158', 1], ['157', 1], ['156', 1], ['155', 1], ['154', 1], ['153', 1], ['152', 1], ['151', 1], ['150', 1], ['149', 1], ['148', 1], ['147', 1], ['146', 1], ['2639', 1], ['893', 1], ['2627', 0], ['818', 1], ['817', 1], ['816', 1], ['2724', 1], ['658', 1], ['2720', 0], ['186', 1], ['185', 1], ['184', 1], ['183', 1], ['182', 1], ['181', 1], ['2716', 1], ['64', 1]], 'node_path': ['1996', '1149', '131', '130', '129', '128', '127', '126', '125', '124', '123', '122', '121', '120', '119', '118', '117', '116', '824', '823', '1745', '751', '750', '749', '598', '597', '152', '151', '150', '149', '148', '147', '146', '42', '41'], 'taxiway_sequence': ['1389', '1388', '160', '159', '158', '157', '156', '155', '154', '153', '152', '151', '150', '149', '148', '147', '146', '2639', '893', '2627', '818', '817', '816', '2724', '658', '2720', '186', '185', '184', '183', '182', '181', '2716', '64'], 'taxi_time': 1179.5237413367543, 'start_time': 118, 'origin': '1996', 'destination': '41', 'time_to_takeoff': 21 },
+        'CHH7716': { 'path': [['1618', 0], ['797', 1], ['796', 1], ['795', 1], ['794', 1], ['793', 1], ['792', 1], ['937', 1], ['791', 1], ['790', 1], ['789', 1], ['788', 1], ['787', 1], ['786', 1], ['1771', 0], ['880', 0], ['881', 0], ['882', 0], ['1932', 0], ['1934', 0], ['1936', 0], ['1785', 0], ['1786', 0], ['1787', 0]], 'node_path': ['745', '731', '730', '729', '728', '727', '726', '725', '863', '724', '723', '722', '721', '720', '719', '811', '812', '813', '814', '1456', '1457', '1391', '1392', '1393', '1920'], 'taxiway_sequence': ['1618', '797', '796', '795', '794', '793', '792', '937', '791', '790', '789', '788', '787', '786', '1771', '880', '881', '882', '1932', '1934', '1936', '1785', '1786', '1787'], 'taxi_time': 925.6569040229369, 'start_time': 258, 'origin': '745', 'destination': '1920', 'time_to_takeoff': 19 },
+        'CHH7184': { 'path': [['1563', 1], ['2895', 1], ['2894', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2127', 1], ['841', 0], ['842', 0], ['843', 0], ['844', 0], ['847', 0], ['848', 0], ['849', 0], ['850', 0], ['851', 0], ['852', 0], ['2098', 0], ['1459', 1], ['1458', 1], ['1457', 1], ['1456', 1], ['1455', 1], ['1454', 1], ['1453', 1], ['1452', 1], ['1451', 1], ['1654', 1]], 'node_path': ['397', '1278', '1845', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '774', '775', '776', '777', '778', '779', '780', '781', '782', '783', '784', '1203', '1202', '1201', '1200', '1199', '1198', '1197', '1196', '1195', '1194', '1329'], 'taxiway_sequence': ['1563', '2895', '2894', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2127', '841', '842', '843', '844', '847', '848', '849', '850', '851', '852', '2098', '1459', '1458', '1457', '1456', '1455', '1454', '1453', '1452', '1451', '1654'], 'taxi_time': 1193.6505629027668, 'start_time': 577, 'origin': '397', 'destination': '1329', 'time_to_takeoff': 29 },
+        'UZB502': { 'path': [['2968', 1]], 'node_path': ['1868', '1869'], 'taxiway_sequence': ['2968'], 'taxi_time': 55.24926167354947, 'start_time': 99, 'origin': '1868', 'destination': '1869', 'time_to_takeoff': 2 },
+        'CCA1346': { 'path': [['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['2675', 0]], 'node_path': ['834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '2003'], 'taxiway_sequence': ['2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '2675'], 'taxi_time': 254.48942158563852, 'start_time': 201, 'origin': '834', 'destination': '2003', 'time_to_takeoff': 7 },
+        'UAE307': { 'path': [['2716', 1], ['64', 1]], 'node_path': ['146', '42', '41'], 'taxiway_sequence': ['2716', '64'], 'taxi_time': 118.44060108174774, 'start_time': 118, 'origin': '146', 'destination': '41', 'time_to_takeoff': 3 },
+        'CCD1918': { 'path': [['1588', 1], ['2610', 1], ['2607', 1], ['2605', 1], ['193', 1], ['2624', 1], ['891', 0], ['2628', 1], ['2630', 0], ['904', 0], ['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['127', 1], ['126', 1], ['125', 1], ['124', 1], ['2661', 0], ['254', 0], ['2477', 0], ['552', 1], ['551', 1], ['550', 1], ['549', 1], ['548', 1], ['547', 1], ['546', 1], ['545', 1], ['544', 1], ['543', 1], ['542', 1], ['541', 1], ['540', 1], ['539', 1], ['538', 1], ['537', 1], ['536', 1], ['535', 1], ['2556', 1], ['2572', 0]], 'node_path': ['398', '1294', '1743', '1741', '159', '158', '821', '822', '1745', '833', '834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '95', '94', '214', '215', '495', '494', '493', '492', '491', '490', '489', '488', '487', '486', '485', '484', '483', '482', '481', '480', '479', '478', '477', '1724', '2050'], 'taxiway_sequence': ['1588', '2610', '2607', '2605', '193', '2624', '891', '2628', '2630', '904', '2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '127', '126', '125', '124', '2661', '254', '2477', '552', '551', '550', '549', '548', '547', '546', '545', '544', '543', '542', '541', '540', '539', '538', '537', '536', '535', '2556', '2572'], 'taxi_time': 1257.0560552121317, 'start_time': 459, 'origin': '398', 'destination': '2050', 'time_to_takeoff': 28 }
+    },
+    "active_flights": { 'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': '2023-11-02T00:00:06', 'origin': '775', 'destination': '1818', 'remaining_taxi_time': 65.80714, 'time_to_takeoff': 5 } },
+    "conflicts":
+        [
+            { "flight1": "CCA1642", "flight2": "CHH7184", "node": "841", "time": 1 },
+            { "flight1": "ETH605", "flight2": "UAE307", "node": "2716", "time": 2 },
+        ]
+};
 
 
 // 定义航班表格列
@@ -214,10 +426,10 @@ const PlanningView = observer(() => {
         if (plannedData.planned_flights) {
             Object.entries(plannedData.planned_flights).forEach(([flightId, flightData]) => {
                 aircraftIds.push(flightId);
-                
+
                 // 检查该航班是否也在active_flights中
                 const isInActive = plannedData.active_flights && plannedData.active_flights[flightId];
-                
+
                 if (isInActive) {
                     // 如果在active_flights中，使用active_flights的数据
                     const activeData = plannedData.active_flights[flightId];
@@ -269,7 +481,7 @@ const PlanningView = observer(() => {
                 }
             });
         }
-
+        console.log("tableData: ", tableData);
         return { tableData, aircraftIds };
     };
 
@@ -297,10 +509,11 @@ const PlanningView = observer(() => {
             let aircraftIds = processedAircraftIds; // 使用处理后的航班ID顺序
             let left_times = [];
             let plan_times = [];
+            let fly_times = [];
 
             // 转换新数据格式为可视化需要的格式
             const plannedResults = [];
-
+            //柱状图的处理
             // 处理计划航班
             if (plannedData.planned_flights) {
                 Object.entries(plannedData.planned_flights).forEach(([flightId, flightData]) => {
@@ -308,6 +521,7 @@ const PlanningView = observer(() => {
                     // planned_flights的start_time是数字（秒），需要转换为分钟
                     const startTimeMinutes = flightData.start_time / 60;
                     const taxiTimeMinutes = flightData.taxi_time / 60;
+                    const timeToTakeoff = flightData.time_to_takeoff;
 
                     const convertedData = {
                         aircraft_id: flightId,
@@ -324,8 +538,9 @@ const PlanningView = observer(() => {
                     };
 
                     plannedResults.push(convertedData);
-                    left_times.push(0);
-                    plan_times.push(taxiTimeMinutes);
+                    left_times.push(startTimeMinutes);
+                    plan_times.push(taxiTimeMinutes);//计划航班的计划时间
+                    fly_times.push(timeToTakeoff);
 
                     // 计算planned flight的结束时间作为maxTime的参考
                     const endTime = startTimeMinutes + taxiTimeMinutes;
@@ -334,17 +549,20 @@ const PlanningView = observer(() => {
                     }
                 });
             }
-
+          
             // 处理活跃航班
             if (plannedData.active_flights) {
+    
                 Object.entries(plannedData.active_flights).forEach(([flightId, flightData]) => {
-
+                    
                     // active_flights的remaining_taxi_time是剩余时间（秒），转换为分钟
                     const remainingTimeMinutes = (flightData.remaining_taxi_time || 0) / 60;
+                    const timeToTakeoff = flightData.time_to_takeoff;
 
                     const convertedData = {
                         aircraft_id: flightId,
                         type: 'active', // 活跃航班类型
+                        time_to_takeoff: flightData.time_to_takeoff, // 添加time_to_takeoff字段
                         paths: [{
                             time: remainingTimeMinutes, // 剩余时间
                             path: flightData.path
@@ -354,15 +572,17 @@ const PlanningView = observer(() => {
                     };
 
                     plannedResults.push(convertedData);
-                    left_times.push(remainingTimeMinutes);
-                    plan_times.push(0); // 活跃航班没有计划时间
+                    left_times.push(0);
+                    plan_times.push(remainingTimeMinutes); // 活跃航班的剩余时间
+                    fly_times.push(timeToTakeoff);
+
 
                     if (remainingTimeMinutes > maxTime) {
                         maxTime = remainingTimeMinutes;
                     }
                 });
             }
-
+            //规划视图的处理
             console.log("aircraftIds:", aircraftIds);
             console.log("Max Time:", maxTime);
             console.log("plannedResults:", plannedResults);
@@ -378,10 +598,13 @@ const PlanningView = observer(() => {
             const width = 1200; // 与组件定义的宽度保持一致
 
             // 根据飞机数量动态计算所需高度，与表格保持一致
-            const requiredHeight = HEADER_HEIGHT + aircraftIds.length * ROW_HEIGHT_P ;
+            const requiredHeight = HEADER_HEIGHT + aircraftIds.length * ROW_HEIGHT_P;
+            console.log('Required height-----------------------:', requiredHeight);
             const baseHeight = 400;
-            const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
-
+           
+           // const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
+           const height = requiredHeight+200; // 额外增加200px用于边距和图例
+            console.log('SVG height:', height);
             const margin = { top: HEADER_HEIGHT, right: 100, bottom: 80, left: 150 }; // 增加各边距以容纳图例和标签
 
             // 清除之前的内容
@@ -401,7 +624,6 @@ const PlanningView = observer(() => {
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
 
-            console.log(maxTime, aircraftIds);
 
             // 创建时间比例尺
             const xScale = d3.scaleLinear()
@@ -409,18 +631,20 @@ const PlanningView = observer(() => {
                 .range([0, innerWidth]);
 
             // 创建飞机ID比例尺，确保与表格行高完全一致
-            const chartHeight = Math.max(400, aircraftIds.length * ROW_HEIGHT_P);
-            
+            //const chartHeight = Math.max(400, aircraftIds.length * ROW_HEIGHT_P);
+            const chartHeight = (aircraftIds.length+1) * ROW_HEIGHT_P+HEADER_HEIGHT;
+           
             // 使用序数比例尺来精确控制行位置，确保与表格完全对齐
             const yScale = d3.scaleOrdinal()
                 .domain(aircraftIds)
-                .range(aircraftIds.map((_, index) => HEADER_HEIGHT + index * ROW_HEIGHT_P));
-
+                .range(aircraftIds.map((_, index) => (HEADER_HEIGHT + index* ROW_HEIGHT_P+(ROW_HEIGHT_P/2))));
+            console.log('Y scale domain:', aircraftIds.map((_, index) => HEADER_HEIGHT + index * ROW_HEIGHT_P));
             // 计算行的中心位置，使用yScale确保与表格行完全对齐
             const getYPosition = (flightId) => {
-                return yScale(flightId) + ROW_HEIGHT_P / 2;
+                console.log('Flight ID:', flightId, yScale(flightId));
+                return yScale(flightId);
             };
-
+            console.log('Y position:', Math.floor(aircraftIds.length / 2),getYPosition(aircraftIds[Math.floor(aircraftIds.length / 2)]));
             // 创建X轴
             const xAxis = d3.axisBottom(xScale)
                 .tickFormat(d => `T+${d.toFixed(0)}`)
@@ -454,12 +678,13 @@ const PlanningView = observer(() => {
                 .attr("text-anchor", "end")
                 //.attr("transform", "rotate(-90)")
                 .text("飞机 ID")
-               
+
 
             // 手动添加Y轴刻度线和标签
             aircraftIds.forEach((flightId, index) => {
                 const yPos = getYPosition(flightId);
-                
+                console.log("yyy-------------------yyy",yPos);
+
                 // 添加刻度线
                 yAxisGroup.append("line")
                     .attr("x1", -6)
@@ -468,7 +693,7 @@ const PlanningView = observer(() => {
                     .attr("y2", yPos)
                     .attr("stroke", "#000")
                     .attr("stroke-width", 1);
-                
+
                 // 添加标签
                 yAxisGroup.append("text")
                     .attr("x", -9)
@@ -684,7 +909,7 @@ const PlanningView = observer(() => {
             const barChartOffset = -150; // 增加柱状图距离主图的偏移
 
             // 2. 柱状图比例尺
-            const maxBarValue = Math.max(...left_times, ...plan_times);
+            const maxBarValue = Math.max(...left_times, ...plan_times, ...fly_times);
             const barScale = d3.scaleLinear()
                 .domain([0, maxBarValue])
                 .range([0, barChartHeight]);
@@ -717,55 +942,62 @@ const PlanningView = observer(() => {
                     .attr("x", xScale(newStartTime + taxiTime) - 4);
             };
 
+            // 全局拖拽状态变量
+            let isDragging = false;
+            let startMouseX = 0;
+            let initialSliderX = 0;
+            let currentSlider = null;
+            let currentAircraftId = null;
+            let currentTaxiTime = 0;
+            let currentTotalTime = 0;
+
             aircraftIds.forEach((id, i) => {
+                
                 const yBase = getYPosition(id) - barWidth / 2; // 柱状图纵向中心
 
                 // 找到对应的飞机数据以确定类型
-                const aircraftData = plannedResults.find(result => result.aircraft_id === id);
+               
+                // 查找当前id的所有数据
+                const allAircraftData = plannedResults.filter(result => result.aircraft_id === id);
+                
+                // 如果有active类型的数据就使用active的,否则使用planning的
+                const aircraftData = allAircraftData.find(data => data.type === 'active') || allAircraftData[0];
+                
                 const isActive = aircraftData && aircraftData.type === 'active';
+                console.log('isActive', id,'i:',i,':',isActive,'data',aircraftData,'data2',left_times[i],plan_times[i],fly_times[i]);
+
 
                 // 根据飞机类型设置柱状图颜色和样式
                 const leftTimeColor = isActive ? "#FF6B6B" : "#4ECDC4"; // 活跃飞机用暖色，计划飞机用冷色
                 const planTimeColor = isActive ? "#FF8E53" : "#45B7D1";
                 const barOpacity = isActive ? 0.8 : 0.6; // 活跃飞机更不透明
 
-                // left_time 柱（剩余时间）
-                if (left_times[i] > 0) {
-                    barGroup.append("rect")
-                        .attr("x", 0)
-                        .attr("y", yBase)
-                        .attr("width", barScale(left_times[i]))
-                        .attr("height", barWidth)
-                        .attr("fill", leftTimeColor)
-                        .attr("opacity", barOpacity)
-                        .attr("stroke", isActive ? "#C44569" : "#2C3E50")
-                        .attr("stroke-width", isActive ? 2 : 1);
-                }
 
                 // plan_time 柱（计划时间）- 为非活跃飞机添加拖拽功能
-                if (plan_times[i] > 0) {
+                if (left_times[i] > 0) {
+
                     if (!isActive) {
                         // 非活跃飞机：创建可拖拽的滑块
                         const planBarGroup = barGroup.append("g")
                             .attr("class", `plan-bar-group-${id}`);
 
                         // 绘制背景轨道（显示总的time_to_takeoff范围）
-                        const totalTimeToTakeoff = aircraftData.time_to_takeoff || plan_times[i];
+                        const totalTimeToTakeoff = fly_times[i];
                         planBarGroup.append("rect")
                             .attr("class", "time-track")
                             .attr("x", 0)
-                            .attr("y", yBase - 2)
-                            .attr("width", barScale(totalTimeToTakeoff))
-                            .attr("height", barWidth + 4)
+                            .attr("y", yBase) 
+                            .attr("width", barScale(totalTimeToTakeoff)+1)
+                            .attr("height", barWidth) 
                             .attr("fill", "#f0f0f0")
                             .attr("stroke", "#d0d0d0")
                             .attr("stroke-width", 1)
                             .attr("rx", 2);
 
                         // 计算当前taxi_time滑块的位置
-                        const currentStartTime = aircraftData.time_to_start || 0;
+                        const currentStartTime = left_times[i] || 0;
                         const taxiTime = aircraftData.taxi_time || plan_times[i];
-                        
+
                         // 绘制可拖拽的taxi_time滑块
                         const taxiSlider = planBarGroup.append("rect")
                             .attr("class", `taxi-slider-${id}`)
@@ -775,89 +1007,132 @@ const PlanningView = observer(() => {
                             .attr("height", barWidth)
                             .attr("fill", planTimeColor)
                             .attr("opacity", barOpacity)
-                            .attr("stroke", "#2C3E50")
-                            .attr("stroke-width", 1)
+                            //.attr("stroke", "#2C3E50")
+                            //.attr("stroke-width", 1)//虚线
                             .attr("stroke-dasharray", "3,3")
                             .attr("cursor", "grab")
                             .attr("rx", 2);
 
                         // 添加拖拽行为 - 优化性能和修复拖拽逻辑
-                        let isDragging = false;
-                        let startMouseX = 0;
-                        let initialSliderX = 0;
-                        let currentSlider = null;
-                        let currentAircraftId = null;
-                        let currentTaxiTime = 0;
-                        let currentTotalTime = 0;
-
                         taxiSlider
-                            .on("mousedown", function(event) {
+                            .on("mousedown", function (event) {
                                 isDragging = true;
-                                startX = event.clientX;
-                                initialStartTime = currentStartTime;
-                                d3.select(this).attr("cursor", "grabbing");
+                                startMouseX = event.clientX;
+                                initialSliderX = parseFloat(d3.select(this).attr("x"));
+                                currentSlider = d3.select(this);
+                                currentAircraftId = id;
+                                currentTaxiTime = taxiTime;
+                                currentTotalTime = totalTimeToTakeoff;
+
+                                currentSlider.attr("cursor", "grabbing");
                                 event.preventDefault();
+                                event.stopPropagation();
                             });
 
-                        // 在SVG上添加全局鼠标事件
-                        svg.on("mousemove", function(event) {
-                            if (isDragging) {
-                                const deltaX = event.clientX - startX;
-                                const deltaTime = xScale.invert(deltaX) - xScale.invert(0);
-                                let newStartTime = Math.max(0, initialStartTime + deltaTime);
-                                
-                                // 确保不超过总的time_to_takeoff时间
-                                const maxStartTime = totalTimeToTakeoff - taxiTime;
-                                newStartTime = Math.min(newStartTime, maxStartTime);
-                                
-                                // 更新滑块位置
-                                taxiSlider.attr("x", barScale(newStartTime));
-                                
-                                // 更新对应的时间线图
-                                updateTimelineForAircraft(id, newStartTime, taxiTime);
-                            }
-                        })
-                        .on("mouseup", function(event) {
-                            if (isDragging) {
-                                isDragging = false;
-                                taxiSlider.attr("cursor", "grab");
-                                
-                                // 计算最终的起飞时间
-                                const deltaX = event.clientX - startX;
-                                const deltaTime = xScale.invert(deltaX) - xScale.invert(0);
-                                let newStartTime = Math.max(0, initialStartTime + deltaTime);
-                                const maxStartTime = totalTimeToTakeoff - taxiTime;
-                                newStartTime = Math.min(newStartTime, maxStartTime);
-                                
-                                // 更新数据
-                                aircraftData.time_to_start = newStartTime;
-                                aircraftData.paths[0].start_time = newStartTime;
-                                aircraftData.paths[0].end_time = newStartTime + taxiTime;
-                                
-                                console.log(`飞机 ${id} 起飞时间已更新为: ${newStartTime.toFixed(2)} 分钟`);
-                            }
-                        });
+                        // 检查是否已经绑定过全局事件，避免重复绑定
+                        if (!d3.select("body").on("mousemove.taxiDrag")) {
+                            // 全局鼠标移动事件
+                            d3.select("body")
+                                .on("mousemove.taxiDrag", function (event) {
+                                    if (isDragging && currentSlider) {
+                                        const deltaX = event.clientX - startMouseX;
+                                        let newSliderX = initialSliderX + deltaX;
+
+                                        // 计算边界限制
+                                        const minX = 0; // 最左边界
+                                        const maxX = barScale(currentTotalTime - currentTaxiTime); // 最右边界
+
+                                        // 限制滑块位置
+                                        newSliderX = Math.max(minX, Math.min(newSliderX, maxX));
+
+                                        // 更新滑块位置
+                                        currentSlider.attr("x", newSliderX);
+
+                                        // 计算新的开始时间
+                                        const newStartTime = xScale.invert(newSliderX);
+
+                                        // 更新对应的时间线图
+                                        updateTimelineForAircraft(currentAircraftId, newStartTime, currentTaxiTime);
+                                    }
+                                })
+                                .on("mouseup.taxiDrag", function (event) {
+                                    if (isDragging && currentSlider) {
+                                        isDragging = false;
+                                        currentSlider.attr("cursor", "grab");
+
+                                        // 计算最终位置和时间
+                                        const finalSliderX = parseFloat(currentSlider.attr("x"));
+                                        const finalStartTime = xScale.invert(finalSliderX);
+
+                                        // 更新数据
+                                        const finalAircraftData = plannedResults.find(result => result.aircraft_id === currentAircraftId);
+                                        if (finalAircraftData) {
+                                            finalAircraftData.time_to_start = finalStartTime;
+                                            finalAircraftData.paths[0].start_time = finalStartTime;
+                                            finalAircraftData.paths[0].end_time = finalStartTime + currentTaxiTime;
+                                        }
+
+                                        console.log(`飞机 ${currentAircraftId} 起飞时间已更新为: ${finalStartTime.toFixed(2)} 分钟`);
+
+                                        // 重置状态
+                                        currentSlider = null;
+                                        currentAircraftId = null;
+                                    }
+                                });
+                        }
 
                         // 添加拖拽提示图标
                         planBarGroup.append("text")
-                            .attr("x", barScale(currentStartTime + taxiTime/2))
-                            .attr("y", yBase + barWidth/2 + 3)
+                            .attr("x", barScale(currentStartTime + taxiTime / 2))
+                            .attr("y", yBase + barWidth / 2 + 3)
                             .attr("text-anchor", "middle")
                             .attr("font-size", "10px")
                             .attr("fill", "white")
                             .attr("pointer-events", "none")
-                            .text("⟷"); // 双向箭头表示可拖拽
+                        //.text("⟷"); // 双向箭头表示可拖拽
                     } else {
-                        // 活跃飞机：保持原有的绘制方式
-                        barGroup.append("rect")
+                        // 活跃飞机：绘制灰色背景条(time_to_takeoff)和彩色滑块(remaining-taxi-time)
+                        const activeBarGroup = barGroup.append("g")
+                            .attr("class", `active-bar-group-${id}`);
+
+                        // 获取活跃飞机的time_to_takeoff数据
+                        const timeToTakeoffMinutes = (aircraftData.time_to_takeoff || 0); // 转换为分钟
+                        const remainingTimeMinutes = aircraftData.left_time; // 剩余滑行时间
+
+                        // 绘制背景轨道（显示总的time_to_takeoff范围）
+                        activeBarGroup.append("rect")
+                            .attr("class", "active-time-track")
                             .attr("x", 0)
+                            .attr("y", yBase - 2)
+                            .attr("width", barScale(timeToTakeoffMinutes))
+                            .attr("height", barWidth + 4)
+                            .attr("fill", "#f0f0f0")
+                            .attr("stroke", "#d0d0d0")
+                            .attr("stroke-width", 1)
+                            .attr("rx", 2);
+
+                        // 绘制剩余滑行时间滑块（从0开始，长度为remaining-taxi-time）
+                        activeBarGroup.append("rect")
+                            .attr("class", `remaining-slider-${id}`)
+                            .attr("x", 0) // 从0开始
                             .attr("y", yBase)
-                            .attr("width", barScale(plan_times[i]))
+                            .attr("width", barScale(remainingTimeMinutes)) // 长度为剩余时间
                             .attr("height", barWidth)
                             .attr("fill", planTimeColor)
                             .attr("opacity", barOpacity)
                             .attr("stroke", "#C44569")
-                            .attr("stroke-width", 2);
+                            .attr("stroke-width", 2)
+                            .attr("rx", 2);
+
+                        // // 添加活跃飞机标识
+                        // activeBarGroup.append("text")
+                        //     .attr("x", barScale(remainingTimeMinutes / 2))
+                        //     .attr("y", yBase + barWidth / 2 + 3)
+                        //     .attr("text-anchor", "middle")
+                        //     .attr("font-size", "10px")
+                        //     .attr("fill", "white")
+                        //     .attr("pointer-events", "none")
+                        //     .text("●"); // 圆点表示活跃状态
                     }
                 }
                 // 可选：加数值标签
@@ -1050,28 +1325,28 @@ const PlanningView = observer(() => {
             }
 
 
-        }
+        };
 
         //这里的逻辑应该是前端按按钮向后端传要规划的飞机id,后端返回结果
         const disposer = autorun(() => {
-            if (websocketStore.plannedFlights && 
-        Object.keys(websocketStore.plannedFlights).length > 0) {
+            if (websocketStore.plannedFlights &&
+                Object.keys(websocketStore.plannedFlights).length > 0) {
 
                 // console.log("Planned Path:", JSON.stringify(websocketStore.plannedPath));
                 console.log("Planned Flights:", websocketStore.plannedFlights);
                 // console.log("Active Flights:", websocketStore.activeFlights);
                 console.log("Path Conflicts:", websocketStore.pathConflicts);
-                
+
                 // 使用新的数据格式更新视图
                 updatePlanningView(websocketStore.plannedFlights);
 
             }
             else {
-            console.log("WebSocket data not received, using test data...");
-            updatePlanningView(testData); // 使用测试数据填充
-        }
-         
-        })
+                console.log("WebSocket data not received, using test data...");
+                updatePlanningView(testData); // 使用测试数据填充
+            }
+
+        });
 
         return () => {
             // 清理函数
@@ -1079,13 +1354,7 @@ const PlanningView = observer(() => {
         };
     }, []);
 
-    // 同步滚动处理函数
-    const handleTableScroll = (e) => {
-        const { scrollTop } = e.target;
-        if (chartRef.current) {
-            chartRef.current.scrollTop = scrollTop;
-        }
-    };
+  
 
     // 表格容器滚动处理函数
     const handleTableContainerScroll = (e) => {
@@ -1117,91 +1386,34 @@ const PlanningView = observer(() => {
                 height: '100%', // 减去按钮的高度
                 gap: '10px'
             }}>
-                {/* 左侧表格 */}
-                <div 
-                    ref={tableRef}
-                    onScroll={handleTableContainerScroll}
-                    className={styles.hideScrollbar}
+                {/* 左侧表格 - 使用SVG表格替换Ant Design Table */}
+                <div
                     style={{
                         width: '40%',
                         height: '100%',
-                        overflow: 'auto'
+                        overflowX: 'hidden'
                     }}
                 >
-                    <Table
-                        className={styles.customTable}
+                    <SVGTable
                         columns={columns}
                         dataSource={tableDataSource}
-                        // scroll={{ 
-                        //     x: 'max-content', 
-                        //     y: Math.max(400, aircraftOrder.length * ROW_HEIGHT) // 设置最小高度400px
-                        // }}
-                        size="middle"
-                        pagination={false}
-                        tableLayout="fixed"
-                        style={{
-                            '--row-height': `${ROW_HEIGHT_P}px`,
-                            '--header-height': `${HEADER_HEIGHT}px`
-                        }}
-                        components={{
-                            header: {
-                                cell: (props) => (
-                                    <th 
-                                        {...props} 
-                                        style={{
-                                            ...props.style,
-                                            height: HEADER_HEIGHT,
-                                            lineHeight: `${HEADER_HEIGHT}px`,
-                                            padding: '0 8px',
-                                            fontSize: '12px',
-                                            fontWeight: 'bold',
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis'
-                                        }}
-                                    />
-                                )
-                            },
-                            body: {
-                                row: (props) => (
-                                    <tr 
-                                        {...props} 
-                                        style={{
-                                            ...props.style,
-                                            height: ROW_HEIGHT,
-                                            lineHeight: `${ROW_HEIGHT}px`
-                                        }}
-                                    />
-                                ),
-                                cell: (props) => (
-                                    <td 
-                                        {...props} 
-                                        style={{
-                                            ...props.style,
-                                            height: ROW_HEIGHT,
-                                            lineHeight: `${ROW_HEIGHT}px`,
-                                            padding: '0 8px',
-                                            fontSize: '12px',
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                           textOverflow: 'ellipsis'
-                                        }}
-                                    />
-                                )
-                            }
-                        }}
+                        rowHeight={ROW_HEIGHT}
+                        headerHeight={HEADER_HEIGHT}
+                        onScroll={handleTableContainerScroll}
+                        tableRef={tableRef}
                     />
                 </div>
 
                 {/* 右侧图表 */}
-                <div 
+                <div
                     ref={chartRef}
                     onScroll={handleChartScroll}
                     className={styles.hideScrollbar}
                     style={{
                         width: '60%',
                         height: '100%',
-                        overflow: 'auto'
+                        overflow: 'auto',
+                        // backgroundColor:'red'
                     }}
                 >
                     <svg
@@ -1213,7 +1425,8 @@ const PlanningView = observer(() => {
                         style={{
                             maxWidth: '100%',
                             maxHeight: '100%',
-                            display: 'block'
+                            display: 'block',
+                             
                         }}
                     >
                     </svg>
