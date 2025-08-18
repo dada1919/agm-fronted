@@ -485,13 +485,213 @@ const TaxiwayMap = observer(() => {
       if (websocketStore.conflicts != null) {
         const conflict = websocketStore.conflicts;
         // const { id1, id2, time, coords1, coords2, distance } = websocketStore.conflicts;
-        // console.log('冲突数据:', conflict);
+        console.log('冲突数据:', conflict);
         const color = '#984ea3'; // 根据飞机ID设置颜色，默认黑色
         const trajectory = [[
           [conflict.pos1, conflict.pos2]]
         ];
         drawConflict(conflict.id1 + '-' + conflict.id2, trajectory, color, 0); // 绘制轨迹
+      }
+    });
 
+
+
+    // 清理planned paths图层
+    const clearPlannedPaths = () => {
+      if (!map.current || !map.current.getStyle) return;
+      
+      try {
+        const style = map.current.getStyle();
+        if (!style || !style.layers) return;
+        
+        // 查找所有planned-path开头的图层和数据源
+        const layersToRemove = [];
+        const sourcesToRemove = [];
+        
+        style.layers.forEach(layer => {
+          if (layer.id && layer.id.startsWith('planned-path-')) {
+            layersToRemove.push(layer.id);
+            if (layer.source && !sourcesToRemove.includes(layer.source)) {
+              sourcesToRemove.push(layer.source);
+            }
+          }
+        });
+        
+        // 移除图层
+        layersToRemove.forEach(layerId => {
+          if (map.current && map.current.getLayer && map.current.getLayer(layerId)) {
+            map.current.removeLayer(layerId);
+          }
+        });
+        
+        // 移除数据源
+        sourcesToRemove.forEach(sourceId => {
+          if (map.current && map.current.getSource && map.current.getSource(sourceId)) {
+            map.current.removeSource(sourceId);
+          }
+        });
+      } catch (error) {
+        console.error('清理planned paths时出错:', error);
+      }
+    };
+
+    // 绘制planned飞机的规划路径
+    const drawPlannedPaths = () => {
+      if (!map.current || !map.current.getStyle || !geojsonData || !websocketStore.plannedPath) return;
+      
+      // 先清理旧的路径
+      clearPlannedPaths();
+      
+      const plannedFlights = websocketStore.plannedPath;
+
+      if (!plannedFlights || Object.keys(plannedFlights).length === 0) {
+        return;
+      }
+      
+      // 遍历每个planned航班
+      Object.entries(plannedFlights).forEach(([flightId, flightData]) => {
+        if (!flightData.node_path || !Array.isArray(flightData.node_path) || flightData.node_path.length < 2) {
+          return;
+        }
+        
+        // 根据node_path中的滑行道ID找到对应的坐标
+        const pathCoordinates = [];
+        
+        for (let i = 0; i < flightData.node_path.length - 1; i++) {
+          const currentNodeId = String(flightData.node_path[i]);
+          const nextNodeId = String(flightData.node_path[i + 1]);
+          
+          // 查找连接这两个节点的滑行道
+          const taxiway = geojsonData.features.find(feature => {
+            const startNode = String(feature.properties.startnode);
+            const endNode = String(feature.properties.endnode);
+            return (startNode === currentNodeId && endNode === nextNodeId) ||
+                   (startNode === nextNodeId && endNode === currentNodeId);
+          });
+          
+          if (taxiway && taxiway.geometry && taxiway.geometry.coordinates) {
+            const coords = taxiway.geometry.coordinates[0];
+            if (coords && coords.length > 0) {
+              // 根据节点顺序决定坐标方向
+              const startNode = String(taxiway.properties.startnode);
+              const shouldReverse = startNode !== currentNodeId;
+              
+              const coordsToAdd = shouldReverse ? [...coords].reverse() : coords;
+              
+              // 避免重复添加相同的点
+              if (pathCoordinates.length === 0) {
+                pathCoordinates.push(...coordsToAdd);
+              } else {
+                // 跳过第一个点（与上一段的最后一个点重复）
+                pathCoordinates.push(...coordsToAdd.slice(1));
+              }
+            }
+          }
+        }
+        
+        if (pathCoordinates.length < 2) {
+          console.warn(`无法为航班 ${flightId} 构建完整路径`);
+          return;
+        }
+        
+        // 创建GeoJSON数据
+        const pathGeoJSON = {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {
+              flightId: flightId,
+              destination: flightData.destination
+            },
+            geometry: {
+              type: 'LineString',
+              coordinates: pathCoordinates
+            }
+          }]
+        };
+        
+        const sourceId = `planned-path-source-${flightId}`;
+        const layerId = `planned-path-layer-${flightId}`;
+        
+        try {
+           // 确保map完全初始化
+           if (!map.current || !map.current.getSource || !map.current.addSource) {
+             console.warn('地图未完全初始化，跳过路径绘制');
+             return;
+           }
+           
+           // 添加数据源
+           if (!map.current.getSource(sourceId)) {
+             map.current.addSource(sourceId, {
+               type: 'geojson',
+               data: pathGeoJSON
+             });
+           } else {
+             map.current.getSource(sourceId).setData(pathGeoJSON);
+           }
+          
+          // 添加图层
+          if (!map.current.getLayer(layerId)) {
+            map.current.addLayer({
+              id: layerId,
+              type: 'line',
+              source: sourceId,
+              layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+              },
+              paint: {
+                'line-color': '#87CEEB', // 浅蓝色
+                'line-width': 3,
+                'line-dasharray': [2, 2], // 虚线样式
+                'line-opacity': 0.8
+              }
+            });
+            
+            // 添加点击事件
+            map.current.on('click', layerId, (e) => {
+              const feature = e.features[0];
+              const { flightId, destination } = feature.properties;
+              
+              new maplibregl.Popup()
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                  <div style="padding: 10px;">
+                    <h3 style="margin: 0 0 10px 0; color: #333;">规划路径</h3>
+                    <p style="margin: 5px 0;"><strong>航班ID:</strong> ${flightId}</p>
+                    <p style="margin: 5px 0;"><strong>目的地:</strong> ${destination}</p>
+                  </div>
+                `)
+                .addTo(map.current);
+            });
+            
+            // 添加鼠标悬停效果
+            map.current.on('mouseenter', layerId, () => {
+              map.current.getCanvas().style.cursor = 'pointer';
+            });
+            
+            map.current.on('mouseleave', layerId, () => {
+              map.current.getCanvas().style.cursor = '';
+            });
+          }
+        } catch (error) {
+          console.error(`绘制航班 ${flightId} 路径时出错:`, error);
+        }
+      });
+    };
+
+    // 观察plannedFlights数据变化
+    const disposer4 = autorun(() => {
+      try {
+        if (websocketStore.plannedPath && Object.keys(websocketStore.plannedPath).length > 0) {
+          console.log('plannedPath数据变化:', websocketStore.plannedPath);
+          drawPlannedPaths();
+        } else {
+          // 如果没有数据，清理路径
+          clearPlannedPaths();
+        }
+      } catch (error) {
+        console.error('处理plannedFlights数据时出错:', error);
       }
     });
 
@@ -517,8 +717,8 @@ const TaxiwayMap = observer(() => {
         }
       })
 
-      console.log('绘制冲突连线', id);
-      console.log(JSON.stringify(geodata));
+      // console.log('绘制冲突连线', id);
+      // console.log(JSON.stringify(geodata));
 
       if (!map.current.getSource(id)) {
         map.current.addSource(id, {
@@ -577,26 +777,28 @@ const TaxiwayMap = observer(() => {
         disposer3 = autorun(() => {
 
           let overlapTaxiways = websocketStore.overlapTaxiways;
-          console.log('WebSocket overlapTaxiways:', overlapTaxiways);
+          // console.log('WebSocket overlapTaxiways:', overlapTaxiways);
 
           if (!overlapTaxiways || !Array.isArray(overlapTaxiways) || overlapTaxiways.length === 0) {
-            console.log('Using test data instead');
-            fetchConflictsTxt().then(data => {
-              console.log('overlapTaxiwaysqqqqqqqqqq:', data);
-              // 在这里直接处理 data，而不是赋值给 overlapTaxiways
-              if (data && Array.isArray(data) && data.length > 0) {
-                highlightTaxiwayByLayerWithArea(data);
-              }
-            });
+            // console.log('Using test data instead');
+            // fetchConflictsTxt().then(data => {
+            //   // console.log('overlapTaxiwaysqqqqqqqqqq:', data);
+            //   // 在这里直接处理 data，而不是赋值给 overlapTaxiways
+            //   if (data && Array.isArray(data) && data.length > 0) {
+            //     highlightTaxiwayByLayerWithArea(data);
+            //   }
+            // });
           } else {
             // 处理已有数据的情况
+            console.log('overlapTaxiways', overlapTaxiways);
+
             highlightTaxiwayByLayerWithArea(overlapTaxiways);
           }
 
           if (overlapTaxiways && Array.isArray(overlapTaxiways) && overlapTaxiways.length > 0) {
-            console.log('Processing overlapTaxiways:', overlapTaxiways);
-            console.log('Map current:', map.current);
-            console.log('GeoJSON data:', geojsonData);
+            // console.log('Processing overlapTaxiways:', overlapTaxiways);
+            // console.log('Map current:', map.current);
+            // console.log('GeoJSON data:', geojsonData);
             highlightTaxiwayByLayerWithArea(overlapTaxiways);
             if (highlightTimer) {
               clearTimeout(highlightTimer);
@@ -606,7 +808,7 @@ const TaxiwayMap = observer(() => {
         });
 
         function highlightTaxiwayByLayerWithArea(overlapData) {
-          console.log('highlightTaxiwayByLayerWithArea', overlapData);
+          // console.log('highlightTaxiwayByLayerWithArea', overlapData);
           if (!map.current || !geojsonData) return;
 
           // 先移除旧的面积图层
@@ -965,7 +1167,7 @@ const TaxiwayMap = observer(() => {
 
         function processTaxiwayFunctions(taxiwayId, functions, conflictIdx, conflictItem) {
           // 找到该taxiway的polyline
-          console.log('Processing taxiway_id:', taxiwayId, 'functions:', functions);
+          // console.log('Processing taxiway_id:', taxiwayId, 'functions:', functions);
 
           const feature = geojsonData.features.find(f => {
             const featureId = String(parseInt(f.id));
@@ -1095,12 +1297,17 @@ const TaxiwayMap = observer(() => {
       map.current?.remove();
       disposer1(); // 清理观察者
       disposer2(); // 清理观察者
+      if (disposer3) disposer3(); // 清理观察者
+      if (disposer4) disposer4(); // 清理planned flights观察者
       if (highlightTimer) clearTimeout(highlightTimer);
       // 新增：清理所有面积图定时器
       Object.values(areaTimers.current).forEach(timerId => {
         clearTimeout(timerId);
       });
       areaTimers.current = {};
+      
+      // 清理planned paths图层
+      clearPlannedPaths();
 
       if (window._areaLayers) {
         window._areaLayers.forEach(id => {
