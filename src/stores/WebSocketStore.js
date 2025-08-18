@@ -10,7 +10,7 @@ class WebSocketStore {
     conflicts = null;
     overlapTaxiways = null; // 新增：存储重叠滑行道数据
 
-
+    plannedPath = {}; // 新增 plannedPath 属性
     
     // plannedPath = null; // 新增 plannedPath 属性
     plannedFlights = {}; // 计划航班数据
@@ -77,17 +77,17 @@ class WebSocketStore {
             }
         });
         this.socket.on('conflicts_update', (data) => {
-            console.log("Received conflict update:", data);
+            // console.log("Received conflict update:", data);
             this.updateOverlapTaxiways(data);
         });
         // 新增：处理重叠滑行道更新事件
         this.socket.on('overlap_taxiways_update', (data) => {
-            console.log("Received overlap taxiways update:", data);
+            // console.log("Received overlap taxiways update:", data);
             this.updateOverlapTaxiways(data);
         });
         this.socket.on('path_planning_result', (data) => {
-            console.log("Received planned path:", data);
-            this.updatePlannedPath(data);
+            // console.log("Received planned path:", data);
+            // this.updatePlannedPath(data);
         })
          this.socket.on('flight_adjustment_result', (data) => {
             console.log('Flight adjustment result:', data);
@@ -99,6 +99,11 @@ class WebSocketStore {
                 // 可以在这里添加错误提示
             }
         });
+        this.socket.on('planning_update', (data) => {
+            console.log('规划数据更新');
+            // console.log('Received planning update:', data);
+            this.updatePlannedFlightsPath(data.planned_flights);
+        })
 
         // 连接成功和断开连接事件
         this.socket.on('connect', () => console.log('Connected to WebSocket server'));
@@ -137,9 +142,9 @@ class WebSocketStore {
         } else {
             this.planePosition = [];
         }
-        console.log('planePosition', this.planePosition);
+        // console.log('planePosition', this.planePosition);
     }
- adjustFlightTime(flightId, adjustTime) {
+    adjustFlightTime(flightId, adjustTime) {
         if (this.socket && this.socket.connected) {
             console.log(`发送航班时间调整请求: ${flightId}, 调整时间: ${adjustTime} 分钟`);
             this.socket.emit('adjust_flight_time', {
@@ -150,7 +155,7 @@ class WebSocketStore {
             console.error('WebSocket未连接，无法发送航班时间调整请求');
         }
     }
-      setDraggingState(isDragging, flightId = null) {
+    setDraggingState(isDragging, flightId = null) {
         this.isDragging = isDragging;
         this.draggedFlightId = flightId;
     }
@@ -172,13 +177,18 @@ class WebSocketStore {
         this.pathConflicts = newPlannedPath.conflicts || [];
     }
 
+    updatePlannedFlightsPath(newPlannedFlights) {
+        this.plannedPath = newPlannedFlights;
+
+    }
+
     updateFlightPlans(flightData) {
        
         if (flightData) {
         // 在存储数据前先转换numpy数据类型
         const convertedData = this.convertNumpyData(flightData);
-        console.log('转换前的数据:', flightData);
-        console.log('转换后的数据:', convertedData);
+        // console.log('转换前的数据:', flightData);
+        // console.log('转换后的数据:', convertedData);
         
         // 直接使用包含planned_flights、active_flights和conflicts的完整数据
         this.plannedFlights = convertedData;

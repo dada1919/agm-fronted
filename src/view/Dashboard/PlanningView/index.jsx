@@ -304,25 +304,25 @@ const useStyle = createStyles(({ css, token }) => {
     };
 });
 
-const testData = {
-    'planned_flights': {
-        'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': 6, 'origin': '775', 'destination': '1818', 'time_to_takeoff': 7 },
-        'CHH7538': { 'path': [['344', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2123', 1], ['2122', 1], ['2130', 0], ['2132', 0]], 'node_path': ['294', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '1550', '1549', '1554', '1968'], 'taxiway_sequence': ['344', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2123', '2122', '2130', '2132'], 'taxi_time': 576.7686521583825, 'start_time': 116, 'origin': '294', 'destination': '1968', 'time_to_takeoff': 11 },
-        'ETH605': { 'path': [['1389', 1], ['1388', 1], ['160', 1], ['159', 1], ['158', 1], ['157', 1], ['156', 1], ['155', 1], ['154', 1], ['153', 1], ['152', 1], ['151', 1], ['150', 1], ['149', 1], ['148', 1], ['147', 1], ['146', 1], ['2639', 1], ['893', 1], ['2627', 0], ['818', 1], ['817', 1], ['816', 1], ['2724', 1], ['658', 1], ['2720', 0], ['186', 1], ['185', 1], ['184', 1], ['183', 1], ['182', 1], ['181', 1], ['2716', 1], ['64', 1]], 'node_path': ['1996', '1149', '131', '130', '129', '128', '127', '126', '125', '124', '123', '122', '121', '120', '119', '118', '117', '116', '824', '823', '1745', '751', '750', '749', '598', '597', '152', '151', '150', '149', '148', '147', '146', '42', '41'], 'taxiway_sequence': ['1389', '1388', '160', '159', '158', '157', '156', '155', '154', '153', '152', '151', '150', '149', '148', '147', '146', '2639', '893', '2627', '818', '817', '816', '2724', '658', '2720', '186', '185', '184', '183', '182', '181', '2716', '64'], 'taxi_time': 1179.5237413367543, 'start_time': 118, 'origin': '1996', 'destination': '41', 'time_to_takeoff': 21 },
-        'CHH7716': { 'path': [['1618', 0], ['797', 1], ['796', 1], ['795', 1], ['794', 1], ['793', 1], ['792', 1], ['937', 1], ['791', 1], ['790', 1], ['789', 1], ['788', 1], ['787', 1], ['786', 1], ['1771', 0], ['880', 0], ['881', 0], ['882', 0], ['1932', 0], ['1934', 0], ['1936', 0], ['1785', 0], ['1786', 0], ['1787', 0]], 'node_path': ['745', '731', '730', '729', '728', '727', '726', '725', '863', '724', '723', '722', '721', '720', '719', '811', '812', '813', '814', '1456', '1457', '1391', '1392', '1393', '1920'], 'taxiway_sequence': ['1618', '797', '796', '795', '794', '793', '792', '937', '791', '790', '789', '788', '787', '786', '1771', '880', '881', '882', '1932', '1934', '1936', '1785', '1786', '1787'], 'taxi_time': 925.6569040229369, 'start_time': 258, 'origin': '745', 'destination': '1920', 'time_to_takeoff': 19 },
-        'CHH7184': { 'path': [['1563', 1], ['2895', 1], ['2894', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2127', 1], ['841', 0], ['842', 0], ['843', 0], ['844', 0], ['847', 0], ['848', 0], ['849', 0], ['850', 0], ['851', 0], ['852', 0], ['2098', 0], ['1459', 1], ['1458', 1], ['1457', 1], ['1456', 1], ['1455', 1], ['1454', 1], ['1453', 1], ['1452', 1], ['1451', 1], ['1654', 1]], 'node_path': ['397', '1278', '1845', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '774', '775', '776', '777', '778', '779', '780', '781', '782', '783', '784', '1203', '1202', '1201', '1200', '1199', '1198', '1197', '1196', '1195', '1194', '1329'], 'taxiway_sequence': ['1563', '2895', '2894', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2127', '841', '842', '843', '844', '847', '848', '849', '850', '851', '852', '2098', '1459', '1458', '1457', '1456', '1455', '1454', '1453', '1452', '1451', '1654'], 'taxi_time': 1193.6505629027668, 'start_time': 577, 'origin': '397', 'destination': '1329', 'time_to_takeoff': 29 },
-        'UZB502': { 'path': [['2968', 1]], 'node_path': ['1868', '1869'], 'taxiway_sequence': ['2968'], 'taxi_time': 55.24926167354947, 'start_time': 99, 'origin': '1868', 'destination': '1869', 'time_to_takeoff': 2 },
-        'CCA1346': { 'path': [['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['2675', 0]], 'node_path': ['834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '2003'], 'taxiway_sequence': ['2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '2675'], 'taxi_time': 254.48942158563852, 'start_time': 201, 'origin': '834', 'destination': '2003', 'time_to_takeoff': 7 },
-        'UAE307': { 'path': [['2716', 1], ['64', 1]], 'node_path': ['146', '42', '41'], 'taxiway_sequence': ['2716', '64'], 'taxi_time': 118.44060108174774, 'start_time': 118, 'origin': '146', 'destination': '41', 'time_to_takeoff': 3 },
-        'CCD1918': { 'path': [['1588', 1], ['2610', 1], ['2607', 1], ['2605', 1], ['193', 1], ['2624', 1], ['891', 0], ['2628', 1], ['2630', 0], ['904', 0], ['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['127', 1], ['126', 1], ['125', 1], ['124', 1], ['2661', 0], ['254', 0], ['2477', 0], ['552', 1], ['551', 1], ['550', 1], ['549', 1], ['548', 1], ['547', 1], ['546', 1], ['545', 1], ['544', 1], ['543', 1], ['542', 1], ['541', 1], ['540', 1], ['539', 1], ['538', 1], ['537', 1], ['536', 1], ['535', 1], ['2556', 1], ['2572', 0]], 'node_path': ['398', '1294', '1743', '1741', '159', '158', '821', '822', '1745', '833', '834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '95', '94', '214', '215', '495', '494', '493', '492', '491', '490', '489', '488', '487', '486', '485', '484', '483', '482', '481', '480', '479', '478', '477', '1724', '2050'], 'taxiway_sequence': ['1588', '2610', '2607', '2605', '193', '2624', '891', '2628', '2630', '904', '2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '127', '126', '125', '124', '2661', '254', '2477', '552', '551', '550', '549', '548', '547', '546', '545', '544', '543', '542', '541', '540', '539', '538', '537', '536', '535', '2556', '2572'], 'taxi_time': 1257.0560552121317, 'start_time': 459, 'origin': '398', 'destination': '2050', 'time_to_takeoff': 28 }
-    },
-    "active_flights": { 'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': '2023-11-02T00:00:06', 'origin': '775', 'destination': '1818', 'remaining_taxi_time': 65.80714, 'time_to_takeoff': 5 } },
-    "conflicts":
-        [
-            { "flight1": "CCA1642", "flight2": "CHH7184", "node": "841", "time": 1 },
-            { "flight1": "ETH605", "flight2": "UAE307", "node": "2716", "time": 2 },
-        ]
-};
+// const testData = {
+//     'planned_flights': {
+//         'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': 6, 'origin': '775', 'destination': '1818', 'time_to_takeoff': 7 },
+//         'CHH7538': { 'path': [['344', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2123', 1], ['2122', 1], ['2130', 0], ['2132', 0]], 'node_path': ['294', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '1550', '1549', '1554', '1968'], 'taxiway_sequence': ['344', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2123', '2122', '2130', '2132'], 'taxi_time': 576.7686521583825, 'start_time': 116, 'origin': '294', 'destination': '1968', 'time_to_takeoff': 11 },
+//         'ETH605': { 'path': [['1389', 1], ['1388', 1], ['160', 1], ['159', 1], ['158', 1], ['157', 1], ['156', 1], ['155', 1], ['154', 1], ['153', 1], ['152', 1], ['151', 1], ['150', 1], ['149', 1], ['148', 1], ['147', 1], ['146', 1], ['2639', 1], ['893', 1], ['2627', 0], ['818', 1], ['817', 1], ['816', 1], ['2724', 1], ['658', 1], ['2720', 0], ['186', 1], ['185', 1], ['184', 1], ['183', 1], ['182', 1], ['181', 1], ['2716', 1], ['64', 1]], 'node_path': ['1996', '1149', '131', '130', '129', '128', '127', '126', '125', '124', '123', '122', '121', '120', '119', '118', '117', '116', '824', '823', '1745', '751', '750', '749', '598', '597', '152', '151', '150', '149', '148', '147', '146', '42', '41'], 'taxiway_sequence': ['1389', '1388', '160', '159', '158', '157', '156', '155', '154', '153', '152', '151', '150', '149', '148', '147', '146', '2639', '893', '2627', '818', '817', '816', '2724', '658', '2720', '186', '185', '184', '183', '182', '181', '2716', '64'], 'taxi_time': 1179.5237413367543, 'start_time': 118, 'origin': '1996', 'destination': '41', 'time_to_takeoff': 21 },
+//         'CHH7716': { 'path': [['1618', 0], ['797', 1], ['796', 1], ['795', 1], ['794', 1], ['793', 1], ['792', 1], ['937', 1], ['791', 1], ['790', 1], ['789', 1], ['788', 1], ['787', 1], ['786', 1], ['1771', 0], ['880', 0], ['881', 0], ['882', 0], ['1932', 0], ['1934', 0], ['1936', 0], ['1785', 0], ['1786', 0], ['1787', 0]], 'node_path': ['745', '731', '730', '729', '728', '727', '726', '725', '863', '724', '723', '722', '721', '720', '719', '811', '812', '813', '814', '1456', '1457', '1391', '1392', '1393', '1920'], 'taxiway_sequence': ['1618', '797', '796', '795', '794', '793', '792', '937', '791', '790', '789', '788', '787', '786', '1771', '880', '881', '882', '1932', '1934', '1936', '1785', '1786', '1787'], 'taxi_time': 925.6569040229369, 'start_time': 258, 'origin': '745', 'destination': '1920', 'time_to_takeoff': 19 },
+//         'CHH7184': { 'path': [['1563', 1], ['2895', 1], ['2894', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2127', 1], ['841', 0], ['842', 0], ['843', 0], ['844', 0], ['847', 0], ['848', 0], ['849', 0], ['850', 0], ['851', 0], ['852', 0], ['2098', 0], ['1459', 1], ['1458', 1], ['1457', 1], ['1456', 1], ['1455', 1], ['1454', 1], ['1453', 1], ['1452', 1], ['1451', 1], ['1654', 1]], 'node_path': ['397', '1278', '1845', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '774', '775', '776', '777', '778', '779', '780', '781', '782', '783', '784', '1203', '1202', '1201', '1200', '1199', '1198', '1197', '1196', '1195', '1194', '1329'], 'taxiway_sequence': ['1563', '2895', '2894', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2127', '841', '842', '843', '844', '847', '848', '849', '850', '851', '852', '2098', '1459', '1458', '1457', '1456', '1455', '1454', '1453', '1452', '1451', '1654'], 'taxi_time': 1193.6505629027668, 'start_time': 577, 'origin': '397', 'destination': '1329', 'time_to_takeoff': 29 },
+//         'UZB502': { 'path': [['2968', 1]], 'node_path': ['1868', '1869'], 'taxiway_sequence': ['2968'], 'taxi_time': 55.24926167354947, 'start_time': 99, 'origin': '1868', 'destination': '1869', 'time_to_takeoff': 2 },
+//         'CCA1346': { 'path': [['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['2675', 0]], 'node_path': ['834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '2003'], 'taxiway_sequence': ['2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '2675'], 'taxi_time': 254.48942158563852, 'start_time': 201, 'origin': '834', 'destination': '2003', 'time_to_takeoff': 7 },
+//         'UAE307': { 'path': [['2716', 1], ['64', 1]], 'node_path': ['146', '42', '41'], 'taxiway_sequence': ['2716', '64'], 'taxi_time': 118.44060108174774, 'start_time': 118, 'origin': '146', 'destination': '41', 'time_to_takeoff': 3 },
+//         'CCD1918': { 'path': [['1588', 1], ['2610', 1], ['2607', 1], ['2605', 1], ['193', 1], ['2624', 1], ['891', 0], ['2628', 1], ['2630', 0], ['904', 0], ['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['127', 1], ['126', 1], ['125', 1], ['124', 1], ['2661', 0], ['254', 0], ['2477', 0], ['552', 1], ['551', 1], ['550', 1], ['549', 1], ['548', 1], ['547', 1], ['546', 1], ['545', 1], ['544', 1], ['543', 1], ['542', 1], ['541', 1], ['540', 1], ['539', 1], ['538', 1], ['537', 1], ['536', 1], ['535', 1], ['2556', 1], ['2572', 0]], 'node_path': ['398', '1294', '1743', '1741', '159', '158', '821', '822', '1745', '833', '834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '95', '94', '214', '215', '495', '494', '493', '492', '491', '490', '489', '488', '487', '486', '485', '484', '483', '482', '481', '480', '479', '478', '477', '1724', '2050'], 'taxiway_sequence': ['1588', '2610', '2607', '2605', '193', '2624', '891', '2628', '2630', '904', '2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '127', '126', '125', '124', '2661', '254', '2477', '552', '551', '550', '549', '548', '547', '546', '545', '544', '543', '542', '541', '540', '539', '538', '537', '536', '535', '2556', '2572'], 'taxi_time': 1257.0560552121317, 'start_time': 459, 'origin': '398', 'destination': '2050', 'time_to_takeoff': 28 }
+//     },
+//     "active_flights": { 'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': '2023-11-02T00:00:06', 'origin': '775', 'destination': '1818', 'remaining_taxi_time': 65.80714, 'time_to_takeoff': 5 } },
+//     "conflicts":
+//         [
+//             { "flight1": "CCA1642", "flight2": "CHH7184", "node": "841", "time": 1 },
+//             { "flight1": "ETH605", "flight2": "UAE307", "node": "2716", "time": 2 },
+//         ]
+// };
 
 
 // 定义航班表格列
@@ -481,7 +481,7 @@ const PlanningView = observer(() => {
                 }
             });
         }
-        console.log("tableData: ", tableData);
+        // console.log("tableData: ", tableData);
         return { tableData, aircraftIds };
     };
 
@@ -494,16 +494,16 @@ const PlanningView = observer(() => {
         const updatePlanningView = (plannedData) => {
             // 适配新的数据格式
             // plannedData: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
-            console.log('PlanningView received data:', plannedData);
-            console.log('planned_flights:', plannedData?.planned_flights);
-            console.log('active_flights:', plannedData?.active_flights);
+            // console.log('PlanningView received data:', plannedData);
+            // console.log('planned_flights:', plannedData?.planned_flights);
+            // console.log('active_flights:', plannedData?.active_flights);
 
             // 处理航班数据，生成表格数据源
             const { tableData, aircraftIds: processedAircraftIds } = processFlightData(plannedData);
             setTableDataSource(tableData);
             setAircraftOrder(processedAircraftIds);
-            console.log('Generated table data:', tableData);
-            console.log('Aircraft order:', processedAircraftIds);
+            // console.log('Generated table data:', tableData);
+            // console.log('Aircraft order:', processedAircraftIds);
 
             let maxTime = 0;
             let aircraftIds = processedAircraftIds; // 使用处理后的航班ID顺序
@@ -558,10 +558,10 @@ const PlanningView = observer(() => {
                     // active_flights的remaining_taxi_time是剩余时间（秒），转换为分钟
                     const remainingTimeMinutes = (flightData.remaining_taxi_time || 0) / 60;
                     const timeToTakeoff = flightData.time_to_takeoff;
-                    console.log('flightData--------------:', flightData);
-                    console.log('timeToTakeoff--------------:', timeToTakeoff);
-                    console.log('remainingTimeMinutes--------------:', remainingTimeMinutes);
-                    console.log('rime--------------:', flightData.time_to_takeoff);
+                    // console.log('flightData--------------:', flightData);
+                    // console.log('timeToTakeoff--------------:', timeToTakeoff);
+                    // console.log('remainingTimeMinutes--------------:', remainingTimeMinutes);
+                    // console.log('rime--------------:', flightData.time_to_takeoff);
                     const convertedData = {
                         aircraft_id: flightId,
                         type: 'active', // 活跃航班类型
@@ -586,11 +586,11 @@ const PlanningView = observer(() => {
                 });
             }
             //规划视图的处理
-            console.log("aircraftIds:", aircraftIds);
-            console.log("Max Time:", maxTime);
-            console.log("plannedResults:", plannedResults);
-            console.log("Active flights count:", plannedResults.filter(r => r.type === 'active').length);
-            console.log("Planning flights count:", plannedResults.filter(r => r.type === 'planning').length);
+            // console.log("aircraftIds:", aircraftIds);
+            // console.log("Max Time:", maxTime);
+            // console.log("plannedResults:", plannedResults);
+            // console.log("Active flights count:", plannedResults.filter(r => r.type === 'active').length);
+            // console.log("Planning flights count:", plannedResults.filter(r => r.type === 'planning').length);
 
             maxTime = Math.ceil(maxTime)
             setTimeScale({ min: 0, max: maxTime });
@@ -951,6 +951,8 @@ const PlanningView = observer(() => {
                     .on("start", function(event) {
                         // 拖拽开始事件
                         d3.select(this).attr("cursor", "grabbing");
+                        // 设置拖拽状态，防止WebSocket数据更新干扰
+                        websocketStore.setDraggingState(true, aircraftId);
                         console.log(`开始拖拽飞机 ${aircraftId}`);
                     })
                     .on("drag", function(event) {
@@ -990,11 +992,19 @@ const PlanningView = observer(() => {
                         
                         // 更新数据模型
                         const aircraftData = plannedResults.find(result => result.aircraft_id === aircraftId);
+                        const time_to_start = aircraftData.time_to_start;
+
                         if (aircraftData) {
                             aircraftData.time_to_start = finalStartTime;
                             aircraftData.paths[0].start_time = finalStartTime;
                             aircraftData.paths[0].end_time = finalStartTime + taxiTime;
                         }
+                        
+                        websocketStore.adjustFlightTime(aircraftId, (finalStartTime-time_to_start)*60);
+
+                        
+                        // 清除拖拽状态
+                        websocketStore.setDraggingState(false, null);
                         
                         console.log(`飞机 ${aircraftId} 拖拽完成，新的起飞时间: ${finalStartTime.toFixed(2)} 分钟`);
                     });
@@ -1011,10 +1021,10 @@ const PlanningView = observer(() => {
                 
                 // 如果有active类型的数据就使用active的,否则使用planning的
                 const aircraftData = allAircraftData.find(data => data.type === 'active') || allAircraftData[0];
-                console.log('aircraftData---------------',aircraftData);
+                // console.log('aircraftData---------------',aircraftData);
 
                 const isActive = aircraftData && aircraftData.type === 'active';
-                console.log('isActive', id,'i:',i,':',isActive,'data',aircraftData,'data2',left_times[i],plan_times[i],fly_times[i]);
+                // console.log('isActive', id,'i:',i,':',isActive,'data',aircraftData,'data2',left_times[i],plan_times[i],fly_times[i]);
 
 
                 // 根据飞机类型设置柱状图颜色和样式
@@ -1256,7 +1266,7 @@ const PlanningView = observer(() => {
             // 新格式中冲突信息在顶层conflicts数组中
             if (plannedData.conflicts && plannedData.conflicts.length > 0) {
                 plannedData.conflicts.forEach(conflict => {
-                    console.log("Processing conflict:", conflict);
+                    // console.log("Processing conflict:", conflict);
 
                     // 根据新的冲突数据格式处理：flight1, flight2, time
                     // if (conflict.flight1 && conflict.flight2 && conflict.time !== undefined) {
@@ -1272,59 +1282,59 @@ const PlanningView = observer(() => {
                     //         const x = xScale(conflictTime); // 冲突时间点的x坐标
 
                       if (Array.isArray(conflict) && conflict.length >= 3) {
-            const conflictId = conflict[0]; // 冲突ID
-            const flightIds = conflict[1]; // 航班ID数组
-            const conflictTime = conflict[2]; // 冲突时间
+                        const conflictId = conflict[0]; // 冲突ID
+                        const flightIds = conflict[1]; // 航班ID数组
+                        const conflictTime = conflict[2]; // 冲突时间
             
-            // 确保航班ID数组包含两个元素
-            if (Array.isArray(flightIds) && flightIds.length >= 2) {
-                const flight1Id = flightIds[0];
-                const flight2Id = flightIds[1];
+                        // 确保航班ID数组包含两个元素
+                        if (Array.isArray(flightIds) && flightIds.length >= 2) {
+                            const flight1Id = flightIds[0];
+                            const flight2Id = flightIds[1];
 
-                // 检查两架飞机是否都在aircraftIds中
-                if (aircraftIds.includes(flight1Id) && aircraftIds.includes(flight2Id)) {
-                    const y1 = getYPosition(flight1Id);
-                    const y2 = getYPosition(flight2Id);
-                    const x = xScale(conflictTime); // 冲突时间点的x坐标
+                            // 检查两架飞机是否都在aircraftIds中
+                            if (aircraftIds.includes(flight1Id) && aircraftIds.includes(flight2Id)) {
+                                const y1 = getYPosition(flight1Id);
+                                const y2 = getYPosition(flight2Id);
+                                const x = xScale(conflictTime); // 冲突时间点的x坐标
 
-                            // 绘制冲突点（在每架飞机的时间线上）
-                            g.append("circle")
-                                .attr("cx", x)
-                                .attr("cy", y1)
-                                .attr("r", 6)
-                                .attr("fill", "red")
-                                .attr("stroke", "white")
-                                .attr("stroke-width", 2);
+                                        // 绘制冲突点（在每架飞机的时间线上）
+                                        g.append("circle")
+                                            .attr("cx", x)
+                                            .attr("cy", y1)
+                                            .attr("r", 6)
+                                            .attr("fill", "red")
+                                            .attr("stroke", "white")
+                                            .attr("stroke-width", 2);
 
-                            g.append("circle")
-                                .attr("cx", x)
-                                .attr("cy", y2)
-                                .attr("r", 6)
-                                .attr("fill", "red")
-                                .attr("stroke", "white")
-                                .attr("stroke-width", 2);
+                                        g.append("circle")
+                                            .attr("cx", x)
+                                            .attr("cy", y2)
+                                            .attr("r", 6)
+                                            .attr("fill", "red")
+                                            .attr("stroke", "white")
+                                            .attr("stroke-width", 2);
 
-                            // 绘制连接两架飞机的冲突线
-                            g.append("line")
-                                .attr("x1", x)
-                                .attr("y1", y1)
-                                .attr("x2", x)
-                                .attr("y2", y2)
-                                .attr("stroke", "red")
-                                .attr("stroke-width", 3)
-                                .attr("stroke-dasharray", "5,5")
-                                .attr("opacity", 0.8);
+                                        // 绘制连接两架飞机的冲突线
+                                        g.append("line")
+                                            .attr("x1", x)
+                                            .attr("y1", y1)
+                                            .attr("x2", x)
+                                            .attr("y2", y2)
+                                            .attr("stroke", "red")
+                                            .attr("stroke-width", 3)
+                                            .attr("stroke-dasharray", "5,5")
+                                            .attr("opacity", 0.8);
 
-                            // 添加冲突标识文本
-                            g.append("text")
-                                .attr("x", x + 10)
-                                .attr("y", (y1 + y2) / 2)
-                                .attr("font-size", "10px")
-                                .attr("fill", "red")
-                                .attr("font-weight", "bold")
-                                .text(`冲突@${conflictTime.toFixed(2)}`);
+                                        // 添加冲突标识文本
+                                        g.append("text")
+                                            .attr("x", x + 10)
+                                            .attr("y", (y1 + y2) / 2)
+                                            .attr("font-size", "10px")
+                                            .attr("fill", "red")
+                                            .attr("font-weight", "bold")
+                                            .text(`冲突@${conflictTime.toFixed(2)}`);
+                                }
                         }
-                    }
                 }});
             }
 
@@ -1333,16 +1343,25 @@ const PlanningView = observer(() => {
 
         //这里的逻辑应该是前端按按钮向后端传要规划的飞机id,后端返回结果
         const disposer = autorun(() => {
+            // console.log("=== PlanningView autorun triggered ===");
+            // console.log("websocketStore:", websocketStore);
+            // console.log("websocketStore.plannedFlights:", websocketStore.plannedFlights);
+            // console.log("typeof websocketStore.plannedFlights:", typeof websocketStore.plannedFlights);
+            // console.log("websocketStore.plannedFlights keys:", websocketStore.plannedFlights ? Object.keys(websocketStore.plannedFlights) : 'null/undefined');
+
+            let plannedFlights = websocketStore.plannedFlights;
+
+            
             if (websocketStore.plannedFlights &&
                 Object.keys(websocketStore.plannedFlights).length > 0) {
 
                 // console.log("Planned Path:", JSON.stringify(websocketStore.plannedPath));
-                console.log("Planned Flights:", websocketStore.plannedFlights);
+                // console.log("Planned Flights:", plannedFlights);
                 // console.log("Active Flights:", websocketStore.activeFlights);
-                console.log("Path Conflicts:", websocketStore.pathConflicts);
+                // console.log("Path Conflicts:", websocketStore.pathConflicts);
 
                 // 使用新的数据格式更新视图
-                updatePlanningView(websocketStore.plannedFlights);
+                updatePlanningView(plannedFlights);
 
             }
             else {
