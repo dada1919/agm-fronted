@@ -78,7 +78,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                 style={{
                     display: 'block',
                     backgroundColor: '#ffffff',
-                    overflow: 'auto'
+                    minWidth: tableWidth,
                 }}
             >
                 {/* 表头背景 */}
@@ -608,7 +608,7 @@ const PlanningView = observer(() => {
            // const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
            const height = requiredHeight+200; // 额外增加200px用于边距和图例
            
-            const margin = { top: HEADER_HEIGHT, right: 100, bottom: 80, left: 150 }; // 增加各边距以容纳图例和标签
+            const margin = { top:0, right: 100, bottom: 80, left: 150 }; // 增加各边距以容纳图例和标签
 
             // 清除之前的内容
             svg.selectAll("*").remove();
