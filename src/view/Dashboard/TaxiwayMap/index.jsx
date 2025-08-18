@@ -1322,11 +1322,344 @@ const TaxiwayMap = observer(() => {
 
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+    <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+      {/* 地图区域 - 80% 宽度 */}
+      <div style={{ width: '80%', height: '100%' }}>
+        <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      </div>
+      
+      {/* 冲突解决界面 - 20% 宽度 */}
+      <div style={{ 
+        width: '20%', 
+        height: '100%', 
+        backgroundColor: '#f8f9fa',
+        borderLeft: '1px solid #e9ecef',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
+        <ConflictResolutionPanel />
+      </div>
     </div>
   );
 })
+
+// 冲突解决面板组件
+const ConflictResolutionPanel = () => {
+  const [conflicts, setConflicts] = useState([]);
+  const [selectedConflict, setSelectedConflict] = useState(null);
+  const [resolutions, setResolutions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // 监听WebSocket冲突数据
+  useEffect(() => {
+    const handleConflictResolutions = (data) => {
+      console.log('收到冲突解决方案推荐:', data);
+      if (data.resolutions) {
+        const conflictList = Object.keys(data.resolutions).map(conflictId => ({
+          id: conflictId,
+          ...data.resolutions[conflictId]
+        }));
+        setConflicts(conflictList);
+      }
+    };
+
+    // 假设通过websocketStore监听冲突数据
+    if (websocketStore.socket) {
+      websocketStore.socket.on('conflict_resolutions', handleConflictResolutions);
+      
+      return () => {
+        websocketStore.socket.off('conflict_resolutions', handleConflictResolutions);
+      };
+    }
+  }, []);
+
+  // 获取特定冲突的解决方案
+  const getConflictResolutions = (conflictId) => {
+    setLoading(true);
+    if (websocketStore.socket) {
+      websocketStore.socket.emit('get_conflict_resolutions', {
+        conflict_id: conflictId
+      });
+      
+      // 监听响应
+      websocketStore.socket.once('conflict_resolutions_response', (response) => {
+        setLoading(false);
+        if (response.success) {
+          setSelectedConflict(response.data.conflict);
+          setResolutions(response.data.recommendations);
+        } else {
+          console.error('获取解决方案失败:', response.message);
+        }
+      });
+    }
+  };
+
+  // 应用解决方案
+  const applyResolution = (conflictId, solutionId) => {
+    setLoading(true);
+    if (websocketStore.socket) {
+      websocketStore.socket.emit('apply_conflict_resolution', {
+        conflict_id: conflictId,
+        solution_id: solutionId
+      });
+      
+      // 监听应用结果
+      websocketStore.socket.once('conflict_resolution_applied', (result) => {
+        setLoading(false);
+        if (result.status === 'applied') {
+          console.log('解决方案应用成功:', result.message);
+          // 更新冲突状态
+          setConflicts(prev => prev.map(conflict => 
+            conflict.id === conflictId 
+              ? { ...conflict, status: 'resolved' }
+              : conflict
+          ));
+          setSelectedConflict(null);
+          setResolutions([]);
+        } else {
+          console.error('解决方案应用失败:', result.message);
+        }
+      });
+    }
+  };
+
+  return (
+    <div style={{ 
+      padding: '16px', 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column' 
+    }}>
+      {/* 标题 */}
+      <div style={{ 
+        marginBottom: '16px', 
+        paddingBottom: '12px', 
+        borderBottom: '2px solid #007bff' 
+      }}>
+        <h3 style={{ 
+          margin: 0, 
+          fontSize: '16px', 
+          fontWeight: 'bold', 
+          color: '#333' 
+        }}>
+          冲突解决方案
+        </h3>
+      </div>
+
+      {/* 加载状态 */}
+      {loading && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '20px', 
+          color: '#666' 
+        }}>
+          处理中...
+        </div>
+      )}
+
+      {/* 冲突列表 */}
+      {!selectedConflict && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <h4 style={{ 
+            fontSize: '14px', 
+            marginBottom: '12px', 
+            color: '#555' 
+          }}>
+            当前冲突 ({conflicts.length})
+          </h4>
+          
+          {conflicts.length === 0 ? (
+            <div style={{ 
+              textAlign: 'center', 
+              color: '#999', 
+              padding: '20px' 
+            }}>
+              暂无冲突
+            </div>
+          ) : (
+            conflicts.map(conflict => (
+              <div 
+                key={conflict.id}
+                style={{
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  marginBottom: '8px',
+                  backgroundColor: conflict.status === 'resolved' ? '#f8f9fa' : 'white',
+                  borderLeft: `4px solid ${
+                    conflict.analysis?.severity === 'HIGH' ? '#dc3545' :
+                    conflict.analysis?.severity === 'MEDIUM' ? '#ffc107' : '#28a745'
+                  }`,
+                  opacity: conflict.status === 'resolved' ? 0.6 : 1
+                }}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '8px'
+                }}>
+                  <span style={{ 
+                    fontWeight: 'bold', 
+                    fontSize: '13px' 
+                  }}>
+                    {conflict.id}
+                  </span>
+                  <span style={{
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    backgroundColor: 
+                      conflict.analysis?.severity === 'HIGH' ? '#dc3545' :
+                      conflict.analysis?.severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                    color: 'white'
+                  }}>
+                    {conflict.analysis?.severity || 'UNKNOWN'}
+                  </span>
+                </div>
+                
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                  <div>航班: {conflict.conflict?.flights?.join(', ') || 'N/A'}</div>
+                  <div>节点: {conflict.conflict?.node || 'N/A'}</div>
+                  {conflict.analysis?.estimated_delay && (
+                    <div>预计延误: {conflict.analysis.estimated_delay}秒</div>
+                  )}
+                </div>
+                
+                {conflict.status !== 'resolved' && (
+                  <button
+                    onClick={() => getConflictResolutions(conflict.id)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 12px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+                  >
+                    查看解决方案
+                  </button>
+                )}
+                
+                {conflict.status === 'resolved' && (
+                  <div style={{
+                    textAlign: 'center',
+                    color: '#28a745',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}>
+                    已解决
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 解决方案详情 */}
+      {selectedConflict && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            marginBottom: '16px' 
+          }}>
+            <button
+              onClick={() => {
+                setSelectedConflict(null);
+                setResolutions([]);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '16px',
+                cursor: 'pointer',
+                marginRight: '8px',
+                color: '#007bff'
+              }}
+            >
+              ←
+            </button>
+            <h4 style={{ 
+              margin: 0, 
+              fontSize: '14px', 
+              color: '#555' 
+            }}>
+              {selectedConflict.conflict_id} 解决方案
+            </h4>
+          </div>
+          
+          {resolutions.map((resolution, index) => (
+            <div 
+              key={resolution.option_id}
+              style={{
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                padding: '12px',
+                marginBottom: '12px',
+                backgroundColor: 'white'
+              }}
+            >
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'flex-start',
+                marginBottom: '8px'
+              }}>
+                <h5 style={{ 
+                  margin: 0, 
+                  fontSize: '13px', 
+                  fontWeight: 'bold',
+                  flex: 1
+                }}>
+                  {resolution.description}
+                </h5>
+                <span style={{
+                  fontSize: '11px',
+                  color: '#666',
+                  marginLeft: '8px'
+                }}>
+                  置信度: {(resolution.confidence * 100).toFixed(1)}%
+                </span>
+              </div>
+              
+              <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
+                <div>策略: {resolution.strategy}</div>
+                <div>延误减少: {resolution.estimated_delay_reduction}秒</div>
+                <div>影响航班: {resolution.affected_flights?.join(', ') || 'N/A'}</div>
+              </div>
+              
+              <button
+                onClick={() => applyResolution(selectedConflict.conflict_id, resolution.option_id)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
+              >
+                应用此方案
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default TaxiwayMap;
 
