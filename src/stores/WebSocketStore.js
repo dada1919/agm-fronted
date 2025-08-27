@@ -21,6 +21,12 @@ class WebSocketStore {
     isDragging = false;
     draggedFlightId = null;
 
+    // 新增：冲突解决相关状态
+    conflictResolutions = []; // 冲突解决方案列表
+    selectedConflict = null; // 当前选中的冲突
+    resolutions = []; // 当前冲突的解决方案
+    conflictResolutionLoading = false; // 冲突解决加载状态
+
     constructor() {
         makeAutoObservable(this);
         this.connect();
@@ -62,7 +68,7 @@ class WebSocketStore {
             transports: ['websocket'], // 如果所需，指定传输协议
         });
 
-        // 处理接收到的消息
+        // 处理接收到的消息1
         this.socket.on('system_state_update', (data) => {
             console.log('System state updated:', data);
             // 如果正在拖拽，则不更新被拖拽航班的数据
@@ -76,19 +82,17 @@ class WebSocketStore {
                 this.updateConflicts(data.conflicts);
             }
         });
+        //被注释1
         this.socket.on('conflicts_update', (data) => {
             // console.log("Received conflict update:", data);
             this.updateOverlapTaxiways(data);
         });
-        // 新增：处理重叠滑行道更新事件
-        this.socket.on('overlap_taxiways_update', (data) => {
-            // console.log("Received overlap taxiways update:", data);
-            this.updateOverlapTaxiways(data);
-        });
+        //无
         this.socket.on('path_planning_result', (data) => {
             // console.log("Received planned path:", data);
             // this.updatePlannedPath(data);
         })
+        //1
          this.socket.on('flight_adjustment_result', (data) => {
             console.log('Flight adjustment result:', data);
             if (data.success) {
@@ -99,6 +103,7 @@ class WebSocketStore {
                 // 可以在这里添加错误提示
             }
         });
+        //1
         this.socket.on('planning_update', (data) => {
             console.log('规划数据更新');
             // console.log('Received planning update:', data);
@@ -110,6 +115,38 @@ class WebSocketStore {
         this.socket.on('disconnect', () => console.log('Disconnected from WebSocket server'));
         this.socket.on('connect_error', (error) => {
             console.error('Connection Error:', error); // 打印连接错误
+        });
+        // 新增：处理冲突解决方案推荐1
+        this.socket.on('conflict_resolutions_update', (data) => {
+            console.log('收到冲突解决方案推荐:', data);
+            this.updateConflictResolutions(data);
+            this.conflictResolutionLoading = false;
+            
+        });
+
+        // 新增：处理冲突解决方案响应、无
+        this.socket.on('conflict_resolutions_response', (response) => {
+            this.conflictResolutionLoading = false;
+            if (response.success) {
+                this.selectedConflict = response.data.conflict;
+                this.resolutions = response.data.recommendations;
+            } else {
+                console.error('获取解决方案失败:', response.message);
+            }
+        });
+
+        // 新增：处理冲突解决方案应用结果1
+        this.socket.on('conflict_resolution_applied', (result) => {
+            this.conflictResolutionLoading = false;
+            if (result.status === 'applied') {
+                console.log('解决方案应用成功:', result.message);
+                // 更新冲突状态
+                this.updateConflictStatus(result.conflict_id, 'resolved');
+                this.selectedConflict = null;
+                this.resolutions = [];
+            } else {
+                console.error('解决方案应用失败:', result.message);
+            }
         });
     }
 
@@ -193,6 +230,99 @@ class WebSocketStore {
         // 直接使用包含planned_flights、active_flights和conflicts的完整数据
         this.plannedFlights = convertedData;
     }
+    }
+    // 新增：更新冲突解决方案数据
+    updateConflictResolutions(raw) {
+  try {
+    console.log('📊 处理冲突解决方案数据:', raw);
+
+    // 1) 允许传入 JSON 字符串
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    let items = [];
+
+    // 2) 各种输入格式归一化为 items 数组
+    if (Array.isArray(data)) {
+      // 直接数组
+      items = data;
+    } else if (data && typeof data === 'object') {
+      if (Array.isArray(data.resolutions)) {
+        // 旧格式：{ resolutions: [...] }
+        items = data.resolutions;
+      } else if (data.conflict && data.analysis && data.recommendations) {
+        // 单条新格式
+        items = [data];
+      } else {
+        // 多条字典：{ conflict_xxx: { conflict, analysis, recommendations }, ... }
+        items = Object.values(data).filter(
+          v => v && v.conflict && v.analysis && v.recommendations
+        );
+      }
+    } else {
+      console.warn('⚠️ 未知的数据类型:', typeof data);
+      items = [];
+    }
+
+    if (!items.length) {
+      console.warn('⚠️ 未从数据中解析到任何冲突项。');
+    }
+
+    // 3) 统一映射成内部结构
+    this.conflictResolutions = items.map((x, idx) => {
+      const id =
+        x?.analysis?.conflict_id ??
+        `${x?.conflict?.flight1_id || 'F1'}_${x?.conflict?.flight2_id || 'F2'}_${x?.conflict?.conflict_time ?? idx}`;
+
+      return {
+        id,
+        conflict: x.conflict ?? null,
+        analysis: x.analysis ?? null,
+        recommendations: Array.isArray(x.recommendations) ? x.recommendations : [],
+      };
+    });
+
+    console.log('✅ 冲突解决方案数据已更新:', this.conflictResolutions);
+  } catch (err) {
+    console.error('❌ 解析冲突解决方案数据失败:', err);
+    // 视需要把错误状态暴露给 UI
+    this.conflictResolutions = [];
+  }
+}
+
+
+    // 新增：获取特定冲突的解决方案
+    getConflictResolutions(conflictId) {
+        this.conflictResolutionLoading = true;
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('get_conflict_resolutions', {
+                conflict_id: conflictId
+            });
+        } else {
+            console.error('WebSocket未连接，无法获取冲突解决方案');
+            this.conflictResolutionLoading = false;
+        }
+    }
+
+    // 新增：应用解决方案
+    applyConflictResolution(conflictId, solutionId) {
+        this.conflictResolutionLoading = true;
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('apply_conflict_resolution', {
+                conflict_id: conflictId,
+                solution_id: solutionId
+            });
+        } else {
+            console.error('WebSocket未连接，无法应用冲突解决方案');
+            this.conflictResolutionLoading = false;
+        }
+    }
+
+    // 新增：更新冲突状态
+    updateConflictStatus(conflictId, status) {
+        this.conflictResolutions = this.conflictResolutions.map(conflict => 
+            conflict.id === conflictId 
+                ? { ...conflict, status }
+                : conflict
+        );
     }
 }
 const websocketStore = new WebSocketStore();

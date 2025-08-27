@@ -499,15 +499,15 @@ const TaxiwayMap = observer(() => {
     // 清理planned paths图层
     const clearPlannedPaths = () => {
       if (!map.current || !map.current.getStyle) return;
-      
+
       try {
         const style = map.current.getStyle();
         if (!style || !style.layers) return;
-        
+
         // 查找所有planned-path开头的图层和数据源
         const layersToRemove = [];
         const sourcesToRemove = [];
-        
+
         style.layers.forEach(layer => {
           if (layer.id && layer.id.startsWith('planned-path-')) {
             layersToRemove.push(layer.id);
@@ -516,14 +516,14 @@ const TaxiwayMap = observer(() => {
             }
           }
         });
-        
+
         // 移除图层
         layersToRemove.forEach(layerId => {
           if (map.current && map.current.getLayer && map.current.getLayer(layerId)) {
             map.current.removeLayer(layerId);
           }
         });
-        
+
         // 移除数据源
         sourcesToRemove.forEach(sourceId => {
           if (map.current && map.current.getSource && map.current.getSource(sourceId)) {
@@ -538,46 +538,46 @@ const TaxiwayMap = observer(() => {
     // 绘制planned飞机的规划路径
     const drawPlannedPaths = () => {
       if (!map.current || !map.current.getStyle || !geojsonData || !websocketStore.plannedPath) return;
-      
+
       // 先清理旧的路径
       clearPlannedPaths();
-      
+
       const plannedFlights = websocketStore.plannedPath;
 
       if (!plannedFlights || Object.keys(plannedFlights).length === 0) {
         return;
       }
-      
+
       // 遍历每个planned航班
       Object.entries(plannedFlights).forEach(([flightId, flightData]) => {
         if (!flightData.node_path || !Array.isArray(flightData.node_path) || flightData.node_path.length < 2) {
           return;
         }
-        
+
         // 根据node_path中的滑行道ID找到对应的坐标
         const pathCoordinates = [];
-        
+
         for (let i = 0; i < flightData.node_path.length - 1; i++) {
           const currentNodeId = String(flightData.node_path[i]);
           const nextNodeId = String(flightData.node_path[i + 1]);
-          
+
           // 查找连接这两个节点的滑行道
           const taxiway = geojsonData.features.find(feature => {
             const startNode = String(feature.properties.startnode);
             const endNode = String(feature.properties.endnode);
             return (startNode === currentNodeId && endNode === nextNodeId) ||
-                   (startNode === nextNodeId && endNode === currentNodeId);
+              (startNode === nextNodeId && endNode === currentNodeId);
           });
-          
+
           if (taxiway && taxiway.geometry && taxiway.geometry.coordinates) {
             const coords = taxiway.geometry.coordinates[0];
             if (coords && coords.length > 0) {
               // 根据节点顺序决定坐标方向
               const startNode = String(taxiway.properties.startnode);
               const shouldReverse = startNode !== currentNodeId;
-              
+
               const coordsToAdd = shouldReverse ? [...coords].reverse() : coords;
-              
+
               // 避免重复添加相同的点
               if (pathCoordinates.length === 0) {
                 pathCoordinates.push(...coordsToAdd);
@@ -588,12 +588,12 @@ const TaxiwayMap = observer(() => {
             }
           }
         }
-        
+
         if (pathCoordinates.length < 2) {
           console.warn(`无法为航班 ${flightId} 构建完整路径`);
           return;
         }
-        
+
         // 创建GeoJSON数据
         const pathGeoJSON = {
           type: 'FeatureCollection',
@@ -609,27 +609,27 @@ const TaxiwayMap = observer(() => {
             }
           }]
         };
-        
+
         const sourceId = `planned-path-source-${flightId}`;
         const layerId = `planned-path-layer-${flightId}`;
-        
+
         try {
-           // 确保map完全初始化
-           if (!map.current || !map.current.getSource || !map.current.addSource) {
-             console.warn('地图未完全初始化，跳过路径绘制');
-             return;
-           }
-           
-           // 添加数据源
-           if (!map.current.getSource(sourceId)) {
-             map.current.addSource(sourceId, {
-               type: 'geojson',
-               data: pathGeoJSON
-             });
-           } else {
-             map.current.getSource(sourceId).setData(pathGeoJSON);
-           }
-          
+          // 确保map完全初始化
+          if (!map.current || !map.current.getSource || !map.current.addSource) {
+            console.warn('地图未完全初始化，跳过路径绘制');
+            return;
+          }
+
+          // 添加数据源
+          if (!map.current.getSource(sourceId)) {
+            map.current.addSource(sourceId, {
+              type: 'geojson',
+              data: pathGeoJSON
+            });
+          } else {
+            map.current.getSource(sourceId).setData(pathGeoJSON);
+          }
+
           // 添加图层
           if (!map.current.getLayer(layerId)) {
             map.current.addLayer({
@@ -647,12 +647,12 @@ const TaxiwayMap = observer(() => {
                 'line-opacity': 0.8
               }
             });
-            
+
             // 添加点击事件
             map.current.on('click', layerId, (e) => {
               const feature = e.features[0];
               const { flightId, destination } = feature.properties;
-              
+
               new maplibregl.Popup()
                 .setLngLat(e.lngLat)
                 .setHTML(`
@@ -664,12 +664,12 @@ const TaxiwayMap = observer(() => {
                 `)
                 .addTo(map.current);
             });
-            
+
             // 添加鼠标悬停效果
             map.current.on('mouseenter', layerId, () => {
               map.current.getCanvas().style.cursor = 'pointer';
             });
-            
+
             map.current.on('mouseleave', layerId, () => {
               map.current.getCanvas().style.cursor = '';
             });
@@ -1127,12 +1127,12 @@ const TaxiwayMap = observer(() => {
               });
               window._areaLayers.push(areaId);
               if (conflict_time && typeof conflict_time === 'number' && conflict_time > 0) {
-                const timeoutMs = conflict_time * 1000 *20; // 转换为毫秒
+                const timeoutMs = conflict_time * 1000 * 20; // 转换为毫秒
 
                 //console.log(`设置面积图 ${areaId} 在 ${conflict_time} 秒后清除`);
 
                 const timerId = setTimeout(() => {
-                 // console.log(`自动清除面积图: ${areaId}`);
+                  // console.log(`自动清除面积图: ${areaId}`);
 
                   // 清除地图图层和数据源
                   if (map.current && map.current.getLayer(areaId)) {
@@ -1305,7 +1305,7 @@ const TaxiwayMap = observer(() => {
         clearTimeout(timerId);
       });
       areaTimers.current = {};
-      
+
       // 清理planned paths图层
       clearPlannedPaths();
 
@@ -1324,14 +1324,14 @@ const TaxiwayMap = observer(() => {
   return (
     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
       {/* 地图区域 - 80% 宽度 */}
-      <div style={{ width: '80%', height: '100%' }}>
+      <div style={{ width: '60%', height: '100%' }}>
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       </div>
-      
+
       {/* 冲突解决界面 - 20% 宽度 */}
-      <div style={{ 
-        width: '20%', 
-        height: '100%', 
+      <div style={{
+        width: '40%',
+        height: '100%',
         backgroundColor: '#f8f9fa',
         borderLeft: '1px solid #e9ecef',
         display: 'flex',
@@ -1345,103 +1345,43 @@ const TaxiwayMap = observer(() => {
 })
 
 // 冲突解决面板组件
-const ConflictResolutionPanel = () => {
-  const [conflicts, setConflicts] = useState([]);
-  const [selectedConflict, setSelectedConflict] = useState(null);
-  const [resolutions, setResolutions] = useState([]);
-  const [loading, setLoading] = useState(false);
+const ConflictResolutionPanel = observer(() => {
 
-  // 监听WebSocket冲突数据
-  useEffect(() => {
-    const handleConflictResolutions = (data) => {
-      console.log('收到冲突解决方案推荐:', data);
-      if (data.resolutions) {
-        const conflictList = Object.keys(data.resolutions).map(conflictId => ({
-          id: conflictId,
-          ...data.resolutions[conflictId]
-        }));
-        setConflicts(conflictList);
-      }
-    };
+  // 使用WebSocketStore中的状态，而不是本地状态
+  const conflicts = websocketStore.conflictResolutions;
 
-    // 假设通过websocketStore监听冲突数据
-    if (websocketStore.socket) {
-      websocketStore.socket.on('conflict_resolutions', handleConflictResolutions);
-      
-      return () => {
-        websocketStore.socket.off('conflict_resolutions', handleConflictResolutions);
-      };
-    }
-  }, []);
-
-  // 获取特定冲突的解决方案
+  const selectedConflict = websocketStore.selectedConflict;
+  const resolutions = websocketStore.resolutions;
+  const loading = websocketStore.conflictResolutionLoading;
+  console.log('冲突解决方案：Rendering ConflictResolutionPanel with conflicts:', conflicts, selectedConflict, resolutions, loading);
+  // 获取特定冲突的解决方案 - 直接调用WebSocketStore的方法
   const getConflictResolutions = (conflictId) => {
-    setLoading(true);
-    if (websocketStore.socket) {
-      websocketStore.socket.emit('get_conflict_resolutions', {
-        conflict_id: conflictId
-      });
-      
-      // 监听响应
-      websocketStore.socket.once('conflict_resolutions_response', (response) => {
-        setLoading(false);
-        if (response.success) {
-          setSelectedConflict(response.data.conflict);
-          setResolutions(response.data.recommendations);
-        } else {
-          console.error('获取解决方案失败:', response.message);
-        }
-      });
-    }
+    websocketStore.getConflictResolutions(conflictId);
   };
 
-  // 应用解决方案
+  // 应用解决方案 - 直接调用WebSocketStore的方法
   const applyResolution = (conflictId, solutionId) => {
-    setLoading(true);
-    if (websocketStore.socket) {
-      websocketStore.socket.emit('apply_conflict_resolution', {
-        conflict_id: conflictId,
-        solution_id: solutionId
-      });
-      
-      // 监听应用结果
-      websocketStore.socket.once('conflict_resolution_applied', (result) => {
-        setLoading(false);
-        if (result.status === 'applied') {
-          console.log('解决方案应用成功:', result.message);
-          // 更新冲突状态
-          setConflicts(prev => prev.map(conflict => 
-            conflict.id === conflictId 
-              ? { ...conflict, status: 'resolved' }
-              : conflict
-          ));
-          setSelectedConflict(null);
-          setResolutions([]);
-        } else {
-          console.error('解决方案应用失败:', result.message);
-        }
-      });
-    }
+    websocketStore.applyConflictResolution(conflictId, solutionId);
   };
 
   return (
-    <div style={{ 
-      padding: '16px', 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column' 
+    <div style={{
+      padding: '16px',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       {/* 标题 */}
-      <div style={{ 
-        marginBottom: '16px', 
-        paddingBottom: '12px', 
-        borderBottom: '2px solid #007bff' 
+      <div style={{
+        marginBottom: '16px',
+        paddingBottom: '12px',
+        borderBottom: '2px solid #007bff'
       }}>
-        <h3 style={{ 
-          margin: 0, 
-          fontSize: '16px', 
-          fontWeight: 'bold', 
-          color: '#333' 
+        <h3 style={{
+          margin: 0,
+          fontSize: '16px',
+          fontWeight: 'bold',
+          color: '#333'
         }}>
           冲突解决方案
         </h3>
@@ -1449,10 +1389,10 @@ const ConflictResolutionPanel = () => {
 
       {/* 加载状态 */}
       {loading && (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '20px', 
-          color: '#666' 
+        <div style={{
+          textAlign: 'center',
+          padding: '20px',
+          color: '#666'
         }}>
           处理中...
         </div>
@@ -1461,25 +1401,25 @@ const ConflictResolutionPanel = () => {
       {/* 冲突列表 */}
       {!selectedConflict && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <h4 style={{ 
-            fontSize: '14px', 
-            marginBottom: '12px', 
-            color: '#555' 
+          <h4 style={{
+            fontSize: '14px',
+            marginBottom: '12px',
+            color: '#555'
           }}>
             当前冲突 ({conflicts.length})
           </h4>
-          
+
           {conflicts.length === 0 ? (
-            <div style={{ 
-              textAlign: 'center', 
-              color: '#999', 
-              padding: '20px' 
+            <div style={{
+              textAlign: 'center',
+              color: '#999',
+              padding: '20px'
             }}>
               暂无冲突
             </div>
           ) : (
             conflicts.map(conflict => (
-              <div 
+              <div
                 key={conflict.id}
                 style={{
                   border: '1px solid #ddd',
@@ -1487,22 +1427,21 @@ const ConflictResolutionPanel = () => {
                   padding: '12px',
                   marginBottom: '8px',
                   backgroundColor: conflict.status === 'resolved' ? '#f8f9fa' : 'white',
-                  borderLeft: `4px solid ${
-                    conflict.analysis?.severity === 'HIGH' ? '#dc3545' :
+                  borderLeft: `4px solid ${conflict.analysis?.severity === 'HIGH' ? '#dc3545' :
                     conflict.analysis?.severity === 'MEDIUM' ? '#ffc107' : '#28a745'
-                  }`,
+                    }`,
                   opacity: conflict.status === 'resolved' ? 0.6 : 1
                 }}
               >
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   marginBottom: '8px'
                 }}>
-                  <span style={{ 
-                    fontWeight: 'bold', 
-                    fontSize: '13px' 
+                  <span style={{
+                    fontWeight: 'bold',
+                    fontSize: '13px'
                   }}>
                     {conflict.id}
                   </span>
@@ -1510,26 +1449,27 @@ const ConflictResolutionPanel = () => {
                     fontSize: '11px',
                     padding: '2px 6px',
                     borderRadius: '3px',
-                    backgroundColor: 
+                    backgroundColor:
                       conflict.analysis?.severity === 'HIGH' ? '#dc3545' :
-                      conflict.analysis?.severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                        conflict.analysis?.severity === 'MEDIUM' ? '#ffc107' : '#28a745',
                     color: 'white'
                   }}>
                     {conflict.analysis?.severity || 'UNKNOWN'}
                   </span>
                 </div>
-                
+
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-                  <div>航班: {conflict.conflict?.flights?.join(', ') || 'N/A'}</div>
-                  <div>节点: {conflict.conflict?.node || 'N/A'}</div>
-                  {conflict.analysis?.estimated_delay && (
-                    <div>预计延误: {conflict.analysis.estimated_delay}秒</div>
+                  <div>航班: {conflict.analysis?.involved_flights?.join(', ') || 'N/A'}</div>
+                  <div>节点: {conflict.analysis?.conflict_node || 'N/A'}</div>
+                  {typeof conflict.analysis?.estimated_delay === 'number' && (
+                    <div>预计延误: {conflict.analysis.estimated_delay}s</div>
                   )}
                 </div>
-                
+
+
                 {conflict.status !== 'resolved' && (
                   <button
-                    onClick={() => getConflictResolutions(conflict.id)}
+                    onClick={() => getConflictResolutions(conflict.analysis?.conflict_id ?? conflict.id)}
                     style={{
                       width: '100%',
                       padding: '6px 12px',
@@ -1546,7 +1486,7 @@ const ConflictResolutionPanel = () => {
                     查看解决方案
                   </button>
                 )}
-                
+
                 {conflict.status === 'resolved' && (
                   <div style={{
                     textAlign: 'center',
@@ -1566,15 +1506,15 @@ const ConflictResolutionPanel = () => {
       {/* 解决方案详情 */}
       {selectedConflict && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            marginBottom: '16px' 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: '16px'
           }}>
             <button
               onClick={() => {
-                setSelectedConflict(null);
-                setResolutions([]);
+                websocketStore.selectedConflict = null;
+                websocketStore.resolutions = [];
               }}
               style={{
                 background: 'none',
@@ -1587,17 +1527,17 @@ const ConflictResolutionPanel = () => {
             >
               ←
             </button>
-            <h4 style={{ 
-              margin: 0, 
-              fontSize: '14px', 
-              color: '#555' 
+            <h4 style={{
+              margin: 0,
+              fontSize: '14px',
+              color: '#555'
             }}>
               {selectedConflict.conflict_id} 解决方案
             </h4>
           </div>
-          
+
           {resolutions.map((resolution, index) => (
-            <div 
+            <div
               key={resolution.option_id}
               style={{
                 border: '1px solid #ddd',
@@ -1607,15 +1547,15 @@ const ConflictResolutionPanel = () => {
                 backgroundColor: 'white'
               }}
             >
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'flex-start',
                 marginBottom: '8px'
               }}>
-                <h5 style={{ 
-                  margin: 0, 
-                  fontSize: '13px', 
+                <h5 style={{
+                  margin: 0,
+                  fontSize: '13px',
                   fontWeight: 'bold',
                   flex: 1
                 }}>
@@ -1629,13 +1569,13 @@ const ConflictResolutionPanel = () => {
                   置信度: {(resolution.confidence * 100).toFixed(1)}%
                 </span>
               </div>
-              
+
               <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
                 <div>策略: {resolution.strategy}</div>
                 <div>延误减少: {resolution.estimated_delay_reduction}秒</div>
                 <div>影响航班: {resolution.affected_flights?.join(', ') || 'N/A'}</div>
               </div>
-              
+
               <button
                 onClick={() => applyResolution(selectedConflict.conflict_id, resolution.option_id)}
                 style={{
@@ -1659,7 +1599,7 @@ const ConflictResolutionPanel = () => {
       )}
     </div>
   );
-};
+});
 
 export default TaxiwayMap;
 
