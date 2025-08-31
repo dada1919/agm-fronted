@@ -125,12 +125,12 @@ class WebSocketStore {
             
         });
 
-        // 新增：处理冲突解决方案响应、无
+    
         this.socket.on('conflict_resolutions_result', (response) => {
            
             this.conflictResolutionLoading = false;
             if (response.success) {
-                console.log('收到冲突解决方案111响应:', response.data.data.recommendations);
+                
                 this.selectedConflict = response.data.data.conflict;
                 this.resolution_analysis = response.data.data.analysis;
                 this.resolutions = response.data.data.recommendations;
@@ -142,15 +142,14 @@ class WebSocketStore {
 
         // 新增：处理冲突解决方案应用结果1
         this.socket.on('conflict_resolution_applied', (result) => {
-             console.log('这是解决方案:', result);
+            console.log('这是解决方案:', result);
             this.conflictResolutionLoading = false;
             if (result.status === 'applied') {
-               
-                console.log('解决方案应用成功:', result.message);
-                // 更新冲突状态
+               console.log('冲突已解决:', );
                 this.updateConflictStatus(result.conflict_id, 'resolved');
-                this.selectedConflict = null;
-                this.resolutions = [];
+                
+                 console.log('解决方案应用成功:', result.message);
+                // 更新冲突状态
             } else {
                 console.error('解决方案应用失败:', result.message);
             }

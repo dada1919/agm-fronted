@@ -205,6 +205,7 @@ const TaxiwayMap = observer(() => {
       websocketStore.planePosition.forEach(plane => {
         console.log('plane1', plane);
         const { id, coords, cur_path, trajectory } = plane;
+        console.log('trajectory数据:', trajectory); // 添加这行调试
         const color = getColor(id); // 根据飞机ID设置颜色，默认黑色
 
 
@@ -395,7 +396,7 @@ const TaxiwayMap = observer(() => {
       let index = 0;
       // const multiColor = generateAlphaVariants(color, 10, 5); // 生成颜色透明度阶梯
 
-      // console.log('绘制轨迹', id, trajectorys);
+     console.log('绘制轨迹', id, trajectorys);
 
       trajectorys.forEach(trajectory => {
         // console.log('绘制轨迹',  trajectory);

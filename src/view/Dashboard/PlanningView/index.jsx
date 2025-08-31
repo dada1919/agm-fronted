@@ -947,6 +947,7 @@ const PlanningView = observer(() => {
             };
             const updateFlightTime = (aircraftId, newStartTime, taxiTime) => {
                 websocketStore.adjustFlightTime(aircraftId, (newStartTime - taxiTime) * 60);
+                
             };
             // 添加d3拖拽行为定义
             const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff) => {
@@ -996,7 +997,7 @@ const PlanningView = observer(() => {
                         // 更新数据模型
                         const aircraftData = plannedResults.find(result => result.aircraft_id === aircraftId);
                         const time_to_start = aircraftData.time_to_start;
-                        updateFlightTime(aircraftId, finalStartTime, taxiTime);
+                        
                         if (aircraftData) {
                             aircraftData.time_to_start = finalStartTime;
                             aircraftData.paths[0].start_time = finalStartTime;
@@ -1005,7 +1006,7 @@ const PlanningView = observer(() => {
                        
                         // 清除拖拽状态
                         websocketStore.setDraggingState(false, null);
-
+                        updateFlightTime(aircraftId, finalStartTime, taxiTime);
                         console.log(`飞机 ${aircraftId} 拖拽完成，新的起飞时间: ${finalStartTime.toFixed(2)} 分钟`);
                     });
             };
@@ -1081,8 +1082,8 @@ const PlanningView = observer(() => {
                             .attr("class", `active-bar-group-${id}`);
 
                         // 获取活跃飞机的time_to_takeoff数据
-                        const timeToTakeoffMinutes = (aircraftData.time_to_takeoff || 0) + 10; // 转换为分钟
-                        const remainingTimeMinutes = aircraftData.plan_time + 3; // 剩余滑行时间
+                        const timeToTakeoffMinutes = (aircraftData.time_to_takeoff || 0) ; // 转换为分钟
+                        const remainingTimeMinutes = aircraftData.plan_time; // 剩余滑行时间
 
                         // 绘制背景轨道（显示总的time_to_takeoff范围）
                         activeBarGroup.append("rect")
@@ -1327,7 +1328,7 @@ const PlanningView = observer(() => {
 
                                 // 添加冲突标识文本
                                 g.append("text")
-                                    .attr("x", x + 10)
+                                    .attr("x", x )
                                     .attr("y", (y1 + y2) / 2)
                                     .attr("font-size", "10px")
                                     .attr("fill", "red")
