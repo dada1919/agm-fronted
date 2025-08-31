@@ -201,8 +201,6 @@ const TaxiwayMap = observer(() => {
       let trajectoryLayerId = 'plane-trajectories';
 
 
-
-
       // 处理现有和新飞机标记
       websocketStore.planePosition.forEach(plane => {
         console.log('plane1', plane);
@@ -485,7 +483,7 @@ const TaxiwayMap = observer(() => {
       if (websocketStore.conflicts != null) {
         const conflict = websocketStore.conflicts;
         // const { id1, id2, time, coords1, coords2, distance } = websocketStore.conflicts;
-        console.log('冲突数据:', conflict);
+       
         const color = '#984ea3'; // 根据飞机ID设置颜色，默认黑色
         const trajectory = [[
           [conflict.pos1, conflict.pos2]]
@@ -1352,16 +1350,19 @@ const ConflictResolutionPanel = observer(() => {
 
   const selectedConflict = websocketStore.selectedConflict;
   const resolutions = websocketStore.resolutions;
+  const resolution_analysis = websocketStore.resolution_analysis;
   const loading = websocketStore.conflictResolutionLoading;
-  console.log('冲突解决方案：Rendering ConflictResolutionPanel with conflicts:', conflicts, selectedConflict, resolutions, loading);
+  
   // 获取特定冲突的解决方案 - 直接调用WebSocketStore的方法
   const getConflictResolutions = (conflictId) => {
     websocketStore.getConflictResolutions(conflictId);
+    
   };
 
   // 应用解决方案 - 直接调用WebSocketStore的方法
   const applyResolution = (conflictId, solutionId) => {
     websocketStore.applyConflictResolution(conflictId, solutionId);
+    console.log("应用了接圈方案",conflictId,solutionId)
   };
 
   return (
@@ -1433,6 +1434,7 @@ const ConflictResolutionPanel = observer(() => {
                   opacity: conflict.status === 'resolved' ? 0.6 : 1
                 }}
               >
+               
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -1566,18 +1568,18 @@ const ConflictResolutionPanel = observer(() => {
                   color: '#666',
                   marginLeft: '8px'
                 }}>
-                  置信度: {(resolution.confidence * 100).toFixed(1)}%
+                  置信度: {(resolution.probability * 100).toFixed(1)}%
                 </span>
               </div>
 
               <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
                 <div>策略: {resolution.strategy}</div>
-                <div>延误减少: {resolution.estimated_delay_reduction}秒</div>
-                <div>影响航班: {resolution.affected_flights?.join(', ') || 'N/A'}</div>
+                <div>延误减少: {resolution.cost}秒</div>
+                <div>影响航班: {resolution.side_effects?.join(', ') || 'N/A'}</div>
               </div>
 
               <button
-                onClick={() => applyResolution(selectedConflict.conflict_id, resolution.option_id)}
+                onClick={() => applyResolution(resolution_analysis.conflict_id, resolution.option_id)}
                 style={{
                   width: '100%',
                   padding: '8px 12px',

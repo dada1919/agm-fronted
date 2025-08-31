@@ -10,17 +10,17 @@ import { createStyles } from 'antd-style';
 const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef }) => {
     const svgTableRef = useRef();
     const containerRef = useRef();
-    
+
     // 计算表格尺寸
     const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
     const totalHeight = headerHeight + dataSource.length * rowHeight;
-    
+
     useEffect(() => {
         if (tableRef) {
             tableRef.current = containerRef.current;
         }
     }, [tableRef]);
-    
+
     // 渲染单元格内容
     const renderCellContent = (column, record, value) => {
         if (column.render) {
@@ -28,7 +28,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
         }
         return value || '-';
     };
-    
+
     // 获取单元格文本颜色
     const getCellTextColor = (column, record, value) => {
         if (column.key === 'flight_id') {
@@ -36,7 +36,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
         }
         return '#000000';
     };
-    
+
     // 格式化显示文本
     const formatDisplayText = (column, record, value) => {
         if (column.key === 'taxi_time') {
@@ -58,9 +58,9 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
         }
         return value || '-';
     };
-    
+
     return (
-        <div 
+        <div
             ref={containerRef}
             onScroll={onScroll}
             style={{
@@ -91,7 +91,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                     stroke="#f0f0f0"
                     strokeWidth={1}
                 />
-                
+
                 {/* 表头文本和分割线 */}
                 {columns.map((column, colIndex) => {
                     const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
@@ -109,7 +109,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                             >
                                 {column.title}
                             </text>
-                            
+
                             {/* 列分割线 */}
                             {colIndex < columns.length - 1 && (
                                 <line
@@ -124,7 +124,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                         </g>
                     );
                 })}
-                
+
                 {/* 表格数据行 */}
                 {dataSource.map((record, rowIndex) => {
                     const y = headerHeight + rowIndex * rowHeight;
@@ -150,7 +150,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                                     e.target.setAttribute('fill', '#ffffff');
                                 }}
                             />
-                            
+
                             {/* 行中心线（用于与右侧对齐） */}
                             <line
                                 x1={0}
@@ -161,14 +161,14 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                                 strokeWidth={1}
                                 className="row-center-line"
                             />
-                            
+
                             {/* 单元格内容 */}
                             {columns.map((column, colIndex) => {
                                 const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
                                 const value = record[column.dataIndex];
                                 const displayText = formatDisplayText(column, record, value);
                                 const textColor = getCellTextColor(column, record, value);
-                                
+
                                 return (
                                     <g key={`cell-${rowIndex}-${colIndex}`}>
                                         {/* 单元格文本 */}
@@ -183,7 +183,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                                         >
                                             {displayText}
                                         </text>
-                                        
+
                                         {/* 列分割线 */}
                                         {colIndex < columns.length - 1 && (
                                             <line
@@ -201,7 +201,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                         </g>
                     );
                 })}
-                
+
                 {/* 表格外边框 */}
                 <rect
                     x={0}
@@ -549,12 +549,12 @@ const PlanningView = observer(() => {
                     }
                 });
             }
-          
+
             // 处理活跃航班
             if (plannedData.active_flights) {
-    
+
                 Object.entries(plannedData.active_flights).forEach(([flightId, flightData]) => {
-                    
+
                     // active_flights的remaining_taxi_time是剩余时间（秒），转换为分钟
                     const remainingTimeMinutes = (flightData.remaining_taxi_time || 0) / 60;
                     const timeToTakeoff = flightData.time_to_takeoff;
@@ -602,13 +602,13 @@ const PlanningView = observer(() => {
 
             // 根据飞机数量动态计算所需高度，与表格保持一致
             const requiredHeight = HEADER_HEIGHT + aircraftIds.length * ROW_HEIGHT_P;
-           
+
             const baseHeight = 400;
-           
-           // const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
-           const height = requiredHeight+200; // 额外增加200px用于边距和图例
-           
-            const margin = { top:0, right: 100, bottom: 80, left: 150 }; // 增加各边距以容纳图例和标签
+
+            // const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
+            const height = requiredHeight + 200; // 额外增加200px用于边距和图例
+
+            const margin = { top: 0, right: 100, bottom: 80, left: 150 }; // 增加各边距以容纳图例和标签
 
             // 清除之前的内容
             svg.selectAll("*").remove();
@@ -635,19 +635,19 @@ const PlanningView = observer(() => {
 
             // 创建飞机ID比例尺，确保与表格行高完全一致
             //const chartHeight = Math.max(400, aircraftIds.length * ROW_HEIGHT_P);
-            const chartHeight = (aircraftIds.length+1) * ROW_HEIGHT_P+HEADER_HEIGHT;
-           
+            const chartHeight = (aircraftIds.length + 1) * ROW_HEIGHT_P + HEADER_HEIGHT;
+
             // 使用序数比例尺来精确控制行位置，确保与表格完全对齐
             const yScale = d3.scaleOrdinal()
                 .domain(aircraftIds)
-                .range(aircraftIds.map((_, index) => (HEADER_HEIGHT + index* ROW_HEIGHT_P+(ROW_HEIGHT_P/2))));
-          
+                .range(aircraftIds.map((_, index) => (HEADER_HEIGHT + index * ROW_HEIGHT_P + (ROW_HEIGHT_P / 2))));
+
             // 计算行的中心位置，使用yScale确保与表格行完全对齐
             const getYPosition = (flightId) => {
-              
+
                 return yScale(flightId);
             };
-         
+
             // 创建X轴
             const xAxis = d3.axisBottom(xScale)
                 .tickFormat(d => `T+${d.toFixed(0)}`)
@@ -686,7 +686,7 @@ const PlanningView = observer(() => {
             // 手动添加Y轴刻度线和标签
             aircraftIds.forEach((flightId, index) => {
                 const yPos = getYPosition(flightId);
-               
+
 
                 // 添加刻度线
                 yAxisGroup.append("line")
@@ -924,6 +924,7 @@ const PlanningView = observer(() => {
             // 定义更新时间线的函数
             const updateTimelineForAircraft = (aircraftId, newStartTime, taxiTime) => {
                 // 查找对应的飞机时间线元素
+                
                 const flightGroup = g.select(`#flight-${aircraftId}`);
                 if (flightGroup.empty()) return;
 
@@ -944,81 +945,80 @@ const PlanningView = observer(() => {
                 flightGroup.selectAll(".planning-indicator")
                     .attr("x", xScale(newStartTime + taxiTime) - 4);
             };
-
+            const updateFlightTime = (aircraftId, newStartTime, taxiTime) => {
+                websocketStore.adjustFlightTime(aircraftId, (newStartTime - taxiTime) * 60);
+            };
             // 添加d3拖拽行为定义
             const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff) => {
                 return d3.drag()
-                    .on("start", function(event) {
+                    .on("start", function (event) {
                         // 拖拽开始事件
                         d3.select(this).attr("cursor", "grabbing");
                         // 设置拖拽状态，防止WebSocket数据更新干扰
                         websocketStore.setDraggingState(true, aircraftId);
                         console.log(`开始拖拽飞机 ${aircraftId}`);
                     })
-                    .on("drag", function(event) {
+                    .on("drag", function (event) {
                         // 拖拽过程中的事件处理
                         const currentElement = d3.select(this);
-                        
+
                         // 获取当前滑块的x位置
                         let currentX = parseFloat(currentElement.attr("x"));
-                        
+
                         // 计算新的x位置（基于鼠标移动距离）
                         let newX = currentX + event.dx;
-                        
+
                         // 计算边界限制
                         const minX = 0; // 最左边界
                         const maxX = barScale(totalTimeToTakeoff - taxiTime); // 最右边界
-                        
+
                         // 应用边界限制
                         newX = Math.max(minX, Math.min(newX, maxX));
-                        
+
                         // 更新滑块位置
                         currentElement.attr("x", newX);
-                        
+
                         // 计算新的开始时间
                         const newStartTime = xScale.invert(newX);
-                        
+
                         // 实时更新时间线图
                         updateTimelineForAircraft(aircraftId, newStartTime, taxiTime);
                     })
-                    .on("end", function(event) {
+                    .on("end", function (event) {
                         // 拖拽结束事件
                         const currentElement = d3.select(this);
                         currentElement.attr("cursor", "grab");
-                        
+
                         // 计算最终位置和时间
                         const finalX = parseFloat(currentElement.attr("x"));
                         const finalStartTime = xScale.invert(finalX);
-                        
+
                         // 更新数据模型
                         const aircraftData = plannedResults.find(result => result.aircraft_id === aircraftId);
                         const time_to_start = aircraftData.time_to_start;
-
+                        updateFlightTime(aircraftId, finalStartTime, taxiTime);
                         if (aircraftData) {
                             aircraftData.time_to_start = finalStartTime;
                             aircraftData.paths[0].start_time = finalStartTime;
                             aircraftData.paths[0].end_time = finalStartTime + taxiTime;
                         }
-                        
-                        websocketStore.adjustFlightTime(aircraftId, (finalStartTime-time_to_start)*60);
-
-                        
+                       
                         // 清除拖拽状态
                         websocketStore.setDraggingState(false, null);
-                        
+
                         console.log(`飞机 ${aircraftId} 拖拽完成，新的起飞时间: ${finalStartTime.toFixed(2)} 分钟`);
                     });
             };
 
             aircraftIds.forEach((id, i) => {
-                
+
                 const yBase = getYPosition(id) - barWidth / 2; // 柱状图纵向中心
 
                 // 找到对应的飞机数据以确定类型
-               
+
                 // 查找当前id的所有数据
                 const allAircraftData = plannedResults.filter(result => result.aircraft_id === id);
-                
+
                 // 如果有active类型的数据就使用active的,否则使用planning的
                 const aircraftData = allAircraftData.find(data => data.type === 'active') || allAircraftData[0];
                 // console.log('aircraftData---------------',aircraftData);
@@ -1046,9 +1046,9 @@ const PlanningView = observer(() => {
                         planBarGroup.append("rect")
                             .attr("class", "time-track")
                             .attr("x", 0)
-                            .attr("y", yBase) 
-                            .attr("width", barScale(totalTimeToTakeoff)+1)
-                            .attr("height", barWidth) 
+                            .attr("y", yBase)
+                            .attr("width", barScale(totalTimeToTakeoff) + 1)
+                            .attr("height", barWidth)
                             .attr("fill", "#f0f0f0")
                             .attr("stroke", "#d0d0d0")
                             .attr("stroke-width", 1)
@@ -1072,17 +1072,17 @@ const PlanningView = observer(() => {
                             .attr("rx", 2)
                             // 应用d3拖拽行为
                             .call(createTaxiSliderDrag(id, taxiTime, totalTimeToTakeoff));
-                        }
-                         else {
+                    }
+                    else {
                         // 活跃飞机：绘制灰色背景条(time_to_takeoff)和彩色滑块(remaining-taxi-time)
-                        console.log("活跃飞机",aircraftData);
+                        console.log("活跃飞机", aircraftData);
 
                         const activeBarGroup = barGroup.append("g")
                             .attr("class", `active-bar-group-${id}`);
 
                         // 获取活跃飞机的time_to_takeoff数据
-                        const timeToTakeoffMinutes = (aircraftData.time_to_takeoff || 0)+10; // 转换为分钟
-                        const remainingTimeMinutes = aircraftData.plan_time+3; // 剩余滑行时间
+                        const timeToTakeoffMinutes = (aircraftData.time_to_takeoff || 0) + 10; // 转换为分钟
+                        const remainingTimeMinutes = aircraftData.plan_time + 3; // 剩余滑行时间
 
                         // 绘制背景轨道（显示总的time_to_takeoff范围）
                         activeBarGroup.append("rect")
@@ -1120,34 +1120,34 @@ const PlanningView = observer(() => {
                         //     .text("●"); // 圆点表示活跃状态
                     }
 
-                        // 添加拖拽提示图标
-                        // planBarGroup.append("text")
-                        //     .attr("x", barScale(currentStartTime + taxiTime / 2))
-                        //     .attr("y", yBase + barWidth / 2 + 3)
-                        //     .attr("text-anchor", "middle")
-                        //     .attr("font-size", "10px")
-                        //     .attr("fill", "white")
-                        //     .attr("pointer-events", "none")
-                        //.text("⟷"); // 双向箭头表示可拖拽
-                    } 
-               
-                });
-                // 可选：加数值标签
-                // barGroup.append("text")
-                //     .attr("x", barScale(left_times[i]) + 5)
-                //     .attr("y", yBase + barWidth / 2 + 4)
-                //     .attr("text-anchor", "start")
-                //     .attr("font-size", "10px")
-                //     .attr("fill", "#1f77b4")
-                //     .text(left_times[i]);
-                // barGroup.append("text")
-                //     .attr("x", barScale(plan_times[i]) + 5)
-                //     .attr("y", yBase + barWidth + barGap + barWidth / 2 + 4)
-                //     .attr("text-anchor", "start")
-                //     .attr("font-size", "10px")
-                //     .attr("fill", "#ff7f0e")
-                //     .text(plan_times[i]);
-        
+                    // 添加拖拽提示图标
+                    // planBarGroup.append("text")
+                    //     .attr("x", barScale(currentStartTime + taxiTime / 2))
+                    //     .attr("y", yBase + barWidth / 2 + 3)
+                    //     .attr("text-anchor", "middle")
+                    //     .attr("font-size", "10px")
+                    //     .attr("fill", "white")
+                    //     .attr("pointer-events", "none")
+                    //.text("⟷"); // 双向箭头表示可拖拽
+                }
+
+            });
+            // 可选：加数值标签
+            // barGroup.append("text")
+            //     .attr("x", barScale(left_times[i]) + 5)
+            //     .attr("y", yBase + barWidth / 2 + 4)
+            //     .attr("text-anchor", "start")
+            //     .attr("font-size", "10px")
+            //     .attr("fill", "#1f77b4")
+            //     .text(left_times[i]);
+            // barGroup.append("text")
+            //     .attr("x", barScale(plan_times[i]) + 5)
+            //     .attr("y", yBase + barWidth + barGap + barWidth / 2 + 4)
+            //     .attr("text-anchor", "start")
+            //     .attr("font-size", "10px")
+            //     .attr("fill", "#ff7f0e")
+            //     .text(plan_times[i]);
+
 
             // 添加图例
             const legendGroup = svg.append("g")
@@ -1273,7 +1273,7 @@ const PlanningView = observer(() => {
                     //     const flight1Id = conflict.flight1;
                     //     const flight2Id = conflict.flight2;
                     //     const conflictTime = conflict.time;
-                        
+
 
                     //     // 检查两架飞机是否都在aircraftIds中
                     //     if (aircraftIds.includes(flight1Id) && aircraftIds.includes(flight2Id)) {
@@ -1281,11 +1281,11 @@ const PlanningView = observer(() => {
                     //         const y2 = getYPosition(flight2Id);
                     //         const x = xScale(conflictTime); // 冲突时间点的x坐标
 
-                      if (Array.isArray(conflict) && conflict.length >= 3) {
+                    if (Array.isArray(conflict) && conflict.length >= 3) {
                         const conflictId = conflict[0]; // 冲突ID
                         const flightIds = conflict[1]; // 航班ID数组
                         const conflictTime = conflict[2]; // 冲突时间
-            
+
                         // 确保航班ID数组包含两个元素
                         if (Array.isArray(flightIds) && flightIds.length >= 2) {
                             const flight1Id = flightIds[0];
@@ -1297,45 +1297,46 @@ const PlanningView = observer(() => {
                                 const y2 = getYPosition(flight2Id);
                                 const x = xScale(conflictTime); // 冲突时间点的x坐标
 
-                                        // 绘制冲突点（在每架飞机的时间线上）
-                                        g.append("circle")
-                                            .attr("cx", x)
-                                            .attr("cy", y1)
-                                            .attr("r", 6)
-                                            .attr("fill", "red")
-                                            .attr("stroke", "white")
-                                            .attr("stroke-width", 2);
+                                // 绘制冲突点（在每架飞机的时间线上）
+                                g.append("circle")
+                                    .attr("cx", x)
+                                    .attr("cy", y1)
+                                    .attr("r", 6)
+                                    .attr("fill", "red")
+                                    .attr("stroke", "white")
+                                    .attr("stroke-width", 2);
 
-                                        g.append("circle")
-                                            .attr("cx", x)
-                                            .attr("cy", y2)
-                                            .attr("r", 6)
-                                            .attr("fill", "red")
-                                            .attr("stroke", "white")
-                                            .attr("stroke-width", 2);
+                                g.append("circle")
+                                    .attr("cx", x)
+                                    .attr("cy", y2)
+                                    .attr("r", 6)
+                                    .attr("fill", "red")
+                                    .attr("stroke", "white")
+                                    .attr("stroke-width", 2);
 
-                                        // 绘制连接两架飞机的冲突线
-                                        g.append("line")
-                                            .attr("x1", x)
-                                            .attr("y1", y1)
-                                            .attr("x2", x)
-                                            .attr("y2", y2)
-                                            .attr("stroke", "red")
-                                            .attr("stroke-width", 3)
-                                            .attr("stroke-dasharray", "5,5")
-                                            .attr("opacity", 0.8);
+                                // 绘制连接两架飞机的冲突线
+                                g.append("line")
+                                    .attr("x1", x)
+                                    .attr("y1", y1)
+                                    .attr("x2", x)
+                                    .attr("y2", y2)
+                                    .attr("stroke", "red")
+                                    .attr("stroke-width", 3)
+                                    .attr("stroke-dasharray", "5,5")
+                                    .attr("opacity", 0.8);
 
-                                        // 添加冲突标识文本
-                                        g.append("text")
-                                            .attr("x", x + 10)
-                                            .attr("y", (y1 + y2) / 2)
-                                            .attr("font-size", "10px")
-                                            .attr("fill", "red")
-                                            .attr("font-weight", "bold")
-                                            .text(`冲突@${conflictTime.toFixed(2)}`);
-                                }
+                                // 添加冲突标识文本
+                                g.append("text")
+                                    .attr("x", x + 10)
+                                    .attr("y", (y1 + y2) / 2)
+                                    .attr("font-size", "10px")
+                                    .attr("fill", "red")
+                                    .attr("font-weight", "bold")
+                                    .text(`冲突@${conflictTime.toFixed(2)}`);
+                            }
                         }
-                }});
+                    }
+                });
             }
 
 
@@ -1351,7 +1352,7 @@ const PlanningView = observer(() => {
 
             let plannedFlights = websocketStore.plannedFlights;
 
-            
+
             if (websocketStore.plannedFlights &&
                 Object.keys(websocketStore.plannedFlights).length > 0) {
 
@@ -1377,7 +1378,7 @@ const PlanningView = observer(() => {
         };
     }, []);
 
-  
+
 
     // 表格容器滚动处理函数
     const handleTableContainerScroll = (e) => {
@@ -1449,7 +1450,7 @@ const PlanningView = observer(() => {
                             maxWidth: '100%',
                             maxHeight: '100%',
                             display: 'block',
-                             
+
                         }}
                     >
                     </svg>

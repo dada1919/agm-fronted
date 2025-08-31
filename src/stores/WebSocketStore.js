@@ -24,6 +24,7 @@ class WebSocketStore {
     // 新增：冲突解决相关状态
     conflictResolutions = []; // 冲突解决方案列表
     selectedConflict = null; // 当前选中的冲突
+    analysis = null;
     resolutions = []; // 当前冲突的解决方案
     conflictResolutionLoading = false; // 冲突解决加载状态
 
@@ -120,16 +121,20 @@ class WebSocketStore {
         this.socket.on('conflict_resolutions_update', (data) => {
             console.log('收到冲突解决方案推荐:', data);
             this.updateConflictResolutions(data);
-            this.conflictResolutionLoading = false;
+            
             
         });
 
         // 新增：处理冲突解决方案响应、无
-        this.socket.on('conflict_resolutions_response', (response) => {
+        this.socket.on('conflict_resolutions_result', (response) => {
+           
             this.conflictResolutionLoading = false;
             if (response.success) {
-                this.selectedConflict = response.data.conflict;
-                this.resolutions = response.data.recommendations;
+                console.log('收到冲突解决方案111响应:', response.data.data.recommendations);
+                this.selectedConflict = response.data.data.conflict;
+                this.resolution_analysis = response.data.data.analysis;
+                this.resolutions = response.data.data.recommendations;
+                 
             } else {
                 console.error('获取解决方案失败:', response.message);
             }
@@ -137,8 +142,10 @@ class WebSocketStore {
 
         // 新增：处理冲突解决方案应用结果1
         this.socket.on('conflict_resolution_applied', (result) => {
+             console.log('这是解决方案:', result);
             this.conflictResolutionLoading = false;
             if (result.status === 'applied') {
+               
                 console.log('解决方案应用成功:', result.message);
                 // 更新冲突状态
                 this.updateConflictStatus(result.conflict_id, 'resolved');
@@ -293,6 +300,7 @@ class WebSocketStore {
     getConflictResolutions(conflictId) {
         this.conflictResolutionLoading = true;
         if (this.socket && this.socket.connected) {
+            console.log("获取特定冲突的解决方案")
             this.socket.emit('get_conflict_resolutions', {
                 conflict_id: conflictId
             });
@@ -306,6 +314,7 @@ class WebSocketStore {
     applyConflictResolution(conflictId, solutionId) {
         this.conflictResolutionLoading = true;
         if (this.socket && this.socket.connected) {
+            console.log("应用冲突解决方案",conflictId,solutionId)
             this.socket.emit('apply_conflict_resolution', {
                 conflict_id: conflictId,
                 solution_id: solutionId
@@ -318,11 +327,38 @@ class WebSocketStore {
 
     // 新增：更新冲突状态
     updateConflictStatus(conflictId, status) {
-        this.conflictResolutions = this.conflictResolutions.map(conflict => 
-            conflict.id === conflictId 
-                ? { ...conflict, status }
-                : conflict
-        );
+       
+        
+        this.conflictResolutions = this.conflictResolutions.map(c => {
+            // 获取当前冲突的ID
+            const currentConflictId = c.analysis?.conflict_id ?? c.id;
+            
+            // 提取ID的最后一位进行匹配（真正的ID）
+            const extractLastDigit = (id) => {
+                if (typeof id === 'string') {
+                    const parts = id.split('_');
+                    return parts[parts.length - 1]; // 获取最后一部分
+                }
+                return id;
+            };
+            
+            const currentLastDigit = extractLastDigit(currentConflictId);
+            const targetLastDigit = extractLastDigit(conflictId);
+          
+            
+            // 只匹配ID的最后一位
+            if (currentLastDigit === targetLastDigit) {
+                
+               
+                return { ...c, status }; // 直接在冲突对象上添加status
+            } else {
+                return c; // 不匹配，返回原对象
+            }
+        });
+        
+        
+        
+       
     }
 }
 const websocketStore = new WebSocketStore();
