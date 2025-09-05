@@ -203,9 +203,7 @@ const TaxiwayMap = observer(() => {
 
       // 处理现有和新飞机标记
       websocketStore.planePosition.forEach(plane => {
-        console.log('plane1', plane);
         const { id, coords, cur_path, trajectory } = plane;
-        console.log('trajectory数据:', trajectory); // 添加这行调试
         const color = getColor(id); // 根据飞机ID设置颜色，默认黑色
 
 
@@ -228,9 +226,7 @@ const TaxiwayMap = observer(() => {
           // removeTrajectory(id); // 移除轨迹
           // trajectory.push([coords[0], coords[1]]);
           const keysArray = Array.from(colorMap.keys());
-          console.log('keysArray', keysArray);
-          console.log('id', id);
-          console.log(keysArray.indexOf(id))
+    
           drawTrajectory(id, trajectory, color, keysArray.indexOf(id)); // 绘制轨迹
 
 

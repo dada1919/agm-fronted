@@ -1076,7 +1076,7 @@ const PlanningView = observer(() => {
                     }
                     else {
                         // 活跃飞机：绘制灰色背景条(time_to_takeoff)和彩色滑块(remaining-taxi-time)
-                        console.log("活跃飞机", aircraftData);
+                        
 
                         const activeBarGroup = barGroup.append("g")
                             .attr("class", `active-bar-group-${id}`);
@@ -1351,24 +1351,31 @@ const PlanningView = observer(() => {
             // console.log("typeof websocketStore.plannedFlights:", typeof websocketStore.plannedFlights);
             // console.log("websocketStore.plannedFlights keys:", websocketStore.plannedFlights ? Object.keys(websocketStore.plannedFlights) : 'null/undefined');
 
-            let plannedFlights = websocketStore.plannedFlights;
-
+        
+            
 
             if (websocketStore.plannedFlights &&
                 Object.keys(websocketStore.plannedFlights).length > 0) {
 
+                // 构建完整的数据结构传递给updatePlanningView
+                const completeData = {
+                    planned_flights: websocketStore.plannedFlights || {},
+                    active_flights: websocketStore.activeFlights || {},
+                    conflicts: websocketStore.conflicts || []
+                };
+
                 // console.log("Planned Path:", JSON.stringify(websocketStore.plannedPath));
-                // console.log("Planned Flights:", plannedFlights);
-                // console.log("Active Flights:", websocketStore.activeFlights);
-                // console.log("Path Conflicts:", websocketStore.pathConflicts);
+                console.log("Planned Flights:", websocketStore.plannedFlights);
+                console.log("Active Flights:", websocketStore.activeFlights);
+                console.log("Complete Data:", completeData);
 
                 // 使用新的数据格式更新视图
-                updatePlanningView(plannedFlights);
+                updatePlanningView(completeData);
 
             }
             else {
                 console.log("WebSocket data not received, using test data...");
-                updatePlanningView(testData); // 使用测试数据填充
+               
             }
 
         });
