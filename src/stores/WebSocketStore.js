@@ -8,7 +8,7 @@ class WebSocketStore {
     isConnected = false;
     conflicts = null;
     overlapTaxiways = null; //存储重叠滑行道数据
-    plannedPath = {}; // 新增 plannedPath 属性
+    
     plannedFlights = {}; // 计划航班数据
     activeFlights = {}; // 活跃航班数据
     pathConflicts = []; // 路径冲突数据
@@ -92,14 +92,12 @@ class WebSocketStore {
        
         this.socket.on('flight_adjustment_result', (data) => {
             console.log('Flight adjustment result:', data);
+            // 收到后端响应后，清除拖拽状态
+            this.setDraggingState(false, null);
             if (data.success) {
                 console.log(`航班 ${data.flight_id} 时间调整成功`);
-                 //规划树图返回的结果
-               
-                // this.socket.on('simulation_adjustment_info', (data) => {
-                //     console.log('simulation_adjustment_info', data);
-                //     this.updatePlannedPath(data);
-                // });
+                // 更新对应航班的start_time
+                this.updateFlightStartTime(data.flight_id, parseFloat(data.adjust_time));
             } else {
                 console.error(`航班时间调整失败: ${data.message}`);
                 // 可以在这里添加错误提示
@@ -204,6 +202,8 @@ class WebSocketStore {
      //拖拽规划轴视图
     adjustFlightTime(flightId, adjustTime) {
         if (this.socket && this.socket.connected) {
+            // 设置拖拽状态，防止在等待后端确认时发生数据冲突
+            this.setDraggingState(true, flightId);
             console.log(`发送航班时间调整请求: ${flightId}, 调整时间: ${adjustTime} 分钟`);
             this.socket.emit('adjust_flight_time', {
                 flight_id: flightId,
@@ -274,7 +274,26 @@ class WebSocketStore {
        
 
     }
-
+    
+    // 更新指定航班的开始时间
+    updateFlightStartTime(flightId, adjustTime) {
+        console.log("当前航班",this.plannedFlights,this.plannedFlights[flightId].start_time);
+        // 更新plannedFlights中的航班时间
+        if (this.plannedFlights && this.plannedFlights[flightId]) {
+            // start_time = start_time + adjust_time (adjust_time单位为秒)
+            this.plannedFlights[flightId].start_time = this.plannedFlights[flightId].start_time + adjustTime;
+            if(this.plannedFlights[flightId].start_time<=0)
+            {
+                this.plannedFlights[flightId].start_time = 0;
+            }
+            console.log(`航班 ${flightId} 的start_time已更新为: ${this.plannedFlights[flightId].start_time}秒`);
+        }
+        
+    }
+    setDraggingState(isDragging, flightId = null) {
+        this.isDragging = isDragging;
+        this.draggedFlightId = flightId;
+    }
 
 
 
@@ -283,10 +302,7 @@ class WebSocketStore {
     // adjustFlightTimeResult(planned_results) { 
     //     this.
     // }
-    setDraggingState(isDragging, flightId = null) {
-        this.isDragging = isDragging;
-        this.draggedFlightId = flightId;
-    }
+  
     //  this.socket.on('system_state_update', (data) => {暂时不用
     updateConflicts(newConflicts) {
         this.conflicts = newConflicts;

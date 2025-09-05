@@ -1058,7 +1058,7 @@ const PlanningView = observer(() => {
                         // 计算当前taxi_time滑块的位置
                         const currentStartTime = left_times[i] || 0;
                         const taxiTime = aircraftData.taxi_time || plan_times[i];
-
+                        console.log('taxiTime',taxiTime,'totalTimeToTakeoff',totalTimeToTakeoff);
                         // 绘制可拖拽的taxi_time滑块
                         const taxiSlider = planBarGroup.append("rect")
                             .attr("class", `taxi-slider-${id}`)

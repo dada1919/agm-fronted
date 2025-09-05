@@ -532,12 +532,12 @@ const TaxiwayMap = observer(() => {
 
     // 绘制planned飞机的规划路径
     const drawPlannedPaths = () => {
-      if (!map.current || !map.current.getStyle || !geojsonData || !websocketStore.plannedPath) return;
+      if (!map.current || !map.current.getStyle || !geojsonData || !websocketStore.plannedFlights) return;
 
       // 先清理旧的路径
       clearPlannedPaths();
 
-      const plannedFlights = websocketStore.plannedPath;
+      const plannedFlights = websocketStore.plannedFlights;
 
       if (!plannedFlights || Object.keys(plannedFlights).length === 0) {
         return;
@@ -548,6 +548,7 @@ const TaxiwayMap = observer(() => {
         if (!flightData.node_path || !Array.isArray(flightData.node_path) || flightData.node_path.length < 2) {
           return;
         }
+        console.log('绘制规划路径', flightId, flightData);
 
         // 根据node_path中的滑行道ID找到对应的坐标
         const pathCoordinates = [];
@@ -678,8 +679,8 @@ const TaxiwayMap = observer(() => {
     // 观察plannedFlights数据变化
     const disposer4 = autorun(() => {
       try {
-        if (websocketStore.plannedPath && Object.keys(websocketStore.plannedPath).length > 0) {
-          console.log('plannedPath数据变化:', websocketStore.plannedPath);
+        if (websocketStore.plannedFlights && Object.keys(websocketStore.plannedFlights).length > 0) {
+          console.log('plannedFlights数据变化:', websocketStore.plannedFlights);
           drawPlannedPaths();
         } else {
           // 如果没有数据，清理路径
@@ -823,63 +824,6 @@ const TaxiwayMap = observer(() => {
               console.warn('Invalid data format:', conflictItem);
               return;
             }
-
-
-            // const allLeftPoints = [];
-            // const allRightPoints = [];
-            // let taxiwayIdx = 0;
-
-            // merged_functions.forEach((seg, idx) => {
-            //   // 按顺序取对应道路
-            //   // 如果分段函数数量大于道路数量，最后一个道路用于剩余分段
-            //   if (seg.x1 === 0 && idx > 0) {
-            //     taxiwayIdx++;
-
-            //   }
-
-            //   const taxiwayId = taxiway_sequence[Math.min(taxiwayIdx, taxiway_sequence.length - 1)];
-            //   const feature = geojsonData.features.find(f => String(parseInt(f.id)) === String(taxiwayId));
-            //   if (!feature) {
-            //     console.warn('Feature not found for taxiway_id:', taxiwayId);
-            //     return;
-            //   }
-            //   const rawLine = feature.geometry.coordinates[0];
-            //   const dists = getCumulativeDistances(rawLine);
-
-            //   const { x1, x2, a, b, c } = seg;
-            //   const scale = 1;
-            //   const sampleStep = 1;
-            //   let y1 = b !== 0 ? (-(a * x1 + c) / b) * scale : 0;
-            //   let y2 = b !== 0 ? (-(a * x2 + c) / b) * scale : 0;
-
-            //   const nSamples = Math.max(2, Math.ceil((x2 - x1) / sampleStep));
-            //   const segmentLeftPoints = [];
-            //   const segmentRightPoints = [];
-
-            //   for (let i = 0; i <= nSamples; i++) {
-            //     const x = x1 + (x2 - x1) * (i / nSamples);
-            //     const y = y1 + (y2 - y1) * (i / nSamples);
-
-            //     const pt = getPointAtDistance(rawLine, dists, x);
-            //     const tangent = getTangentAtDistance(rawLine, dists, x);
-            //     const normal = [-tangent[1], tangent[0]];
-            //     const normLen = Math.sqrt(normal[0] ** 2 + normal[1] ** 2) || 1;
-            //     const n = [normal[0] / normLen, normal[1] / normLen];
-
-            //     segmentLeftPoints.push(offsetPoint(pt, n, y / 2));
-            //     segmentRightPoints.push(offsetPoint(pt, [-n[0], -n[1]], y / 2));
-            //   }
-
-            //   // 拼接所有分段函数的点
-            //   if (idx === 0) {
-            //     allLeftPoints.push(...segmentLeftPoints);
-            //     allRightPoints.push(...segmentRightPoints);
-            //   } else {
-            //     allLeftPoints.push(...segmentLeftPoints.slice(1));
-            //     allRightPoints.push(...segmentRightPoints.slice(1));
-            //   }
-
-            // });
 
 
 
