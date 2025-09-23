@@ -773,34 +773,28 @@ const TaxiwayMap = observer(() => {
         disposer3 = autorun(() => {
 
           let overlapTaxiways = websocketStore.overlapTaxiways;
-          // console.log('WebSocket overlapTaxiways:', overlapTaxiways);
+          console.log('WebSocket overlapTaxiways:', overlapTaxiways);
+          
+         
+            const currentConflicts = overlapTaxiways || [];
+            console.log('当前冲突数据 (current):', currentConflicts);
 
-          if (!overlapTaxiways || !Array.isArray(overlapTaxiways) || overlapTaxiways.length === 0) {
-            // console.log('Using test data instead');
-            // fetchConflictsTxt().then(data => {
-            //   // console.log('overlapTaxiwaysqqqqqqqqqq:', data);
-            //   // 在这里直接处理 data，而不是赋值给 overlapTaxiways
-            //   if (data && Array.isArray(data) && data.length > 0) {
-            //     highlightTaxiwayByLayerWithArea(data);
-            //   }
-            // });
-          } else {
-            // 处理已有数据的情况
-            console.log('overlapTaxiways', overlapTaxiways);
-
-            highlightTaxiwayByLayerWithArea(overlapTaxiways);
-          }
-
-          if (overlapTaxiways && Array.isArray(overlapTaxiways) && overlapTaxiways.length > 0) {
-            // console.log('Processing overlapTaxiways:', overlapTaxiways);
-            // console.log('Map current:', map.current);
-            // console.log('GeoJSON data:', geojsonData);
-            highlightTaxiwayByLayerWithArea(overlapTaxiways);
-            if (highlightTimer) {
-              clearTimeout(highlightTimer);
-              highlightTimer = null;
+            if (Array.isArray(currentConflicts) && currentConflicts.length > 0) {
+              highlightTaxiwayByLayerWithArea(currentConflicts);
+            } else {
+              console.log('当前没有冲突数据');
+              // 清除现有的高亮显示
+              if (window._areaLayers) {
+                window._areaLayers.forEach(id => {
+                  if (map.current.getLayer(id)) map.current.removeLayer(id);
+                  if (map.current.getSource(id)) map.current.removeSource(id);
+                });
+                window._areaLayers = [];
+              }
             }
-          }
+          
+       
+          
         });
 
         function highlightTaxiwayByLayerWithArea(overlapData) {
@@ -917,7 +911,7 @@ const TaxiwayMap = observer(() => {
 
               if (globalEnd <= globalStart) return;
 
-              const scale = 1;
+              const scale = 0.5;
               const sampleStep = 1; // Sample every 1 meter
               const nSamples = Math.max(2, Math.ceil((globalEnd - globalStart) / sampleStep));
 
@@ -1288,6 +1282,7 @@ const ConflictResolutionPanel = observer(() => {
 
   // 使用WebSocketStore中的状态，而不是本地状态
   const conflicts = websocketStore.conflictResolutions;
+  console.log('第一层冲突:', conflicts);
 
   const selectedConflict = websocketStore.selectedConflict;
   const resolutions = websocketStore.resolutions;
@@ -1369,8 +1364,8 @@ const ConflictResolutionPanel = observer(() => {
                   padding: '12px',
                   marginBottom: '8px',
                   backgroundColor: conflict.status === 'resolved' ? '#f8f9fa' : 'white',
-                  borderLeft: `4px solid ${conflict.analysis?.severity === 'HIGH' ? '#dc3545' :
-                    conflict.analysis?.severity === 'MEDIUM' ? '#ffc107' : '#28a745'
+                  borderLeft: `4px solid ${conflict.severity === 'HIGH' ? '#dc3545' :
+                    conflict.severity === 'MEDIUM' ? '#ffc107' : '#28a745'
                     }`,
                   opacity: conflict.status === 'resolved' ? 0.6 : 1
                 }}
@@ -1393,26 +1388,40 @@ const ConflictResolutionPanel = observer(() => {
                     padding: '2px 6px',
                     borderRadius: '3px',
                     backgroundColor:
-                      conflict.analysis?.severity === 'HIGH' ? '#dc3545' :
-                        conflict.analysis?.severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                      conflict.severity === 'HIGH' ? '#dc3545' :
+                        conflict.severity === 'MEDIUM' ? '#ffc107' : '#28a745',
                     color: 'white'
                   }}>
-                    {conflict.analysis?.severity || 'UNKNOWN'}
+                    {conflict.severity || 'UNKNOWN'}
+                  </span>
+                   <span style={{
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    backgroundColor:
+                      conflict.conflict_type === 'CROSSING' ? '#dc3545' :
+                        conflict.conflict_type === 'parallel' ? '#ffc107' : '#28a745',
+                    color: 'white'
+                  }}>
+                    {conflict.conflict_type || 'UNKNOWN'}
                   </span>
                 </div>
 
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-                  <div>航班: {conflict.analysis?.involved_flights?.join(', ') || 'N/A'}</div>
-                  <div>节点: {conflict.analysis?.conflict_node || 'N/A'}</div>
-                  {typeof conflict.analysis?.estimated_delay === 'number' && (
-                    <div>预计延误: {conflict.analysis.estimated_delay}s</div>
+                  <div>航班: {conflict.involved_flights?.join(', ') || 'N/A'}</div>
+                  <div>节点: {conflict.conflict_node || 'N/A'}</div>
+                  {typeof conflict.safety_risk === 'number' && (
+                    <div>安全风险评分: {conflict.safety_risk}</div>
+                  )}
+                  {typeof conflict.estimated_delay === 'number' && (
+                    <div>预计延误: {conflict.estimated_delay*60}s</div>
                   )}
                 </div>
 
 
                 {conflict.status !== 'resolved' && (
                   <button
-                    onClick={() => getConflictResolutions(conflict.analysis?.conflict_id ?? conflict.id)}
+                    onClick={() => getConflictResolutions(conflict.conflict_id ?? conflict.id)}
                     style={{
                       width: '100%',
                       padding: '6px 12px',

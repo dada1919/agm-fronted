@@ -6,7 +6,7 @@ class WebSocketStore {
     socket = null;
     planePosition = [];
     isConnected = false;
-    conflicts = null;
+    overlap_conflicts = null;
     overlapTaxiways = null; //存储重叠滑行道数据
     
     plannedFlights = {}; // 计划航班数据
@@ -123,6 +123,7 @@ class WebSocketStore {
         this.socket.on('conflicts_update', (data) => {
             console.log("conflicts_update:", data);
             this.updateOverlapTaxiways(data);
+            this.updateConflictResolutions(data.current)
         });
 
       
@@ -311,60 +312,62 @@ class WebSocketStore {
 
     // 冲突数据：更新重叠滑行道数据的方法
     updateOverlapTaxiways(newOverlapTaxiways) {
-        this.overlapTaxiways = newOverlapTaxiways;
+        this.overlapTaxiways = newOverlapTaxiways.current;
+        
     }
     //规划数据更新
     
   
     // 更新冲突解决方案数据
-    updateConflictResolutions(raw) {
+    updateConflictResolutions(data) {
   try {
-    console.log('📊 处理冲突解决方案数据:', raw);
+    console.log('📊 处理冲突解决方案数据:',data);
 
-    // 1) 允许传入 JSON 字符串
-    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    let items = [];
+    // // 1) 允许传入 JSON 字符串
+    // const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    // let items = [];
 
-    // 2) 各种输入格式归一化为 items 数组
-    if (Array.isArray(data)) {
-      // 直接数组
-      items = data;
-    } else if (data && typeof data === 'object') {
-      if (Array.isArray(data.resolutions)) {
-        // 旧格式：{ resolutions: [...] }
-        items = data.resolutions;
-      } else if (data.conflict && data.analysis && data.recommendations) {
-        // 单条新格式
-        items = [data];
-      } else {
-        // 多条字典：{ conflict_xxx: { conflict, analysis, recommendations }, ... }
-        items = Object.values(data).filter(
-          v => v && v.conflict && v.analysis && v.recommendations
-        );
-      }
-    } else {
-      console.warn('⚠️ 未知的数据类型:', typeof data);
-      items = [];
-    }
+    // // 2) 各种输入格式归一化为 items 数组
+    // if (Array.isArray(data)) {
+    //   // 直接数组
+    //   items = data;
+    // } else if (data && typeof data === 'object') {
+    //   if (Array.isArray(data.resolutions)) {
+    //     // 旧格式：{ resolutions: [...] }
+    //     items = data.resolutions;
+    //   } else if (data.conflict && data.analysis && data.recommendations) {
+    //     // 单条新格式
+    //     items = [data];
+    //   } else {
+    //     // 多条字典：{ conflict_xxx: { conflict, analysis, recommendations }, ... }
+    //     items = Object.values(data).filter(
+    //       v => v && v.conflict && v.analysis && v.recommendations
+    //     );
+    //   }
+    // } else {
+    //   console.warn('⚠️ 未知的数据类型:', typeof data);
+    //   items = [];
+    // }
 
-    if (!items.length) {
-      console.warn('⚠️ 未从数据中解析到任何冲突项。');
-    }
+    // if (!items.length) {
+    //   console.warn('⚠️ 未从数据中解析到任何冲突项。');
+    // }
 
-    // 3) 统一映射成内部结构
-    this.conflictResolutions = items.map((x, idx) => {
-      const id =
-        x?.analysis?.conflict_id ??
-        `${x?.conflict?.flight1_id || 'F1'}_${x?.conflict?.flight2_id || 'F2'}_${x?.conflict?.conflict_time ?? idx}`;
+    // // 3) 统一映射成内部结构
+    // this.conflictResolutions = items.map((x, idx) => {
+    //   const id =
+    //     x?.analysis?.conflict_id ??
+    //     `${x?.conflict?.flight1_id || 'F1'}_${x?.conflict?.flight2_id || 'F2'}_${x?.conflict?.conflict_time ?? idx}`;
 
-      return {
-        id,
-        conflict: x.conflict ?? null,
-        analysis: x.analysis ?? null,
-        recommendations: Array.isArray(x.recommendations) ? x.recommendations : [],
-      };
-    });
+    //   return {
+    //     id,
+    //     conflict: x.conflict ?? null,
+    //     analysis: x.analysis ?? null,
+    //     recommendations: Array.isArray(x.recommendations) ? x.recommendations : [],
+    //   };
+    // });
 
+    this.conflictResolutions = data;
     console.log('✅ 冲突解决方案数据已更新:', this.conflictResolutions);
   } catch (err) {
     console.error('❌ 解析冲突解决方案数据失败:', err);
