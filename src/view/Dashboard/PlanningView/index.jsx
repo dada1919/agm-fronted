@@ -431,12 +431,12 @@ const PlanningView = observer(() => {
     const generateBandPath = (t1, t2, piecewiseData, xScale, y1, y2, resolution = 50) => {
         const points = [];
         const step = (t2 - t1) / resolution;
-        
+
         for (let i = 0; i <= resolution; i++) {
             const t = t1 + i * step;
             const x = xScale(t);
             const functionValue = calculatePiecewiseFunction(t, piecewiseData);
-            
+
             if (functionValue !== null) {
                 // 将函数值映射到两条时间线之间的位置
                 // 假设函数值范围需要归一化到[0,1]之间
@@ -445,7 +445,7 @@ const PlanningView = observer(() => {
                 points.push([x, y]);
             }
         }
-        
+
         return points;
     };
 
@@ -490,12 +490,12 @@ const PlanningView = observer(() => {
         // 获取当前的SVG容器和相关变量
         const svg = d3.select(svgRef.current);
         const g = svg.select('.main-group');
-        
+
         if (g.empty()) {
             console.warn('SVG主组未找到，无法绘制冲突数据');
             return;
         }
-        
+
         // 创建或获取特定冲突类型的组
         let conflictGroup = g.select(`.conflict-group-${conflictType}`);
         if (conflictGroup.empty()) {
@@ -503,7 +503,7 @@ const PlanningView = observer(() => {
                 .attr('class', `conflict-group-${conflictType}`)
                 .attr('data-type', conflictType);
         }
-        
+
         // 清除之前的冲突标记（仅清除当前类型的冲突组内容）
         conflictGroup.selectAll('*').remove();
 
@@ -541,7 +541,7 @@ const PlanningView = observer(() => {
                 conflictId = conflict[0];
                 const flightIds = conflict[1];
                 conflictTime = conflict[2];
-                
+
                 if (Array.isArray(flightIds) && flightIds.length >= 2) {
                     flight1Id = flightIds[0];
                     flight2Id = flightIds[1];
@@ -594,7 +594,7 @@ const PlanningView = observer(() => {
                     .attr("opacity", styles.opacity);
 
                 // 添加冲突标识文本，显示更多信息
-                const conflictLabel = typeof conflict === 'object' && !Array.isArray(conflict) 
+                const conflictLabel = typeof conflict === 'object' && !Array.isArray(conflict)
                     ? `${conflict.conflict_type || 'CONFLICT'} (${conflict.severity || 'UNKNOWN'})`
                     : `${conflictType === 'current' ? '当前' : '未来'}冲突`;
 
@@ -609,11 +609,11 @@ const PlanningView = observer(() => {
                     .text(`${conflictLabel}@T+${conflictTime.toFixed(1)}`);
 
                 console.log(`成功绘制${conflictType}冲突: ${flight1Id} vs ${flight2Id} at T+${conflictTime.toFixed(1)}分钟`);
-                
+
                 // 绘制分段函数带状图形（如果存在分段函数数据）
                 if (typeof conflict === 'object' && !Array.isArray(conflict) && conflict.temporal_functions) {
                     console.log(`绘制${conflictType}分段函数带状图形:`, conflict.temporal_functions);
-                    
+
                     // 获取分段函数的时间范围
                     const piecewiseData = conflict.temporal_functions;
                     const timeRange = piecewiseData.reduce((range, segment) => {
@@ -622,12 +622,12 @@ const PlanningView = observer(() => {
                             max: Math.max(range.max, segment.t2)
                         };
                     }, { min: Infinity, max: -Infinity });
-                    
+
                     // 计算函数值范围用于颜色映射
                     const functionValues = [];
                     const resolution = 100;
                     const step = (timeRange.max - timeRange.min) / resolution;
-                    
+
                     for (let i = 0; i <= resolution; i++) {
                         const t = timeRange.min + i * step;
                         const value = calculatePiecewiseFunction(t, piecewiseData);
@@ -635,19 +635,19 @@ const PlanningView = observer(() => {
                             functionValues.push(value);
                         }
                     }
-                    
+
                     if (functionValues.length > 0) {
                         const valueRange = {
                             min: Math.min(...functionValues),
                             max: Math.max(...functionValues)
                         };
-                        
+
                         // 创建颜色比例尺
                         const colorScale = createColorScale(valueRange.min, valueRange.max);
-                        
+
                         // 为每个冲突类型创建唯一的渐变ID
                         const gradientId = `conflict-gradient-${conflictType}-${conflictId}`;
-                        
+
                         // 创建线性渐变定义
                         const gradient = conflictGroup.append("defs")
                             .append("linearGradient")
@@ -656,7 +656,7 @@ const PlanningView = observer(() => {
                             .attr("y1", "0%")
                             .attr("x2", "100%")
                             .attr("y2", "0%");
-                        
+
                         // 添加渐变停止点
                         for (let i = 0; i <= resolution; i++) {
                             const t = timeRange.min + i * step;
@@ -669,13 +669,13 @@ const PlanningView = observer(() => {
                                     .attr("stop-color", color);
                             }
                         }
-                        
+
                         // 绘制单一方形路径
                         const x1 = xScale(timeRange.min);
                         const x2 = xScale(timeRange.max);
                         const y1 = getYPosition(flight1Id);
                         const y2 = getYPosition(flight2Id);
-                        
+
                         // 创建方形路径
                         conflictGroup.append("path")
                             .attr("class", `conflict-${conflictType} conflict-band`)
@@ -685,10 +685,10 @@ const PlanningView = observer(() => {
                             .attr("opacity", styles.opacity);
                     }
                 }
-                        
-                
-                
-                
+
+
+
+
                 // 如果是新格式，输出更多调试信息
                 if (typeof conflict === 'object' && !Array.isArray(conflict)) {
                     console.log(`  - 冲突类型: ${conflict.conflict_type}`);
@@ -774,6 +774,9 @@ const PlanningView = observer(() => {
     };
 
     useEffect(() => {
+         if (websocketStore.isDragging) {
+            return; // 如果正在拖拽，则跳过更新
+        }
         const svg = d3.select(svgRef.current);
 
         // 创建 D3 元素引用
@@ -782,17 +785,17 @@ const PlanningView = observer(() => {
         const processSimulationData = () => {
             const currentSimulation = websocketStore.getCurrentSimulation();
             let simulationResults = [];
-            
+
             // 如果有模拟数据，处理模拟数据为时间线格式
             if (currentSimulation && currentSimulation.simulated_state) {
                 const simulatedState = currentSimulation.simulated_state;
-                
+
                 // 处理模拟的计划航班
                 if (simulatedState.planned_flights) {
                     Object.entries(simulatedState.planned_flights).forEach(([flightId, flightData]) => {
                         const startTimeMinutes = flightData.start_time / 60;
                         const taxiTimeMinutes = flightData.taxi_time / 60;
-                        
+
                         const convertedData = {
                             aircraft_id: flightId,
                             type: 'simulation_planning', // 模拟计划航班类型
@@ -806,16 +809,16 @@ const PlanningView = observer(() => {
                             }],
                             conflicts: []
                         };
-                        
+
                         simulationResults.push(convertedData);
                     });
                 }
-                
+
                 // 处理模拟的活跃航班
                 if (simulatedState.active_flights) {
                     Object.entries(simulatedState.active_flights).forEach(([flightId, flightData]) => {
                         const remainingTimeMinutes = (flightData.remaining_taxi_time || 0) / 60;
-                        
+
                         const convertedData = {
                             aircraft_id: flightId,
                             type: 'simulation_active', // 模拟活跃航班类型
@@ -827,12 +830,12 @@ const PlanningView = observer(() => {
                             plan_time: remainingTimeMinutes,
                             conflicts: []
                         };
-                        
+
                         simulationResults.push(convertedData);
                     });
                 }
             }
-            
+
             return simulationResults;
         };
 
@@ -862,7 +865,7 @@ const PlanningView = observer(() => {
 
                     // 绘制模拟时间线（在原时间线下方偏移）
                     const yOffset = 8; // 向下偏移8像素
-                    
+
                     simulationGroup.selectAll("line")
                         .data(simulationResult.paths)
                         .enter()
@@ -891,7 +894,7 @@ const PlanningView = observer(() => {
                             const x = simulationResult.type === 'simulation_planning' ? xScale(d.start_time) : xScale(0);
                             const y = getYPosition(simulationResult.aircraft_id) + yOffset;
                             const size = 4;
-                            return `${x},${y-size} ${x+size},${y} ${x},${y+size} ${x-size},${y}`;
+                            return `${x},${y - size} ${x + size},${y} ${x},${y + size} ${x - size},${y}`;
                         })
                         .attr("fill", color)
                         .attr("stroke", "white")
@@ -908,7 +911,7 @@ const PlanningView = observer(() => {
                             const x = simulationResult.type === 'simulation_planning' ? xScale(d.end_time) : xScale(d.time);
                             const y = getYPosition(simulationResult.aircraft_id) + yOffset;
                             const size = 4;
-                            return `${x},${y-size} ${x+size},${y} ${x},${y+size} ${x-size},${y}`;
+                            return `${x},${y - size} ${x + size},${y} ${x},${y + size} ${x - size},${y}`;
                         })
                         .attr("fill", color)
                         .attr("stroke", "white")
@@ -927,7 +930,7 @@ const PlanningView = observer(() => {
                                 const y = getYPosition(simulationResult.aircraft_id) - 5 + yOffset;
                                 const size = 3;
                                 // 创建星形的点
-                                return `${x},${y-size} ${x+size*0.3},${y-size*0.3} ${x+size},${y} ${x+size*0.3},${y+size*0.3} ${x},${y+size} ${x-size*0.3},${y+size*0.3} ${x-size},${y} ${x-size*0.3},${y-size*0.3}`;
+                                return `${x},${y - size} ${x + size * 0.3},${y - size * 0.3} ${x + size},${y} ${x + size * 0.3},${y + size * 0.3} ${x},${y + size} ${x - size * 0.3},${y + size * 0.3} ${x - size},${y} ${x - size * 0.3},${y - size * 0.3}`;
                             })
                             .attr("fill", color)
                             .attr("stroke", "white")
@@ -1191,7 +1194,7 @@ const PlanningView = observer(() => {
             let planningIndex = 0;
 
 
-            
+
 
             // 处理模拟数据
             const simulationResults = processSimulationData();
@@ -1309,7 +1312,7 @@ const PlanningView = observer(() => {
 
             // 绘制模拟数据时间线
             drawSimulationTimelines(g, simulationResults, xScale, getYPosition, simulationColors);
-    
+
 
 
             // 1. 柱状图参数
@@ -1317,12 +1320,14 @@ const PlanningView = observer(() => {
             const barGap = 4;
             const barChartHeight = 80; // 增加柱状图最大高度
             const barChartOffset = -150; // 增加柱状图距离主图的偏移
+            const blockWidth = 10; // 每个块的宽度
+            const blockGap = 2; // 块之间的间隙
 
             // 2. 柱状图比例尺
             const maxBarValue = Math.max(...left_times, ...plan_times, ...fly_times);
             const barScale = d3.scaleLinear()
                 .domain([0, maxBarValue])
-                .range([0, barChartHeight]);
+                .range([0, maxBarValue * (blockWidth + blockGap)]);
 
             // 3. 绘制柱状图
             const barGroup = svg.append("g")
@@ -1331,7 +1336,7 @@ const PlanningView = observer(() => {
             // 定义更新时间线的函数
             const updateTimelineForAircraft = (aircraftId, newStartTime, taxiTime) => {
                 // 查找对应的飞机时间线元素
-                
+
                 const flightGroup = g.select(`#flight-${aircraftId}`);
                 if (flightGroup.empty()) return;
 
@@ -1352,71 +1357,123 @@ const PlanningView = observer(() => {
                 flightGroup.selectAll(".planning-indicator")
                     .attr("x", xScale(newStartTime + taxiTime) - 4);
             };
-            const updateFlightTime = (aircraftId, newStartTime, taxiTime) => {
-                websocketStore.adjustFlightTime(aircraftId, (newStartTime - taxiTime) * 60);
-                
+            const updateFlightTime = (aircraftId, deltaTimeInSeconds) => {
+                const adjustedDelta = deltaTimeInSeconds + (deltaTimeInSeconds < 0 ? -1 : (deltaTimeInSeconds > 0 ? 1 : 0));
+
+    // 发送调整后的秒数到后端
+    websocketStore.adjustFlightTime(aircraftId, adjustedDelta*60);
             };
             // 添加d3拖拽行为定义
-            const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff) => {
-                return d3.drag()
-                    .on("start", function (event) {
-                        // 拖拽开始事件
-                        d3.select(this).attr("cursor", "grabbing");
-                        // 设置拖拽状态，防止WebSocket数据更新干扰
-                        websocketStore.setDraggingState(true, aircraftId);
-                        console.log(`开始拖拽飞机 ${aircraftId}`);
-                    })
-                    .on("drag", function (event) {
-                        // 拖拽过程中的事件处理
-                        const currentElement = d3.select(this);
+          // 假设：barScale 是 d3.scaleLinear().domain([0, totalTimelineInSeconds]).range([0, width]).clamp(true)
 
-                        // 获取当前滑块的x位置
-                        let currentX = parseFloat(currentElement.attr("x"));
+const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
+  containerSelector,   // 容器选择器或节点（建议是包裹滑块的 <g>）
+  handleMinWidth = 10, // 命中区下限（像素），小于该值会用透明命中扩大
+  snapStep = 1,        // 结束时吸附步长（秒），可改为 0.5/0.2 提升手感
+  useRaf = true        // 是否用 rAF 合并更新
+} = {}) => {
+  let dragOffset = 0;                // 鼠标相对元素左边缘的偏移
+  let originalStartTimeSec = null;   // 拖拽开始时的原始秒
+  let frameReq = null;               // rAF 句柄
 
-                        // 计算新的x位置（基于鼠标移动距离）
-                        let newX = currentX + event.dx;
+  // 定位容器：用于 drag.container，确保 event.x/y 相对该容器
+  const container = typeof containerSelector === 'string'
+    ? d3.select(containerSelector)
+    : d3.select(containerSelector);
 
-                        // 计算边界限制
-                        const minX = 0; // 最左边界
-                        const maxX = barScale(totalTimeToTakeoff - taxiTime); // 最右边界
+  const minX = 0;
+  const maxX = barScale(totalTimeToTakeoff - taxiTime); // 防止滑块越过起飞窗口
 
-                        // 应用边界限制
-                        newX = Math.max(minX, Math.min(newX, maxX));
+  // 工具函数：像素夹紧
+  const clampX = (x) => Math.max(minX, Math.min(x, maxX));
 
-                        // 更新滑块位置
-                        currentElement.attr("x", newX);
+  const updateX = (el, x) => {
+    const apply = () => el.attr("x", x);
+    if (useRaf) {
+      if (frameReq) cancelAnimationFrame(frameReq);
+      frameReq = requestAnimationFrame(apply);
+    } else {
+      apply();
+    }
+  };
 
-                        // 计算新的开始时间
-                        const newStartTime = xScale.invert(newX);
+  return d3.drag()
+    .container(container.node()) // 统一坐标系，后续用 event.x
+    .on("start", function (event) {
+      const el = d3.select(this);
 
-                        // 实时更新时间线图
-                        updateTimelineForAircraft(aircraftId, newStartTime, taxiTime);
-                    })
-                    .on("end", function (event) {
-                        // 拖拽结束事件
-                        const currentElement = d3.select(this);
-                        currentElement.attr("cursor", "grab");
+      // 扩大命中区（如果太窄）
+      const bbox = this.getBBox();
+      if (bbox.width < handleMinWidth) {
+        el.attr("pointer-events", "all"); // 确保能点中
+      }
 
-                        // 计算最终位置和时间
-                        const finalX = parseFloat(currentElement.attr("x"));
-                        const finalStartTime = xScale.invert(finalX);
+      el.attr("cursor", "grabbing");
 
-                        // 更新数据模型
-                        const aircraftData = plannedResults.find(result => result.aircraft_id === aircraftId);
-                        const time_to_start = aircraftData.time_to_start;
-                        
-                        if (aircraftData) {
-                            aircraftData.time_to_start = finalStartTime;
-                            aircraftData.paths[0].start_time = finalStartTime;
-                            aircraftData.paths[0].end_time = finalStartTime + taxiTime;
-                        }
-                       
-                        // 清除拖拽状态
-                        websocketStore.setDraggingState(false, null);
-                        updateFlightTime(aircraftId, finalStartTime, taxiTime);
-                        console.log(`飞机 ${aircraftId} 拖拽完成，新的起飞时间: ${finalStartTime.toFixed(2)} 分钟`);
-                    });
-            };
+      const currentX = parseFloat(el.attr("x")) || 0;
+      // 记录“鼠标相对元素”的偏移，避免开拖瞬移
+      dragOffset = event.x - currentX;
+
+      // 用比例尺反算初始秒
+      originalStartTimeSec = Math.round(barScale.invert(currentX));
+
+      // 暂停外部数据写入
+      websocketStore.setDraggingState(true, aircraftId);
+    })
+    .on("drag", function (event) {
+      const el = d3.select(this);
+
+      // 基于偏移计算新像素位置（连续）
+      let newX = clampX(event.x - dragOffset);
+      updateX(el, newX);
+
+      // 实时更新（连续秒）——提升手感：只在 UI 上连续更新
+      const newStartSec = barScale.invert(newX);
+
+      // 这里不要四舍五入，保持连续，避免“吸附抖”
+      updateTimelineForAircraft(aircraftId, /* newStartTime= */ newStartSec, taxiTime);
+    })
+    .on("end", function () {
+      const el = d3.select(this);
+      el.attr("cursor", "grab");
+
+      // 最终像素与秒
+      const finalX = clampX(parseFloat(el.attr("x")) || 0);
+
+      // 在结束时做“温和吸附”（秒级或半秒）
+      const snappedStartSec = Math.round(barScale.invert(finalX) / snapStep) * snapStep;
+      const snappedX = clampX(barScale(snappedStartSec));
+      el.attr("x", snappedX); // 回写到吸附后的位置
+
+      const deltaTimeSec = snappedStartSec - originalStartTimeSec;
+
+      // 更新数据模型（一次性、离散）
+      const aircraftData = plannedResults.find(r => r.aircraft_id === aircraftId);
+      if (aircraftData) {
+        const s = snappedStartSec; // 统一用秒
+        aircraftData.time_to_start = s;
+        if (aircraftData.paths && aircraftData.paths[0]) {
+          aircraftData.paths[0].start_time = s;
+          aircraftData.paths[0].end_time   = s + taxiTime;
+        }
+      }
+
+      websocketStore.setDraggingState(false, null);
+
+      if (deltaTimeSec !== 0) {
+        updateFlightTime(aircraftId, deltaTimeSec);
+      }
+
+      console.log(`飞机 ${aircraftId} 拖拽完成，时间变化: ${deltaTimeSec} 秒`);
+
+      // 清理 rAF
+      if (frameReq) {
+        cancelAnimationFrame(frameReq);
+        frameReq = null;
+      }
+    });
+};
+
 
             aircraftIds.forEach((id, i) => {
 
@@ -1451,70 +1508,86 @@ const PlanningView = observer(() => {
 
                         // 绘制背景轨道（显示总的time_to_takeoff范围）
                         const totalTimeToTakeoff = fly_times[i];
-                        planBarGroup.append("rect")
-                            .attr("class", "time-track")
-                            .attr("x", 0)
+                        const totalBlocks = Math.ceil(totalTimeToTakeoff); // 计算
+                        // 使用数据绑定创建背景块
+                        planBarGroup.selectAll(".time-track-block")
+                            .data(d3.range(totalBlocks))
+                            .enter()
+                            .append("rect")
+                            .attr("class", "time-track-block")
+                            .attr("x", d => d * (blockWidth + blockGap))
                             .attr("y", yBase)
-                            .attr("width", barScale(totalTimeToTakeoff) + 1)
+                            .attr("width", blockWidth)
                             .attr("height", barWidth)
                             .attr("fill", "#f0f0f0")
                             .attr("stroke", "#d0d0d0")
                             .attr("stroke-width", 1)
                             .attr("rx", 2);
 
+
                         // 计算当前taxi_time滑块的位置
                         const currentStartTime = left_times[i] || 0;
                         const taxiTime = aircraftData.taxi_time || plan_times[i];
-                        console.log('taxiTime',taxiTime,'totalTimeToTakeoff',totalTimeToTakeoff);
+                        // 计算滑块的起始和结束块索引
+                        const startBlock = Math.floor(currentStartTime);
+                        const endBlock = Math.ceil(currentStartTime + taxiTime);
+                        const sliderBlocks = endBlock - startBlock;
                         // 绘制可拖拽的taxi_time滑块
                         const taxiSlider = planBarGroup.append("rect")
                             .attr("class", `taxi-slider-${id}`)
-                            .attr("x", barScale(currentStartTime))
+                            .attr("x", startBlock * (blockWidth + blockGap))
                             .attr("y", yBase)
-                            .attr("width", barScale(taxiTime))
+                            .attr("width", sliderBlocks * (blockWidth + blockGap) - blockGap)
                             .attr("height", barWidth)
                             .attr("fill", planTimeColor)
                             .attr("opacity", barOpacity)
-                            .attr("stroke-dasharray", "3,3")
                             .attr("cursor", "grab")
                             .attr("rx", 2)
                             // 应用d3拖拽行为
                             .call(createTaxiSliderDrag(id, taxiTime, totalTimeToTakeoff));
+
                     }
                     else {
                         // 活跃飞机：绘制灰色背景条(time_to_takeoff)和彩色滑块(remaining-taxi-time)
-                        
+
 
                         const activeBarGroup = barGroup.append("g")
                             .attr("class", `active-bar-group-${id}`);
 
                         // 获取活跃飞机的time_to_takeoff数据
-                        const timeToTakeoffMinutes = (aircraftData.time_to_takeoff || 0) ; // 转换为分钟
+                        const timeToTakeoffMinutes = (aircraftData.time_to_takeoff || 0); // 转换为分钟
                         const remainingTimeMinutes = aircraftData.plan_time; // 剩余滑行时间
+                        const totalBlocks = Math.ceil(timeToTakeoffMinutes);
+                        const remainingBlocks = Math.ceil(remainingTimeMinutes);
 
-                        // 绘制背景轨道（显示总的time_to_takeoff范围）
-                        activeBarGroup.append("rect")
-                            .attr("class", "active-time-track")
-                            .attr("x", 0)
-                            .attr("y", yBase - 2)
-                            .attr("width", barScale(timeToTakeoffMinutes))
-                            .attr("height", barWidth + 4)
+                        //绘制背景轨道
+                        activeBarGroup.selectAll(".active-time-track-block")
+                            .data(d3.range(totalBlocks))
+                            .enter()
+                            .append("rect")
+                            .attr("class", "active-time-track-block")
+                            .attr("x", d => d * (blockWidth + blockGap))
+                            .attr("y", yBase)
+                            .attr("width", blockWidth)
+                            .attr("height", barWidth)
                             .attr("fill", "#f0f0f0")
                             .attr("stroke", "#d0d0d0")
                             .attr("stroke-width", 1)
                             .attr("rx", 2);
 
                         // 绘制剩余滑行时间滑块（从0开始，长度为remaining-taxi-time）
-                        activeBarGroup.append("rect")
-                            .attr("class", `remaining-slider-${id}`)
-                            .attr("x", 0) // 从0开始
+                        // 绘制剩余滑行时间滑块
+                        activeBarGroup.selectAll(".remaining-slider-block")
+                            .data(d3.range(remainingBlocks))
+                            .enter()
+                            .append("rect")
+                            .attr("class", "remaining-slider-block")
+                            .attr("x", d => d * (blockWidth + blockGap))
                             .attr("y", yBase)
-                            .attr("width", barScale(remainingTimeMinutes)) // 长度为剩余时间
+                            .attr("width", blockWidth)
                             .attr("height", barWidth)
                             .attr("fill", planTimeColor)
                             .attr("opacity", barOpacity)
-                            .attr("stroke", "#C44569")
-                            .attr("stroke-width", 2)
                             .attr("rx", 2);
 
                         // // 添加活跃飞机标识
@@ -1540,21 +1613,7 @@ const PlanningView = observer(() => {
                 }
 
             });
-            // 可选：加数值标签
-            // barGroup.append("text")
-            //     .attr("x", barScale(left_times[i]) + 5)
-            //     .attr("y", yBase + barWidth / 2 + 4)
-            //     .attr("text-anchor", "start")
-            //     .attr("font-size", "10px")
-            //     .attr("fill", "#1f77b4")
-            //     .text(left_times[i]);
-            // barGroup.append("text")
-            //     .attr("x", barScale(plan_times[i]) + 5)
-            //     .attr("y", yBase + barWidth + barGap + barWidth / 2 + 4)
-            //     .attr("text-anchor", "start")
-            //     .attr("font-size", "10px")
-            //     .attr("fill", "#ff7f0e")
-            //     .text(plan_times[i]);
+
 
 
             // 添加图例
@@ -1782,7 +1841,7 @@ const PlanningView = observer(() => {
                     };
                     updateConflictData(websocketStore.current_conflicts, 'current', currentConflictStyles);
                 }
-                
+
                 // 重新绘制未来冲突
                 if (websocketStore.future_conflicts && Array.isArray(websocketStore.future_conflicts)) {
                     const futureConflictStyles = {
@@ -1810,8 +1869,8 @@ const PlanningView = observer(() => {
             // console.log("typeof websocketStore.plannedFlights:", typeof websocketStore.plannedFlights);
             // console.log("websocketStore.plannedFlights keys:", websocketStore.plannedFlights ? Object.keys(websocketStore.plannedFlights) : 'null/undefined');
 
-        
-            
+
+
 
             if (websocketStore.plannedFlights &&
                 Object.keys(websocketStore.plannedFlights).length > 0) {
@@ -1834,7 +1893,7 @@ const PlanningView = observer(() => {
             }
             else {
                 console.log("WebSocket data not received, using test data...");
-               
+
             }
 
         });
@@ -1849,7 +1908,7 @@ const PlanningView = observer(() => {
             // 处理当前冲突数据
             if (websocketStore.current_conflicts && Array.isArray(websocketStore.current_conflicts)) {
                 console.log("更新当前冲突数据，数量:", websocketStore.current_conflicts.length);
-                
+
                 // 使用红色样式配置处理当前冲突
                 const currentConflictStyles = {
                     pointColor: '#ff4d4f',
@@ -1862,7 +1921,7 @@ const PlanningView = observer(() => {
                     fontSize: '11px',
                     fontWeight: 'bold'
                 };
-                
+
                 updateConflictData(websocketStore.current_conflicts, 'current', currentConflictStyles);
             } else {
                 console.log("没有当前冲突数据或数据格式错误");
@@ -1873,7 +1932,7 @@ const PlanningView = observer(() => {
             // 处理未来冲突数据
             if (websocketStore.future_conflicts && Array.isArray(websocketStore.future_conflicts)) {
                 console.log("更新未来冲突数据，数量:", websocketStore.future_conflicts.length);
-                
+
                 // 使用橙色样式配置处理未来冲突
                 const futureConflictStyles = {
                     pointColor: '#fa8c16',
@@ -1886,7 +1945,7 @@ const PlanningView = observer(() => {
                     fontSize: '10px',
                     fontWeight: 'normal'
                 };
-                
+
                 updateConflictData(websocketStore.future_conflicts, 'future', futureConflictStyles);
             } else {
                 console.log("没有未来冲突数据或数据格式错误");
