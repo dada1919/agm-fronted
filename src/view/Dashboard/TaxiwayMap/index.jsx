@@ -1301,6 +1301,19 @@ const ConflictResolutionPanel = observer(() => {
     console.log("应用了接圈方案",conflictId,solutionId)
   };
 
+  // 模拟应用解决方案
+  const simulateResolution = (conflictId, solutionId) => {
+    if (websocketStore.socket && websocketStore.socket.connected) {
+      console.log("模拟应用冲突解决方案", conflictId, solutionId);
+      websocketStore.socket.emit('simulate_conflict_resolution', {
+        conflict_id: conflictId,
+        solution_id: solutionId
+      });
+    } else {
+      console.error('WebSocket未连接，无法发送模拟应用请求');
+    }
+  };
+
   return (
     <div style={{
       padding: '16px',
@@ -1538,12 +1551,31 @@ const ConflictResolutionPanel = observer(() => {
                   border: 'none',
                   borderRadius: '4px',
                   fontSize: '12px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  marginBottom: '8px'
                 }}
                 onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
                 onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
               >
                 应用此方案
+              </button>
+              
+              <button
+                onClick={() => simulateResolution(resolution_analysis.conflict_id, resolution.option_id)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+              >
+                模拟应用
               </button>
             </div>
           ))}
