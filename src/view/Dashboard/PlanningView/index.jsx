@@ -304,25 +304,7 @@ const useStyle = createStyles(({ css, token }) => {
     };
 });
 
-// const testData = {
-//     'planned_flights': {
-//         'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': 6, 'origin': '775', 'destination': '1818', 'time_to_takeoff': 7 },
-//         'CHH7538': { 'path': [['344', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2123', 1], ['2122', 1], ['2130', 0], ['2132', 0]], 'node_path': ['294', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '1550', '1549', '1554', '1968'], 'taxiway_sequence': ['344', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2123', '2122', '2130', '2132'], 'taxi_time': 576.7686521583825, 'start_time': 116, 'origin': '294', 'destination': '1968', 'time_to_takeoff': 11 },
-//         'ETH605': { 'path': [['1389', 1], ['1388', 1], ['160', 1], ['159', 1], ['158', 1], ['157', 1], ['156', 1], ['155', 1], ['154', 1], ['153', 1], ['152', 1], ['151', 1], ['150', 1], ['149', 1], ['148', 1], ['147', 1], ['146', 1], ['2639', 1], ['893', 1], ['2627', 0], ['818', 1], ['817', 1], ['816', 1], ['2724', 1], ['658', 1], ['2720', 0], ['186', 1], ['185', 1], ['184', 1], ['183', 1], ['182', 1], ['181', 1], ['2716', 1], ['64', 1]], 'node_path': ['1996', '1149', '131', '130', '129', '128', '127', '126', '125', '124', '123', '122', '121', '120', '119', '118', '117', '116', '824', '823', '1745', '751', '750', '749', '598', '597', '152', '151', '150', '149', '148', '147', '146', '42', '41'], 'taxiway_sequence': ['1389', '1388', '160', '159', '158', '157', '156', '155', '154', '153', '152', '151', '150', '149', '148', '147', '146', '2639', '893', '2627', '818', '817', '816', '2724', '658', '2720', '186', '185', '184', '183', '182', '181', '2716', '64'], 'taxi_time': 1179.5237413367543, 'start_time': 118, 'origin': '1996', 'destination': '41', 'time_to_takeoff': 21 },
-//         'CHH7716': { 'path': [['1618', 0], ['797', 1], ['796', 1], ['795', 1], ['794', 1], ['793', 1], ['792', 1], ['937', 1], ['791', 1], ['790', 1], ['789', 1], ['788', 1], ['787', 1], ['786', 1], ['1771', 0], ['880', 0], ['881', 0], ['882', 0], ['1932', 0], ['1934', 0], ['1936', 0], ['1785', 0], ['1786', 0], ['1787', 0]], 'node_path': ['745', '731', '730', '729', '728', '727', '726', '725', '863', '724', '723', '722', '721', '720', '719', '811', '812', '813', '814', '1456', '1457', '1391', '1392', '1393', '1920'], 'taxiway_sequence': ['1618', '797', '796', '795', '794', '793', '792', '937', '791', '790', '789', '788', '787', '786', '1771', '880', '881', '882', '1932', '1934', '1936', '1785', '1786', '1787'], 'taxi_time': 925.6569040229369, 'start_time': 258, 'origin': '745', 'destination': '1920', 'time_to_takeoff': 19 },
-//         'CHH7184': { 'path': [['1563', 1], ['2895', 1], ['2894', 0], ['345', 0], ['346', 0], ['347', 0], ['348', 0], ['349', 0], ['350', 0], ['351', 0], ['352', 0], ['2126', 1], ['2124', 1], ['2127', 1], ['841', 0], ['842', 0], ['843', 0], ['844', 0], ['847', 0], ['848', 0], ['849', 0], ['850', 0], ['851', 0], ['852', 0], ['2098', 0], ['1459', 1], ['1458', 1], ['1457', 1], ['1456', 1], ['1455', 1], ['1454', 1], ['1453', 1], ['1452', 1], ['1451', 1], ['1654', 1]], 'node_path': ['397', '1278', '1845', '295', '296', '297', '298', '299', '300', '301', '302', '303', '1552', '1551', '774', '775', '776', '777', '778', '779', '780', '781', '782', '783', '784', '1203', '1202', '1201', '1200', '1199', '1198', '1197', '1196', '1195', '1194', '1329'], 'taxiway_sequence': ['1563', '2895', '2894', '345', '346', '347', '348', '349', '350', '351', '352', '2126', '2124', '2127', '841', '842', '843', '844', '847', '848', '849', '850', '851', '852', '2098', '1459', '1458', '1457', '1456', '1455', '1454', '1453', '1452', '1451', '1654'], 'taxi_time': 1193.6505629027668, 'start_time': 577, 'origin': '397', 'destination': '1329', 'time_to_takeoff': 29 },
-//         'UZB502': { 'path': [['2968', 1]], 'node_path': ['1868', '1869'], 'taxiway_sequence': ['2968'], 'taxi_time': 55.24926167354947, 'start_time': 99, 'origin': '1868', 'destination': '1869', 'time_to_takeoff': 2 },
-//         'CCA1346': { 'path': [['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['2675', 0]], 'node_path': ['834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '2003'], 'taxiway_sequence': ['2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '2675'], 'taxi_time': 254.48942158563852, 'start_time': 201, 'origin': '834', 'destination': '2003', 'time_to_takeoff': 7 },
-//         'UAE307': { 'path': [['2716', 1], ['64', 1]], 'node_path': ['146', '42', '41'], 'taxiway_sequence': ['2716', '64'], 'taxi_time': 118.44060108174774, 'start_time': 118, 'origin': '146', 'destination': '41', 'time_to_takeoff': 3 },
-//         'CCD1918': { 'path': [['1588', 1], ['2610', 1], ['2607', 1], ['2605', 1], ['193', 1], ['2624', 1], ['891', 0], ['2628', 1], ['2630', 0], ['904', 0], ['2642', 1], ['143', 1], ['142', 1], ['141', 1], ['140', 1], ['139', 1], ['138', 1], ['137', 1], ['136', 1], ['135', 1], ['134', 1], ['133', 1], ['132', 1], ['131', 1], ['130', 1], ['129', 1], ['128', 1], ['127', 1], ['126', 1], ['125', 1], ['124', 1], ['2661', 0], ['254', 0], ['2477', 0], ['552', 1], ['551', 1], ['550', 1], ['549', 1], ['548', 1], ['547', 1], ['546', 1], ['545', 1], ['544', 1], ['543', 1], ['542', 1], ['541', 1], ['540', 1], ['539', 1], ['538', 1], ['537', 1], ['536', 1], ['535', 1], ['2556', 1], ['2572', 0]], 'node_path': ['398', '1294', '1743', '1741', '159', '158', '821', '822', '1745', '833', '834', '114', '113', '112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '95', '94', '214', '215', '495', '494', '493', '492', '491', '490', '489', '488', '487', '486', '485', '484', '483', '482', '481', '480', '479', '478', '477', '1724', '2050'], 'taxiway_sequence': ['1588', '2610', '2607', '2605', '193', '2624', '891', '2628', '2630', '904', '2642', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', '129', '128', '127', '126', '125', '124', '2661', '254', '2477', '552', '551', '550', '549', '548', '547', '546', '545', '544', '543', '542', '541', '540', '539', '538', '537', '536', '535', '2556', '2572'], 'taxi_time': 1257.0560552121317, 'start_time': 459, 'origin': '398', 'destination': '2050', 'time_to_takeoff': 28 }
-//     },
-//     "active_flights": { 'CCA1642': { 'path': [['841', 1], ['840', 1], ['839', 1], ['838', 1], ['837', 1], ['836', 1], ['835', 1], ['834', 1], ['833', 1], ['2822', 1], ['736', 0], ['737', 0], ['2851', 1], ['2855', 1], ['2840', 1], ['2839', 1], ['2838', 0], ['2830', 0], ['2831', 0], ['2832', 0], ['2833', 0], ['2834', 0]], 'node_path': ['775', '774', '773', '772', '771', '770', '769', '768', '767', '766', '671', '672', '673', '1826', '1821', '1820', '1819', '1813', '1814', '1815', '1816', '1817', '1818'], 'taxiway_sequence': ['841', '840', '839', '838', '837', '836', '835', '834', '833', '2822', '736', '737', '2851', '2855', '2840', '2839', '2838', '2830', '2831', '2832', '2833', '2834'], 'taxi_time': 449.3087355738903, 'start_time': '2023-11-02T00:00:06', 'origin': '775', 'destination': '1818', 'remaining_taxi_time': 65.80714, 'time_to_takeoff': 5 } },
-//     "conflicts":
-//         [
-//             { "flight1": "CCA1642", "flight2": "CHH7184", "node": "841", "time": 1 },
-//             { "flight1": "ETH605", "flight2": "UAE307", "node": "2716", "time": 2 },
-//         ]
-// };
+
 
 
 // 定义航班表格列
@@ -417,6 +399,312 @@ const PlanningView = observer(() => {
     const ROW_HEIGHT_P = 40; // 每行高度，用于同步滚动
     const HEADER_HEIGHT = 40; // 表头高度
 
+    // 分段函数计算逻辑
+    const calculatePiecewiseFunction = (t, piecewiseData) => {
+        if (!piecewiseData || !Array.isArray(piecewiseData)) {
+            return null;
+        }
+
+        // 找到包含时间点t的分段
+        for (const segment of piecewiseData) {
+            const { t1, t2, a, b, c } = segment;
+            if (t >= t1 && t <= t2) {
+                // 计算函数值: ax + by + c = 0 => y = -(ax + c) / b
+                if (b !== 0) {
+                    return -(a * t + c) / b;
+                } else {
+                    // 如果b=0，则为垂直线，返回特殊值
+                    return a * t + c;
+                }
+            }
+        }
+        return null;
+    };
+
+    // 创建颜色映射函数
+    const createColorScale = (minValue, maxValue) => {
+        return d3.scaleSequential(d3.interpolateViridis)
+            .domain([minValue, maxValue]);
+    };
+
+    // 生成带状图形的路径点
+    const generateBandPath = (t1, t2, piecewiseData, xScale, y1, y2, resolution = 50) => {
+        const points = [];
+        const step = (t2 - t1) / resolution;
+        
+        for (let i = 0; i <= resolution; i++) {
+            const t = t1 + i * step;
+            const x = xScale(t);
+            const functionValue = calculatePiecewiseFunction(t, piecewiseData);
+            
+            if (functionValue !== null) {
+                // 将函数值映射到两条时间线之间的位置
+                // 假设函数值范围需要归一化到[0,1]之间
+                const normalizedValue = Math.max(0, Math.min(1, (functionValue + 10) / 20)); // 简单归一化
+                const y = y1 + (y2 - y1) * normalizedValue;
+                points.push([x, y]);
+            }
+        }
+        
+        return points;
+    };
+
+    // 冲突数据更新函数，支持样式配置
+    const updateConflictData = (conflictData, conflictType = 'current', styleConfig = {}) => {
+        console.log(`=== 更新${conflictType}冲突数据 ===`);
+        console.log(`冲突数据:`, conflictData);
+        console.log(`样式配置:`, styleConfig);
+
+        // 默认样式配置
+        const defaultStyles = {
+            current: {
+                pointColor: 'red',
+                pointRadius: 6,
+                lineColor: 'red',
+                lineWidth: 3,
+                lineDashArray: '5,5',
+                opacity: 0.8,
+                textColor: 'red',
+                fontSize: '10px',
+                fontWeight: 'bold'
+            },
+            future: {
+                pointColor: 'orange',
+                pointRadius: 5,
+                lineColor: 'orange',
+                lineWidth: 2,
+                lineDashArray: '3,3',
+                opacity: 0.6,
+                textColor: 'orange',
+                fontSize: '9px',
+                fontWeight: 'normal'
+            }
+        };
+
+        // 合并样式配置
+        const styles = {
+            ...defaultStyles[conflictType],
+            ...styleConfig
+        };
+
+        // 获取当前的SVG容器和相关变量
+        const svg = d3.select(svgRef.current);
+        const g = svg.select('.main-group');
+        
+        if (g.empty()) {
+            console.warn('SVG主组未找到，无法绘制冲突数据');
+            return;
+        }
+        
+        // 创建或获取特定冲突类型的组
+        let conflictGroup = g.select(`.conflict-group-${conflictType}`);
+        if (conflictGroup.empty()) {
+            conflictGroup = g.append('g')
+                .attr('class', `conflict-group-${conflictType}`)
+                .attr('data-type', conflictType);
+        }
+        
+        // 清除之前的冲突标记（仅清除当前类型的冲突组内容）
+        conflictGroup.selectAll('*').remove();
+
+        // 如果没有冲突数据，直接返回
+        if (!conflictData || conflictData.length === 0) {
+            console.log(`没有${conflictType}冲突数据需要绘制`);
+            return;
+        }
+
+        // 获取当前的时间比例尺和位置函数
+        const xScale = d3Container.current.xScale;
+        const getYPosition = d3Container.current.getYPosition;
+        const aircraftIds = d3Container.current.aircraftIds;
+
+        if (!xScale || !getYPosition || !aircraftIds) {
+            console.warn('缺少必要的绘图函数或数据，无法绘制冲突');
+            return;
+        }
+
+        // 处理冲突数据
+        conflictData.forEach((conflict, index) => {
+            console.log(`处理${conflictType}冲突 ${index + 1}:`, conflict);
+
+            // 支持新的对象格式和旧的数组格式
+            let conflictId, flight1Id, flight2Id, conflictTime;
+
+            if (typeof conflict === 'object' && !Array.isArray(conflict)) {
+                // 新的对象格式
+                conflictId = conflict.conflict_id;
+                flight1Id = conflict.flight1_id;
+                flight2Id = conflict.flight2_id;
+                conflictTime = conflict.time_to_conflict / 60; // 转换秒为分钟
+            } else if (Array.isArray(conflict) && conflict.length >= 3) {
+                // 旧的数组格式 [conflictId, [flight1, flight2], time]
+                conflictId = conflict[0];
+                const flightIds = conflict[1];
+                conflictTime = conflict[2];
+                
+                if (Array.isArray(flightIds) && flightIds.length >= 2) {
+                    flight1Id = flightIds[0];
+                    flight2Id = flightIds[1];
+                } else {
+                    console.warn(`冲突数据格式错误，航班ID数组无效:`, flightIds);
+                    return;
+                }
+            } else {
+                console.warn(`冲突数据格式错误:`, conflict);
+                return;
+            }
+
+            // 检查两架飞机是否都在aircraftIds中
+            if (aircraftIds.includes(flight1Id) && aircraftIds.includes(flight2Id)) {
+                const y1 = getYPosition(flight1Id);
+                const y2 = getYPosition(flight2Id);
+                const x = xScale(conflictTime); // 冲突时间点的x坐标
+
+                // 绘制冲突点（在每架飞机的时间线上）
+                g.append("circle")
+                    .attr("class", `conflict-${conflictType} conflict-point`)
+                    .attr("cx", x)
+                    .attr("cy", y1)
+                    .attr("r", styles.pointRadius)
+                    .attr("fill", styles.pointColor)
+                    .attr("stroke", "white")
+                    .attr("stroke-width", 2)
+                    .attr("opacity", styles.opacity);
+
+                g.append("circle")
+                    .attr("class", `conflict-${conflictType} conflict-point`)
+                    .attr("cx", x)
+                    .attr("cy", y2)
+                    .attr("r", styles.pointRadius)
+                    .attr("fill", styles.pointColor)
+                    .attr("stroke", "white")
+                    .attr("stroke-width", 2)
+                    .attr("opacity", styles.opacity);
+
+                // 绘制连接两架飞机的冲突线
+                g.append("line")
+                    .attr("class", `conflict-${conflictType} conflict-line`)
+                    .attr("x1", x)
+                    .attr("y1", y1)
+                    .attr("x2", x)
+                    .attr("y2", y2)
+                    .attr("stroke", styles.lineColor)
+                    .attr("stroke-width", styles.lineWidth)
+                    .attr("stroke-dasharray", styles.lineDashArray)
+                    .attr("opacity", styles.opacity);
+
+                // 添加冲突标识文本，显示更多信息
+                const conflictLabel = typeof conflict === 'object' && !Array.isArray(conflict) 
+                    ? `${conflict.conflict_type || 'CONFLICT'} (${conflict.severity || 'UNKNOWN'})`
+                    : `${conflictType === 'current' ? '当前' : '未来'}冲突`;
+
+                g.append("text")
+                    .attr("class", `conflict-${conflictType} conflict-text`)
+                    .attr("x", x + 5) // 稍微偏移避免重叠
+                    .attr("y", (y1 + y2) / 2)
+                    .attr("font-size", styles.fontSize)
+                    .attr("fill", styles.textColor)
+                    .attr("font-weight", styles.fontWeight)
+                    .attr("opacity", styles.opacity)
+                    .text(`${conflictLabel}@T+${conflictTime.toFixed(1)}`);
+
+                console.log(`成功绘制${conflictType}冲突: ${flight1Id} vs ${flight2Id} at T+${conflictTime.toFixed(1)}分钟`);
+                
+                // 绘制分段函数带状图形（如果存在分段函数数据）
+                if (typeof conflict === 'object' && !Array.isArray(conflict) && conflict.temporal_functions) {
+                    console.log(`绘制${conflictType}分段函数带状图形:`, conflict.temporal_functions);
+                    
+                    // 获取分段函数的时间范围
+                    const piecewiseData = conflict.temporal_functions;
+                    const timeRange = piecewiseData.reduce((range, segment) => {
+                        return {
+                            min: Math.min(range.min, segment.t1),
+                            max: Math.max(range.max, segment.t2)
+                        };
+                    }, { min: Infinity, max: -Infinity });
+                    
+                    // 计算函数值范围用于颜色映射
+                    const functionValues = [];
+                    const resolution = 100;
+                    const step = (timeRange.max - timeRange.min) / resolution;
+                    
+                    for (let i = 0; i <= resolution; i++) {
+                        const t = timeRange.min + i * step;
+                        const value = calculatePiecewiseFunction(t, piecewiseData);
+                        if (value !== null) {
+                            functionValues.push(value);
+                        }
+                    }
+                    
+                    if (functionValues.length > 0) {
+                        const valueRange = {
+                            min: Math.min(...functionValues),
+                            max: Math.max(...functionValues)
+                        };
+                        
+                        // 创建颜色比例尺
+                        const colorScale = createColorScale(valueRange.min, valueRange.max);
+                        
+                        // 为每个冲突类型创建唯一的渐变ID
+                        const gradientId = `conflict-gradient-${conflictType}-${conflictId}`;
+                        
+                        // 创建线性渐变定义
+                        const gradient = conflictGroup.append("defs")
+                            .append("linearGradient")
+                            .attr("id", gradientId)
+                            .attr("x1", "0%")
+                            .attr("y1", "0%")
+                            .attr("x2", "100%")
+                            .attr("y2", "0%");
+                        
+                        // 添加渐变停止点
+                        for (let i = 0; i <= resolution; i++) {
+                            const t = timeRange.min + i * step;
+                            const value = calculatePiecewiseFunction(t, piecewiseData);
+                            if (value !== null) {
+                                const normalizedValue = (value - valueRange.min) / (valueRange.max - valueRange.min);
+                                const color = colorScale(normalizedValue);
+                                gradient.append("stop")
+                                    .attr("offset", `${i / resolution * 100}%`)
+                                    .attr("stop-color", color);
+                            }
+                        }
+                        
+                        // 绘制单一方形路径
+                        const x1 = xScale(timeRange.min);
+                        const x2 = xScale(timeRange.max);
+                        const y1 = getYPosition(flight1Id);
+                        const y2 = getYPosition(flight2Id);
+                        
+                        // 创建方形路径
+                        conflictGroup.append("path")
+                            .attr("class", `conflict-${conflictType} conflict-band`)
+                            .attr("d", `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2} L ${x1} ${y2} Z`)
+                            .attr("fill", `url(#${gradientId})`)
+                            .attr("stroke", "none")
+                            .attr("opacity", styles.opacity);
+                    }
+                }
+                        
+                
+                
+                
+                // 如果是新格式，输出更多调试信息
+                if (typeof conflict === 'object' && !Array.isArray(conflict)) {
+                    console.log(`  - 冲突类型: ${conflict.conflict_type}`);
+                    console.log(`  - 严重程度: ${conflict.severity}`);
+                    console.log(`  - 预计延误: ${conflict.estimated_delay}分钟`);
+                    console.log(`  - 安全风险: ${conflict.safety_risk}`);
+                }
+            } else {
+                console.warn(`冲突中的航班ID不在当前显示列表中: ${flight1Id}, ${flight2Id}`);
+                console.warn(`当前显示的航班ID列表:`, aircraftIds);
+            }
+        });
+
+        console.log(`${conflictType}冲突数据更新完成，共处理 ${conflictData.length} 个冲突`);
+    };
+
     // 处理航班数据，生成表格数据源
     const processFlightData = (plannedData) => {
         const tableData = [];
@@ -490,8 +778,192 @@ const PlanningView = observer(() => {
 
         // 创建 D3 元素引用
 
+        // 处理模拟数据的函数
+        const processSimulationData = () => {
+            const currentSimulation = websocketStore.getCurrentSimulation();
+            let simulationResults = [];
+            
+            // 如果有模拟数据，处理模拟数据为时间线格式
+            if (currentSimulation && currentSimulation.simulated_state) {
+                const simulatedState = currentSimulation.simulated_state;
+                
+                // 处理模拟的计划航班
+                if (simulatedState.planned_flights) {
+                    Object.entries(simulatedState.planned_flights).forEach(([flightId, flightData]) => {
+                        const startTimeMinutes = flightData.start_time / 60;
+                        const taxiTimeMinutes = flightData.taxi_time / 60;
+                        
+                        const convertedData = {
+                            aircraft_id: flightId,
+                            type: 'simulation_planning', // 模拟计划航班类型
+                            time_to_start: startTimeMinutes,
+                            taxi_time: taxiTimeMinutes,
+                            paths: [{
+                                start_time: startTimeMinutes,
+                                end_time: startTimeMinutes + taxiTimeMinutes,
+                                duration: taxiTimeMinutes,
+                                path: flightData.path
+                            }],
+                            conflicts: []
+                        };
+                        
+                        simulationResults.push(convertedData);
+                    });
+                }
+                
+                // 处理模拟的活跃航班
+                if (simulatedState.active_flights) {
+                    Object.entries(simulatedState.active_flights).forEach(([flightId, flightData]) => {
+                        const remainingTimeMinutes = (flightData.remaining_taxi_time || 0) / 60;
+                        
+                        const convertedData = {
+                            aircraft_id: flightId,
+                            type: 'simulation_active', // 模拟活跃航班类型
+                            time_to_takeoff: flightData.time_to_takeoff,
+                            paths: [{
+                                time: remainingTimeMinutes,
+                                path: flightData.path
+                            }],
+                            plan_time: remainingTimeMinutes,
+                            conflicts: []
+                        };
+                        
+                        simulationResults.push(convertedData);
+                    });
+                }
+            }
+            
+            return simulationResults;
+        };
+
 
         const updatePlanningView = (plannedData) => {
+            // 绘制模拟数据时间线的函数
+            const drawSimulationTimelines = (g, simulationResults, xScale, getYPosition, simulationColors) => {
+                if (simulationResults.length === 0) return;
+
+                const simulationFlights = g.selectAll(".simulation-flight-group")
+                    .data(simulationResults)
+                    .enter()
+                    .append("g")
+                    .attr("class", d => `simulation-flight-group ${d.type}-flight`)
+                    .attr("id", d => `simulation-flight-${d.aircraft_id}`);
+
+                let simulationIndex = 0;
+
+                simulationFlights.each(function (simulationResult, i) {
+                    const simulationGroup = d3.select(this);
+
+                    // 为模拟数据选择颜色和样式
+                    const color = simulationColors[simulationIndex % simulationColors.length];
+                    const strokeWidth = 3; // 模拟数据线条中等粗细
+                    const strokeDasharray = "8,4"; // 长虚线，区别于原时间线
+                    simulationIndex++;
+
+                    // 绘制模拟时间线（在原时间线下方偏移）
+                    const yOffset = 8; // 向下偏移8像素
+                    
+                    simulationGroup.selectAll("line")
+                        .data(simulationResult.paths)
+                        .enter()
+                        .append("line")
+                        .attr("x1", d => {
+                            return simulationResult.type === 'simulation_planning' ? xScale(d.start_time) : xScale(0);
+                        })
+                        .attr("x2", d => {
+                            return simulationResult.type === 'simulation_planning' ? xScale(d.end_time) : xScale(d.time);
+                        })
+                        .attr("y1", (d, j) => getYPosition(simulationResult.aircraft_id) + j * 3 + yOffset)
+                        .attr("y2", (d, j) => getYPosition(simulationResult.aircraft_id) + j * 3 + yOffset)
+                        .attr("stroke", color)
+                        .attr("stroke-width", strokeWidth)
+                        .attr("stroke-linecap", "round")
+                        .attr("stroke-dasharray", strokeDasharray)
+                        .attr("opacity", 0.8); // 稍微透明以区分
+
+                    // 添加模拟起始点图标（菱形）
+                    simulationGroup.selectAll(".simulation-start-point")
+                        .data(simulationResult.paths)
+                        .enter()
+                        .append("polygon")
+                        .attr("class", "simulation-start-point")
+                        .attr("points", d => {
+                            const x = simulationResult.type === 'simulation_planning' ? xScale(d.start_time) : xScale(0);
+                            const y = getYPosition(simulationResult.aircraft_id) + yOffset;
+                            const size = 4;
+                            return `${x},${y-size} ${x+size},${y} ${x},${y+size} ${x-size},${y}`;
+                        })
+                        .attr("fill", color)
+                        .attr("stroke", "white")
+                        .attr("stroke-width", 1)
+                        .attr("opacity", 0.9);
+
+                    // 添加模拟结束点图标（菱形）
+                    simulationGroup.selectAll(".simulation-end-point")
+                        .data(simulationResult.paths)
+                        .enter()
+                        .append("polygon")
+                        .attr("class", "simulation-end-point")
+                        .attr("points", d => {
+                            const x = simulationResult.type === 'simulation_planning' ? xScale(d.end_time) : xScale(d.time);
+                            const y = getYPosition(simulationResult.aircraft_id) + yOffset;
+                            const size = 4;
+                            return `${x},${y-size} ${x+size},${y} ${x},${y+size} ${x-size},${y}`;
+                        })
+                        .attr("fill", color)
+                        .attr("stroke", "white")
+                        .attr("stroke-width", 1)
+                        .attr("opacity", 0.9);
+
+                    // 为模拟活跃飞机添加特殊标识（星形）
+                    if (simulationResult.type === 'simulation_active') {
+                        simulationGroup.selectAll(".simulation-active-indicator")
+                            .data(simulationResult.paths)
+                            .enter()
+                            .append("polygon")
+                            .attr("class", "simulation-active-indicator")
+                            .attr("points", d => {
+                                const x = xScale(d.time);
+                                const y = getYPosition(simulationResult.aircraft_id) - 5 + yOffset;
+                                const size = 3;
+                                // 创建星形的点
+                                return `${x},${y-size} ${x+size*0.3},${y-size*0.3} ${x+size},${y} ${x+size*0.3},${y+size*0.3} ${x},${y+size} ${x-size*0.3},${y+size*0.3} ${x-size},${y} ${x-size*0.3},${y-size*0.3}`;
+                            })
+                            .attr("fill", color)
+                            .attr("stroke", "white")
+                            .attr("stroke-width", 1)
+                            .attr("opacity", 0.9);
+                    }
+
+                    // 为模拟计划飞机添加特殊标识（六边形）
+                    if (simulationResult.type === 'simulation_planning') {
+                        simulationGroup.selectAll(".simulation-planning-indicator")
+                            .data(simulationResult.paths)
+                            .enter()
+                            .append("polygon")
+                            .attr("class", "simulation-planning-indicator")
+                            .attr("points", d => {
+                                const x = xScale(d.end_time);
+                                const y = getYPosition(simulationResult.aircraft_id) - 8 + yOffset;
+                                const size = 4;
+                                // 创建六边形的点
+                                const angle = Math.PI / 3; // 60度
+                                let points = [];
+                                for (let i = 0; i < 6; i++) {
+                                    const px = x + size * Math.cos(i * angle);
+                                    const py = y + size * Math.sin(i * angle);
+                                    points.push(`${px},${py}`);
+                                }
+                                return points.join(' ');
+                            })
+                            .attr("fill", color)
+                            .attr("stroke", "white")
+                            .attr("stroke-width", 1)
+                            .attr("opacity", 0.9);
+                    }
+                });
+            };
+
             // 适配新的数据格式
             // plannedData: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
             // console.log('PlanningView received data:', plannedData);
@@ -713,9 +1185,16 @@ const PlanningView = observer(() => {
             // 为不同类型的飞机定义不同的颜色和样式
             const activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
             const planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
+            const simulationColors = ['#9B59B6', '#8E44AD', '#E74C3C', '#C0392B', '#F39C12']; // 模拟数据：紫红色调
 
             let activeIndex = 0;
             let planningIndex = 0;
+
+
+            
+
+            // 处理模拟数据
+            const simulationResults = processSimulationData();
 
             const flights = g.selectAll(".flight-group")
                 .data(plannedResults) // 绑定所有飞机的数据
@@ -827,82 +1306,10 @@ const PlanningView = observer(() => {
                         .attr("stroke-width", 2);
                 }
             });
-            // 绘制水平线（时间线）
-            // for (let plannedResult of plannedResults) {
 
-            //     console.log("Planned Result:", JSON.stringify(plannedResult));
-
-            //     flight = g.selectAll(".flight")
-            //         .data(plannedResult.evaluations)
-            //         .enter()
-            //         .append("g")
-            //         .attr("class", "flight");
-
-            //     let color = colors[index % colors.length];
-            //     index ++;
-
-            //     flight.append("line")
-            //         .attr("x1", d => xScale(0))
-            //         .attr("x2", (d) => {console.log("x2"+xScale(d[1])); return xScale(d[1])} )
-            //         .attr("y1", (d, i) => {console.log("y1"+yScale(plannedResult.aircraft_id)); return 3*i+yScale(plannedResult.aircraft_id)})
-            //         .attr("y2", (d, i) => {return 3*i+yScale(plannedResult.aircraft_id)})
-            //         .attr("stroke", color)
-            //         .attr("stroke-width", 2)
-            //         .attr("stroke-linecap", "round");
-
-            //     flights.push(flight);
-
-
-            // }
-
-
-            // flights.append("line")
-            //     .attr("x1", d => xScale(0))
-            //     .attr("x2", d => xScale(d.evaluations[1]))
-            //     .attr("y1", d => yScale(d.aircraft_id))
-            //     .attr("y2", d => yScale(d.id))
-            //     .attr("stroke", d => {
-            //         if (d.status === 'delayed') return '#e74c3c';
-            //         if (d.status === 'early') return '#2ecc71';
-            //         return '#3498db';
-            //     })
-            //     .attr("stroke-width", 4)
-            //     .attr("stroke-linecap", "round");   
-
-            // // 绘制起始点
-            // flights.append("circle")
-            //     .attr("cx", d => xScale(d.t0))
-            //     .attr("cy", d => yScale(d.id))
-            //     .attr("r", 5)
-            //     .attr("fill", d => {
-            //         if (d.status === 'delayed') return '#e74c3c';
-            //         if (d.status === 'early') return '#2ecc71';
-            //         return '#3498db';
-            //     })
-            //     .attr("stroke", "white")
-            //     .attr("stroke-width", 1);
-
-            // // 绘制结束点
-            // flights.append("circle")
-            //     .attr("cx", d => xScale(d.t1))
-            //     .attr("cy", d => yScale(d.id))
-            //     .attr("r", 5)
-            //     .attr("fill", d => {
-            //         if (d.status === 'delayed') return '#e74c3c';
-            //         if (d.status === 'early') return '#2ecc71';
-            //         return '#3498db';
-            //     })
-            //     .attr("stroke", "white")
-            //     .attr("stroke-width", 1);
-
-            // // 添加时间标签
-            // flights.append("text")
-            //     .attr("x", d => xScale(d.t0) - 5)
-            //     .attr("y", d => yScale(d.id) - 10)
-            //     .attr("text-anchor", "end")
-            //     .attr("fill", "#7f8c8d")
-            //     .attr("font-size", "10px")
-            //     .text(d => `T0: ${d.t0.toFixed(1)}`);
+            // 绘制模拟数据时间线
+            drawSimulationTimelines(g, simulationResults, xScale, getYPosition, simulationColors);
+    
 
 
             // 1. 柱状图参数
@@ -1155,12 +1562,12 @@ const PlanningView = observer(() => {
                 .attr("class", "legend")
                 .attr("transform", `translate(${width - 250}, 30)`); // 调整图例位置，确保在可视区域内
 
-            // 图例背景
+            // 图例背景 - 增加高度以容纳模拟数据图例
             legendGroup.append("rect")
                 .attr("x", -10)
                 .attr("y", -10)
-                .attr("width", 180)
-                .attr("height", 120)
+                .attr("width", 200)
+                .attr("height", 200)
                 .attr("fill", "white")
                 .attr("stroke", "#ccc")
                 .attr("stroke-width", 1)
@@ -1263,83 +1670,135 @@ const PlanningView = observer(() => {
                 .attr("fill", "#666")
                 .text("• 虚线/细线：计划飞机");
 
+            // 模拟数据图例分隔线
+            legendGroup.append("line")
+                .attr("x1", 0)
+                .attr("x2", 170)
+                .attr("y1", 115)
+                .attr("y2", 115)
+                .attr("stroke", "#ddd")
+                .attr("stroke-width", 1);
+
+            // 模拟数据标题
+            legendGroup.append("text")
+                .attr("x", 0)
+                .attr("y", 135)
+                .attr("font-size", "12px")
+                .attr("font-weight", "bold")
+                .attr("fill", "#666")
+                .text("模拟数据");
+
+            // 模拟活跃飞机图例
+            const simActiveGroup = legendGroup.append("g")
+                .attr("transform", "translate(0, 150)");
+
+            simActiveGroup.append("line")
+                .attr("x1", 0)
+                .attr("x2", 20)
+                .attr("y1", 0)
+                .attr("y2", 0)
+                .attr("stroke", "#FF6B6B")
+                .attr("stroke-width", 3)
+                .attr("stroke-dasharray", "8,4")
+                .attr("opacity", 0.7)
+                .attr("stroke-linecap", "round");
+
+            simActiveGroup.append("polygon")
+                .attr("points", "0,0 -6,-6 6,-6")
+                .attr("fill", "#FF6B6B")
+                .attr("stroke", "white")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.7)
+                .attr("transform", "translate(20, -8)");
+
+            simActiveGroup.append("text")
+                .attr("x", 35)
+                .attr("y", 5)
+                .attr("font-size", "11px")
+                .attr("fill", "#666")
+                .text("模拟活跃飞机");
+
+            // 模拟计划飞机图例
+            const simPlanGroup = legendGroup.append("g")
+                .attr("transform", "translate(0, 170)");
+
+            simPlanGroup.append("line")
+                .attr("x1", 0)
+                .attr("x2", 20)
+                .attr("y1", 0)
+                .attr("y2", 0)
+                .attr("stroke", "#4ECDC4")
+                .attr("stroke-width", 2)
+                .attr("stroke-dasharray", "8,4")
+                .attr("opacity", 0.7)
+                .attr("stroke-linecap", "round");
+
+            simPlanGroup.append("polygon")
+                .attr("points", "0,0 -4,-4 4,-4 4,4 -4,4")
+                .attr("fill", "white")
+                .attr("stroke", "#4ECDC4")
+                .attr("stroke-width", 2)
+                .attr("opacity", 0.7)
+                .attr("transform", "translate(20, -8)");
+
+            simPlanGroup.append("text")
+                .attr("x", 35)
+                .attr("y", 5)
+                .attr("font-size", "11px")
+                .attr("fill", "#666")
+                .text("模拟计划飞机");
+
             // 在主图g上绘制冲突点和连接线
-            // 新格式中冲突信息在顶层conflicts数组中
-            if (plannedData.conflicts && plannedData.conflicts.length > 0) {
-                plannedData.conflicts.forEach(conflict => {
-                    // console.log("Processing conflict:", conflict);
+            // 注意：冲突数据现在通过独立的autorun处理，这里不再处理冲突绘制
+            // 冲突数据分别来自websocketStore.current_conflicts和websocketStore.future_conflicts
+            // 由updateConflictData函数统一处理，支持不同样式配置
 
-                    // 根据新的冲突数据格式处理：flight1, flight2, time
-                    // if (conflict.flight1 && conflict.flight2 && conflict.time !== undefined) {
-                    //     const flight1Id = conflict.flight1;
-                    //     const flight2Id = conflict.flight2;
-                    //     const conflictTime = conflict.time;
+            // 保存绘图相关变量到d3Container，供冲突更新函数使用
+            d3Container.current = {
+                xScale,
+                getYPosition,
+                aircraftIds,
+                svg,
+                g: g.append("g").attr("class", "main-group") // 创建主绘图组
+            };
 
+            // 将现有的绘图内容移动到主绘图组中
+            const mainGroup = d3Container.current.g;
 
-                    //     // 检查两架飞机是否都在aircraftIds中
-                    //     if (aircraftIds.includes(flight1Id) && aircraftIds.includes(flight2Id)) {
-                    //         const y1 = getYPosition(flight1Id);
-                    //         const y2 = getYPosition(flight2Id);
-                    //         const x = xScale(conflictTime); // 冲突时间点的x坐标
-
-                    if (Array.isArray(conflict) && conflict.length >= 3) {
-                        const conflictId = conflict[0]; // 冲突ID
-                        const flightIds = conflict[1]; // 航班ID数组
-                        const conflictTime = conflict[2]; // 冲突时间
-
-                        // 确保航班ID数组包含两个元素
-                        if (Array.isArray(flightIds) && flightIds.length >= 2) {
-                            const flight1Id = flightIds[0];
-                            const flight2Id = flightIds[1];
-
-                            // 检查两架飞机是否都在aircraftIds中
-                            if (aircraftIds.includes(flight1Id) && aircraftIds.includes(flight2Id)) {
-                                const y1 = getYPosition(flight1Id);
-                                const y2 = getYPosition(flight2Id);
-                                const x = xScale(conflictTime); // 冲突时间点的x坐标
-
-                                // 绘制冲突点（在每架飞机的时间线上）
-                                g.append("circle")
-                                    .attr("cx", x)
-                                    .attr("cy", y1)
-                                    .attr("r", 6)
-                                    .attr("fill", "red")
-                                    .attr("stroke", "white")
-                                    .attr("stroke-width", 2);
-
-                                g.append("circle")
-                                    .attr("cx", x)
-                                    .attr("cy", y2)
-                                    .attr("r", 6)
-                                    .attr("fill", "red")
-                                    .attr("stroke", "white")
-                                    .attr("stroke-width", 2);
-
-                                // 绘制连接两架飞机的冲突线
-                                g.append("line")
-                                    .attr("x1", x)
-                                    .attr("y1", y1)
-                                    .attr("x2", x)
-                                    .attr("y2", y2)
-                                    .attr("stroke", "red")
-                                    .attr("stroke-width", 3)
-                                    .attr("stroke-dasharray", "5,5")
-                                    .attr("opacity", 0.8);
-
-                                // 添加冲突标识文本
-                                g.append("text")
-                                    .attr("x", x )
-                                    .attr("y", (y1 + y2) / 2)
-                                    .attr("font-size", "10px")
-                                    .attr("fill", "red")
-                                    .attr("font-weight", "bold")
-                                    .text(`冲突@${conflictTime.toFixed(2)}`);
-                            }
-                        }
-                    }
-                });
-            }
-
+            // 在重新绘制图表后，重新绘制冲突数据以确保带状图形不会消失
+            setTimeout(() => {
+                // 重新绘制当前冲突
+                if (websocketStore.current_conflicts && Array.isArray(websocketStore.current_conflicts)) {
+                    const currentConflictStyles = {
+                        pointColor: '#ff4d4f',
+                        pointRadius: 6,
+                        lineColor: '#ff4d4f',
+                        lineWidth: 3,
+                        lineDashArray: '5,5',
+                        opacity: 0.9,
+                        textColor: '#ff4d4f',
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                    };
+                    updateConflictData(websocketStore.current_conflicts, 'current', currentConflictStyles);
+                }
+                
+                // 重新绘制未来冲突
+                if (websocketStore.future_conflicts && Array.isArray(websocketStore.future_conflicts)) {
+                    const futureConflictStyles = {
+                        pointColor: '#fa8c16',
+                        pointRadius: 5,
+                        lineColor: '#fa8c16',
+                        lineWidth: 2,
+                        lineDashArray: '3,3',
+                        opacity: 0.7,
+                        textColor: '#fa8c16',
+                        fontSize: '10px',
+                        fontWeight: 'normal'
+                    };
+                    updateConflictData(websocketStore.future_conflicts, 'future', futureConflictStyles);
+                }
+            }, 100); // 短暂延迟确保主图表绘制完成
 
         };
 
@@ -1380,9 +1839,66 @@ const PlanningView = observer(() => {
 
         });
 
+
+        // 更新冲突数据
+        const disposer2 = autorun(() => {
+            console.log("=== 冲突数据 autorun 触发 ===");
+            console.log("websocketStore.current_conflicts:", websocketStore.current_conflicts);
+            console.log("websocketStore.future_conflicts:", websocketStore.future_conflicts);
+
+            // 处理当前冲突数据
+            if (websocketStore.current_conflicts && Array.isArray(websocketStore.current_conflicts)) {
+                console.log("更新当前冲突数据，数量:", websocketStore.current_conflicts.length);
+                
+                // 使用红色样式配置处理当前冲突
+                const currentConflictStyles = {
+                    pointColor: '#ff4d4f',
+                    pointRadius: 6,
+                    lineColor: '#ff4d4f',
+                    lineWidth: 3,
+                    lineDashArray: '5,5',
+                    opacity: 0.9,
+                    textColor: '#ff4d4f',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
+                };
+                
+                updateConflictData(websocketStore.current_conflicts, 'current', currentConflictStyles);
+            } else {
+                console.log("没有当前冲突数据或数据格式错误");
+                // 清除当前冲突的显示
+                updateConflictData([], 'current');
+            }
+
+            // 处理未来冲突数据
+            if (websocketStore.future_conflicts && Array.isArray(websocketStore.future_conflicts)) {
+                console.log("更新未来冲突数据，数量:", websocketStore.future_conflicts.length);
+                
+                // 使用橙色样式配置处理未来冲突
+                const futureConflictStyles = {
+                    pointColor: '#fa8c16',
+                    pointRadius: 5,
+                    lineColor: '#fa8c16',
+                    lineWidth: 2,
+                    lineDashArray: '3,3',
+                    opacity: 0.7,
+                    textColor: '#fa8c16',
+                    fontSize: '10px',
+                    fontWeight: 'normal'
+                };
+                
+                updateConflictData(websocketStore.future_conflicts, 'future', futureConflictStyles);
+            } else {
+                console.log("没有未来冲突数据或数据格式错误");
+                // 清除未来冲突的显示
+                updateConflictData([], 'future');
+            }
+        })
+
         return () => {
             // 清理函数
             disposer();
+            disposer2();
         };
     }, []);
 

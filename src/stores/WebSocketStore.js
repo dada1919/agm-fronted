@@ -19,6 +19,22 @@ class WebSocketStore {
     analysis = null;
     resolutions = []; // 当前冲突的解决方案
     conflictResolutionLoading = false; // 冲突解决加载状态
+
+    future_conflicts = [];
+    current_conflicts = [];
+    
+    // 当前模拟状态存储
+    currentSimulation = {
+        conflict_id: null,
+        solution_id: null,
+        simulated_state: null,
+        original_state: null,
+        solution: null,
+        success: false,
+        message: '',
+        timestamp: null
+    };
+    
     constructor() {
         makeAutoObservable(this);
         this.connect();
@@ -124,6 +140,7 @@ class WebSocketStore {
             console.log("conflicts_update:", data);
             this.updateOverlapTaxiways(data);
             this.updateConflictResolutions(data.current)
+            this.updateConflicts(data)
         });
 
       
@@ -134,47 +151,70 @@ class WebSocketStore {
         this.socket.on('connect_error', (error) => {
             console.error('Connection Error:', error); // 打印连接错误
         });
-    }
+
+
+    
 
 
           //---------------------以下为未处理的函数--------------
-        // 所有的冲突
-    //     this.socket.on('conflict_resolutions_update', (data) => {
-    //         console.log('收到冲突解决方案推荐:', data);
-    //         this.updateConflictResolutions(data);
-            
-    //     });
 
-    //     // 冲突解决方案推荐
-    //     this.socket.on('conflict_resolutions_result', (response) => {
+        // 冲突解决方案推荐
+        this.socket.on('conflict_resolutions_result', (response) => {
+            console.log(response)
            
-    //         this.conflictResolutionLoading = false;
-    //         if (response.success) {
-                
-    //             this.selectedConflict = response.data.data.conflict;
-    //             this.resolution_analysis = response.data.data.analysis;
-    //             this.resolutions = response.data.data.recommendations;
+            this.conflictResolutionLoading = false;
+            if (response.success) {
+                console.log('获取解决方案成功:', response.data);
+                this.selectedConflict = response.data.conflict;
+                this.resolution_analysis = response.data.analysis;
+                this.resolutions = response.data.recommendations;
                  
-    //         } else {
-    //             console.error('获取解决方案失败:', response.message);
-    //         }
-    //     });
+            } else {
+                console.error('获取解决方案失败:', response.message);
+            }
+        });
 
-    //     // 处理冲突解决方案应用结果
-    //     this.socket.on('conflict_resolution_applied', (result) => {
-    //         console.log('这是解决方案:', result);
-    //         this.conflictResolutionLoading = false;
-    //         if (result.status === 'applied') {
-    //            console.log('冲突已解决:', );
-    //             this.updateConflictStatus(result.conflict_id, 'resolved');
+        // 处理冲突解决方案应用结果
+        this.socket.on('conflict_resolution_applied', (result) => {
+            console.log('这是解决方案:', result);
+            this.conflictResolutionLoading = false;
+            if (result.status === 'applied') {
+               console.log('冲突已解决:', );
+                this.updateConflictStatus(result.conflict_id, 'resolved');
                 
-    //             console.log('解决方案应用成功:', result.message);
-    //             // 更新冲突状态
-    //         } else {
-    //             console.error('解决方案应用失败:', result.message);
-    //         }
-    //     });
-    // }
+                console.log('解决方案应用成功:', result.message);
+                // 更新冲突状态
+            } else {
+                console.error('解决方案应用失败:', result.message);
+            }
+        });
+
+        // 处理冲突解决方案模拟结果
+        this.socket.on('conflict_resolution_simulated', (result) => {
+            console.log('冲突解决方案模拟结果:', result);
+            
+            // 更新当前模拟状态
+            this.currentSimulation = {
+                conflict_id: result.conflict_id,
+                solution_id: result.solution_id,
+                success: result.success,
+                message: result.message,
+                simulated_state: result.simulated_state,
+                original_state: result.original_state,
+                solution: result.solution,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('当前模拟状态:', this.currentSimulation.simulated_state);
+            
+            if (result.success) {
+                console.log(`当前模拟 - 冲突ID: ${result.conflict_id}, 方案ID: ${result.solution_id}`);
+                console.log('模拟状态:', result.simulated_state);
+            } else {
+                console.error('冲突解决方案模拟失败:', result.message);
+            }
+        });
+    }
     //-----------------------接口函数---------------------------
     //1.系统控制
     startSimulate () {
@@ -306,7 +346,10 @@ class WebSocketStore {
   
     //  this.socket.on('system_state_update', (data) => {暂时不用
     updateConflicts(newConflicts) {
-        this.conflicts = newConflicts;
+        // this.conflicts = newConflicts;
+        console.log('更新冲突数据:', newConflicts);
+        this.current_conflicts = newConflicts.current;
+        this.future_conflicts = newConflicts.future;
          
     }
 
@@ -320,8 +363,8 @@ class WebSocketStore {
   
     // 更新冲突解决方案数据
     updateConflictResolutions(data) {
-  try {
-    console.log('📊 处理冲突解决方案数据:',data);
+    try {
+        console.log('📊 处理冲突解决方案数据:',data);
 
     // // 1) 允许传入 JSON 字符串
     // const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -379,7 +422,7 @@ class WebSocketStore {
     getConflictResolutions(conflictId) {
         this.conflictResolutionLoading = true;
         if (this.socket && this.socket.connected) {
-            console.log("获取特定冲突的解决方案")
+            console.log("获取特定冲突的解决方案：",conflictId)
             this.socket.emit('get_conflict_resolutions', {
                 conflict_id: conflictId
             });
@@ -438,6 +481,31 @@ class WebSocketStore {
         
         
        
+    }
+
+    // 获取当前模拟结果
+    getCurrentSimulation() {
+        return this.currentSimulation;
+    }
+
+    // 检查是否有当前模拟结果
+    hasCurrentSimulation() {
+        return this.currentSimulation.conflict_id !== null && 
+               this.currentSimulation.solution_id !== null;
+    }
+
+    // 清除当前模拟结果
+    clearCurrentSimulation() {
+        this.currentSimulation = {
+            conflict_id: null,
+            solution_id: null,
+            simulated_state: null,
+            original_state: null,
+            solution: null,
+            success: false,
+            message: '',
+            timestamp: null
+        };
     }
 }
 const websocketStore = new WebSocketStore();
