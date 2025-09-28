@@ -134,47 +134,41 @@ class WebSocketStore {
         this.socket.on('connect_error', (error) => {
             console.error('Connection Error:', error); // 打印连接错误
         });
-    }
+    
 
 
           //---------------------以下为未处理的函数--------------
-        // 所有的冲突
-    //     this.socket.on('conflict_resolutions_update', (data) => {
-    //         console.log('收到冲突解决方案推荐:', data);
-    //         this.updateConflictResolutions(data);
-            
-    //     });
+       
 
-    //     // 冲突解决方案推荐
-    //     this.socket.on('conflict_resolutions_result', (response) => {
-           
-    //         this.conflictResolutionLoading = false;
-    //         if (response.success) {
+        // 冲突解决方案推荐
+        this.socket.on('conflict_resolutions_result', (response) => {
+            this.conflictResolutionLoading = false;
+            if (response.success) {
                 
-    //             this.selectedConflict = response.data.data.conflict;
-    //             this.resolution_analysis = response.data.data.analysis;
-    //             this.resolutions = response.data.data.recommendations;
+                this.selectedConflict = response.data.data.conflict;
+                this.resolution_analysis = response.data.data.analysis;
+                this.resolutions = response.data.data.recommendations;
                  
-    //         } else {
-    //             console.error('获取解决方案失败:', response.message);
-    //         }
-    //     });
+            } else {
+                console.error('获取解决方案失败:', response.message);
+            }
+        });
 
-    //     // 处理冲突解决方案应用结果
-    //     this.socket.on('conflict_resolution_applied', (result) => {
-    //         console.log('这是解决方案:', result);
-    //         this.conflictResolutionLoading = false;
-    //         if (result.status === 'applied') {
-    //            console.log('冲突已解决:', );
-    //             this.updateConflictStatus(result.conflict_id, 'resolved');
+        // 处理冲突解决方案应用结果
+        this.socket.on('conflict_resolution_applied', (result) => {
+           console.log('测试2冲突解决方案');
+            this.conflictResolutionLoading = false;
+            if (result.status === 'applied') {
+               console.log('冲突已解决:', );
+                this.updateConflictStatus(result.conflict_id, 'resolved');
                 
-    //             console.log('解决方案应用成功:', result.message);
-    //             // 更新冲突状态
-    //         } else {
-    //             console.error('解决方案应用失败:', result.message);
-    //         }
-    //     });
-    // }
+                console.log('解决方案应用成功:', result.message);
+                // 更新冲突状态
+            } else {
+                console.error('解决方案应用失败:', result.message);
+            }
+        });
+    }
     //-----------------------接口函数---------------------------
     //1.系统控制
     startSimulate () {
@@ -323,49 +317,6 @@ class WebSocketStore {
   try {
     console.log('📊 处理冲突解决方案数据:',data);
 
-    // // 1) 允许传入 JSON 字符串
-    // const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    // let items = [];
-
-    // // 2) 各种输入格式归一化为 items 数组
-    // if (Array.isArray(data)) {
-    //   // 直接数组
-    //   items = data;
-    // } else if (data && typeof data === 'object') {
-    //   if (Array.isArray(data.resolutions)) {
-    //     // 旧格式：{ resolutions: [...] }
-    //     items = data.resolutions;
-    //   } else if (data.conflict && data.analysis && data.recommendations) {
-    //     // 单条新格式
-    //     items = [data];
-    //   } else {
-    //     // 多条字典：{ conflict_xxx: { conflict, analysis, recommendations }, ... }
-    //     items = Object.values(data).filter(
-    //       v => v && v.conflict && v.analysis && v.recommendations
-    //     );
-    //   }
-    // } else {
-    //   console.warn('⚠️ 未知的数据类型:', typeof data);
-    //   items = [];
-    // }
-
-    // if (!items.length) {
-    //   console.warn('⚠️ 未从数据中解析到任何冲突项。');
-    // }
-
-    // // 3) 统一映射成内部结构
-    // this.conflictResolutions = items.map((x, idx) => {
-    //   const id =
-    //     x?.analysis?.conflict_id ??
-    //     `${x?.conflict?.flight1_id || 'F1'}_${x?.conflict?.flight2_id || 'F2'}_${x?.conflict?.conflict_time ?? idx}`;
-
-    //   return {
-    //     id,
-    //     conflict: x.conflict ?? null,
-    //     analysis: x.analysis ?? null,
-    //     recommendations: Array.isArray(x.recommendations) ? x.recommendations : [],
-    //   };
-    // });
 
     this.conflictResolutions = data;
     console.log('✅ 冲突解决方案数据已更新:', this.conflictResolutions);
