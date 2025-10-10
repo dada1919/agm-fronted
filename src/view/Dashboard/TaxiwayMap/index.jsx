@@ -1282,7 +1282,7 @@ const ConflictResolutionPanel = observer(() => {
 
   // 使用WebSocketStore中的状态，而不是本地状态
   const conflicts = websocketStore.conflictResolutions;
-  console.log('第一层冲突:', conflicts);
+  
 
   const selectedConflict = websocketStore.selectedConflict;
   const resolutions = websocketStore.resolutions;
