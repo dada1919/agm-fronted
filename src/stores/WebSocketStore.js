@@ -8,6 +8,7 @@ class WebSocketStore {
     isConnected = false;
     overlap_conflicts = null;
     overlapTaxiways = null; //存储重叠滑行道数据
+    overlaps = { nodes: [], taxiways: [] }; // 系统状态中的重叠信息
     
     plannedFlights = {}; // 计划航班数据
     activeFlights = {}; // 活跃航班数据
@@ -102,6 +103,11 @@ class WebSocketStore {
             active_flights: data.active_flights || {},
             
             });
+
+            // 更新系统状态中的 overlaps（节点与滑行道重叠）
+            if (data && data.overlaps) {
+                this.updateOverlaps(data.overlaps);
+            }
         });
         //3. 航班管理
         //调整航班滑行时间
@@ -122,17 +128,17 @@ class WebSocketStore {
 
         //4. 实时数据推送
          //飞机状态实时更新,约每秒一次
-        this.socket.on('aircraft_status_update',(data)=>{
-            console.log('aircraft_status_update:',data);
-            this.updatePlanePosition(data.aircraft_positions);
+        // this.socket.on('aircraft_status_update',(data)=>{
+        //     console.log('aircraft_status_update:',data);
+        //     // this.updatePlanePosition(data.aircraft_positions);
             
-        })
+        // })
         //规划结果更新,在规划变更时触发
-         this.socket.on('planning_update', (data) => {
-            console.log('planning_update',data);
-            // console.log('Received planning update:', data);
-            this.updatePlannedFlightsTime(data);
-        })
+        //  this.socket.on('planning_update', (data) => {
+        //     console.log('planning_update',data);
+        //     // console.log('Received planning update:', data);
+        //     this.updatePlannedFlightsTime(data);
+        // })
 
         //5. 冲突检测与解决，需要解决5
         //冲突的数据
@@ -357,6 +363,24 @@ class WebSocketStore {
     updateOverlapTaxiways(newOverlapTaxiways) {
         this.overlapTaxiways = newOverlapTaxiways.current;
         
+    }
+
+    // 更新系统状态中的 overlaps 数据（包含 nodes 和 taxiways）
+    updateOverlaps(rawOverlaps) {
+        try {
+            const converted = this.convertNumpyData(rawOverlaps);
+            // 兜底结构，防止空值导致绘制报错
+            const safe = converted && typeof converted === 'object' ? converted : { nodes: [], taxiways: [] };
+            // 规范化字段
+            this.overlaps = {
+                nodes: Array.isArray(safe.nodes) ? safe.nodes : [],
+                taxiways: Array.isArray(safe.taxiways) ? safe.taxiways : []
+            };
+            // console.log('✅ overlaps 更新:', this.overlaps);
+        } catch (e) {
+            console.error('❌ 更新 overlaps 失败:', e);
+            this.overlaps = { nodes: [], taxiways: [] };
+        }
     }
     //规划数据更新
     
