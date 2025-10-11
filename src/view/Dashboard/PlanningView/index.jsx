@@ -1409,22 +1409,30 @@ const PlanningView = observer(() => {
                                 .attr('opacity', 0.8)
                                 .attr('marker-end', 'url(#overlap-chevron-arrow)');
                         } else {
-                            // 同向：保持原有连接方式（start-start 和 end-end 各绘制一条）
-                            overlapLayer.append('path')
-                                .attr('class', 'overlap-connector start')
-                                .attr('d', `M${axStart},${ay} C${axStart},${(ay + by) / 2} ${bxStart},${(ay + by) / 2} ${bxStart},${by}`)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
-                                .attr('fill', 'none')
-                                .attr('opacity', 0.6);
+                            // 同向：比较两个飞机的 start，选 start 较大的为 aLate，另一架为 bEarly；
+                            // 绘制从 aLate 的 end 指向 bEarly 的 end 的箭头曲线（箭头指向 bEarly）。
+                            const aIsLate = aStartMin >= bStartMin;
+                            const aLateEndMin = aIsLate ? aEndMin : bEndMin;
+                            const bEarlyEndMin = aIsLate ? bEndMin : aEndMin;
+                            const aLateY = aIsLate ? ay : by;
+                            const bEarlyY = aIsLate ? by : ay;
+                            const xFrom = xScale(aLateEndMin);
+                            const xTo = xScale(bEarlyEndMin);
+
+                            // 使用平滑的贝塞尔曲线，控制点位于两行的中线，避免遮挡
+                            const midY = (ay + by) / 2;
+                            const c1x = xFrom, c1y = midY;
+                            const c2x = xTo,   c2y = midY;
 
                             overlapLayer.append('path')
-                                .attr('class', 'overlap-connector end')
-                                .attr('d', `M${axEnd},${ay} C${axEnd},${(ay + by) / 2} ${bxEnd},${(ay + by) / 2} ${bxEnd},${by}`)
+                                .attr('class', 'overlap-connector same-direction end-to-end')
+                                .attr('d', `M${xFrom},${aLateY} C${c1x},${c1y} ${c2x},${c2y} ${xTo},${bEarlyY}`)
                                 .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
+                                .attr('stroke-width', 1.8)
                                 .attr('fill', 'none')
-                                .attr('opacity', 0.6);
+                                .attr('opacity', 0.85)
+                                .attr('marker-end', 'url(#overlap-chevron-arrow)')
+                                .style('color', color);
                         }
                     }
 
