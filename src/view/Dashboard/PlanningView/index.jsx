@@ -305,8 +305,6 @@ const useStyle = createStyles(({ css, token }) => {
 });
 
 
-
-
 // 定义航班表格列
 const columns = [
     {
@@ -924,18 +922,10 @@ const PlanningView = observer(() => {
                 });
             };
 
-            // 适配新的数据格式
-            // plannedData: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
-            // console.log('PlanningView received data:', plannedData);
-            // console.log('planned_flights:', plannedData?.planned_flights);
-            // console.log('active_flights:', plannedData?.active_flights);
-
             // 处理航班数据，生成表格数据源
             const { tableData, aircraftIds: processedAircraftIds } = processFlightData(plannedData);
             setTableDataSource(tableData);
             setAircraftOrder(processedAircraftIds);
-            // console.log('Generated table data:', tableData);
-            // console.log('Aircraft order:', processedAircraftIds);
 
             let maxTime = 0;
             let aircraftIds = processedAircraftIds; // 使用处理后的航班ID顺序
@@ -979,12 +969,6 @@ const PlanningView = observer(() => {
                     }
                 });
             }
-            //规划视图的处理
-            // console.log("aircraftIds:", aircraftIds);
-            // console.log("Max Time:", maxTime);
-            // console.log("plannedResults:", plannedResults);
-            // console.log("Active flights count:", plannedResults.filter(r => r.type === 'active').length);
-            // console.log("Planning flights count:", plannedResults.filter(r => r.type === 'planning').length);
 
             maxTime = Math.ceil(maxTime)
             setTimeScale({ min: 0, max: maxTime });
@@ -1114,8 +1098,6 @@ const PlanningView = observer(() => {
 
             let activeIndex = 0;
             let planningIndex = 0;
-
-
 
 
             // 处理模拟数据
@@ -1250,17 +1232,10 @@ const PlanningView = observer(() => {
                         .attr('markerUnits', 'userSpaceOnUse');
 
                     // 燕尾/倒钩箭头：尾部有缺口，视觉更尖锐
-                    // 形状说明：
-                    // M0,-8  从左下开始
-                    // L12,-3 到箭身上边
-                    // L20,0  箭尖
-                    // L12,3  箭身下边
-                    // L0,8   左上
-                    // L4,0   回到尾部中点形成燕尾缺口
-                    // Z      闭合路径
+                
                     chevronMarker.append('path')
                         .attr('d', 'M0,-8 L12,-3 L20,0 L12,3 L0,8 L4,0 Z')
-                        .attr('fill', 'context-stroke')
+                        .attr('fill', 'currentColor')
                         .attr('stroke', '#fff')
                         .attr('stroke-width', 2.5)
                         .attr('stroke-linejoin', 'round')
@@ -1309,22 +1284,12 @@ const PlanningView = observer(() => {
                                 .attr('opacity', 0.7)
                                 .attr('stroke', '#fff')
                                 .attr('stroke-width', 1);
-                        } else {
-                            overlapLayer.append('rect')
-                                .attr('class', 'overlap-segment')
-                                .attr('x', Math.min(x1, x2))
-                                .attr('y', y - bandHeight / 2)
-                                .attr('width', Math.max(2, Math.abs(x2 - x1)))
-                                .attr('height', bandHeight)
-                                .attr('rx', 3)
-                                .attr('fill', color)
-                                .attr('opacity', 0.25)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1);
                         }
                     });
 
-                    // 连接重叠飞机的端点：相向则连接最近端点并画相对箭头；同向保持原连接
+                    // 新逻辑：不计算交集，改为时间窗并集并平移到中线；
+                    // 将两航班在该滑行道上的时间窗整体平移到两航班之间的中线处，并用虚线连接；
+                    // 相向在并集段两端绘制相向箭头；同向在并集段两端绘制同向箭头。
                     for (let i = 0; i < sortedFW.length - 1; i++) {
                         const a = sortedFW[i];
                         const b = sortedFW[i + 1];
@@ -1334,97 +1299,192 @@ const PlanningView = observer(() => {
                         const bStartMin = toMinutes(b?.time_window?.start ?? 0);
                         const bEndMin = toMinutes(b?.time_window?.end ?? b?.time_window?.start ?? 0);
 
-                        const axStart = xScale(aStartMin);
-                        const axEnd = xScale(aEndMin);
-                        const bxStart = xScale(bStartMin);
-                        const bxEnd = xScale(bEndMin);
                         const ay = getYPosition(a.flight_id);
                         const by = getYPosition(b.flight_id);
-
                         const aDir = aEndMin - aStartMin;
                         const bDir = bEndMin - bStartMin;
                         const isOpposing = (aDir * bDir) < 0;
 
+                        // 归一化时间窗（不考虑方向），保持分开的时间窗并平移到中线，不做并集
+                        const aMin = Math.min(aStartMin, aEndMin);
+                        const aMax = Math.max(aStartMin, aEndMin);
+                        const bMin = Math.min(bStartMin, bEndMin);
+                        const bMax = Math.max(bStartMin, bEndMin);
+
+                        const ax1 = xScale(aMin);
+                        const ax2 = xScale(aMax);
+                        const bx1 = xScale(bMin);
+                        const bx2 = xScale(bMax);
+                        const x1 = Math.min(ax1, bx1); // 用于端点虚线与箭头的左端
+                        const x2 = Math.max(ax2, bx2); // 用于端点虚线与箭头的右端
+                        const yMid = (ay + by) / 2;
+                        const bandHeight = 6;
+
+                        // 分别将两段时间窗平移到中线处，保持分开显示
+                        overlapLayer.append('rect')
+                            .attr('class', 'overlap-shifted-band a')
+                            .attr('x', Math.min(ax1, ax2))
+                            .attr('y', yMid - bandHeight / 2)
+                            .attr('width', Math.max(2, Math.abs(ax2 - ax1)))
+                            .attr('height', bandHeight)
+                            .attr('rx', 3)
+                            .attr('fill', color)
+                            .attr('opacity', 0.28)
+                            .attr('stroke', color)
+                            .attr('stroke-width', 1);
+
+                        overlapLayer.append('rect')
+                            .attr('class', 'overlap-shifted-band b')
+                            .attr('x', Math.min(bx1, bx2))
+                            .attr('y', yMid - bandHeight / 2)
+                            .attr('width', Math.max(2, Math.abs(bx2 - bx1)))
+                            .attr('height', bandHeight)
+                            .attr('rx', 3)
+                            .attr('fill', color)
+                            .attr('opacity', 0.28)
+                            .attr('stroke', color)
+                            .attr('stroke-width', 1);
+
+                        // 用虚线连接原时间窗到中线带的两端（在极端 x1、x2 位置画两条竖虚线）
+                        overlapLayer.append('line')
+                            .attr('class', 'overlap-dashed-connector')
+                            .attr('x1', x1)
+                            .attr('y1', ay)
+                            .attr('x2', x1)
+                            .attr('y2', by)
+                            .attr('stroke', color)
+                            .attr('stroke-width', 1.5)
+                            .attr('stroke-dasharray', '5,4')
+                            .attr('opacity', 0.7)
+                            .attr('stroke-linecap', 'round');
+
+                        overlapLayer.append('line')
+                            .attr('class', 'overlap-dashed-connector')
+                            .attr('x1', x2)
+                            .attr('y1', ay)
+                            .attr('x2', x2)
+                            .attr('y2', by)
+                            .attr('stroke', color)
+                            .attr('stroke-width', 1.5)
+                            .attr('stroke-dasharray', '5,4')
+                            .attr('opacity', 0.7)
+                            .attr('stroke-linecap', 'round');
+
+                        // 在中线处添加水平虚线连接两段窗口（仅当两段不重叠时）
+                        const gap1 = ax2 < bx1 - 1e-6;
+                        const gap2 = bx2 < ax1 - 1e-6;
+                        if (gap1) {
+                            overlapLayer.append('line')
+                                .attr('class', 'overlap-midline-connector')
+                                .attr('x1', ax2)
+                                .attr('y1', yMid)
+                                .attr('x2', bx1)
+                                .attr('y2', yMid)
+                                .attr('stroke', color)
+                                .attr('stroke-width', 1.5)
+                                .attr('stroke-dasharray', '4,4')
+                                .attr('opacity', 0.7)
+                                .attr('stroke-linecap', 'round');
+                        } else if (gap2) {
+                            overlapLayer.append('line')
+                                .attr('class', 'overlap-midline-connector')
+                                .attr('x1', bx2)
+                                .attr('y1', yMid)
+                                .attr('x2', ax1)
+                                .attr('y2', yMid)
+                                .attr('stroke', color)
+                                .attr('stroke-width', 1.5)
+                                .attr('stroke-dasharray', '4,4')
+                                .attr('opacity', 0.7)
+                                .attr('stroke-linecap', 'round');
+                        }
+
+                        // 在重叠直线的两端绘制箭头
+                        const arrowLen = 16;
+                        const dirRight = aDir > 0;
+
                         if (isOpposing) {
-                            // 相向：在四种端点组合中选择距离最近的一对
-                            const candidates = [
-                                { ax: axStart, ay, bx: bxStart, by, dist: Math.abs(aStartMin - bStartMin), label: 'start-start' },
-                                { ax: axStart, ay, bx: bxEnd,   by, dist: Math.abs(aStartMin - bEndMin),   label: 'start-end'   },
-                                { ax: axEnd,   ay, bx: bxStart, by, dist: Math.abs(aEndMin   - bStartMin), label: 'end-start'   },
-                                { ax: axEnd,   ay, bx: bxEnd,   by, dist: Math.abs(aEndMin   - bEndMin),   label: 'end-end'     },
-                            ];
-                            const best = candidates.reduce((m, p) => p.dist < m.dist ? p : m, candidates[0]);
-
-                            let xLeft = best.ax, yLeft = best.ay, xRight = best.bx, yRight = best.by;
-                            if (xLeft > xRight) {
-                                xLeft = best.bx; yLeft = best.by;
-                                xRight = best.ax; yRight = best.ay;
-                            }
-
-                            // 由两段曲线组成，每段末端绘制指向中点的箭头
-                            const mx = (xLeft + xRight) / 2;
-                            const my = (yLeft + yRight) / 2;
-
-                            // 为保证箭头方向与曲线末端切线一致，使用对称控制点：
-                            // P1 在起点沿指向中点方向偏移，P2 在终点（中点）沿相同方向反向偏移
-                            const lx = mx - xLeft;
-                            const ly = my - yLeft;
-                            const llen = Math.sqrt(lx * lx + ly * ly) || 1;
-                            const lux = lx / llen;
-                            const luy = ly / llen;
-                            const lHandle = Math.min(40, llen * 0.35);
-                            const l1x = xLeft + lux * lHandle;
-                            const l1y = yLeft + luy * lHandle;
-                            const l2x = mx - lux * lHandle;
-                            const l2y = my - luy * lHandle;
-
-                            const rx = mx - xRight;
-                            const ry = my - yRight;
-                            const rlen = Math.sqrt(rx * rx + ry * ry) || 1;
-                            const rux = rx / rlen;
-                            const ruy = ry / rlen;
-                            const rHandle = Math.min(40, rlen * 0.35);
-                            const r1x = xRight + rux * rHandle;
-                            const r1y = yRight + ruy * rHandle;
-                            const r2x = mx - rux * rHandle;
-                            const r2y = my - ruy * rHandle;
-
-                            // 左段曲线（到中点）
-                            overlapLayer.append('path')
-                                .attr('class', `overlap-connector opposing-left ${best.label}`)
-                                .attr('d', `M${xLeft},${yLeft} C${l1x},${l1y} ${l2x},${l2y} ${mx},${my}`)
+                            // 相向：两端箭头同时指向重叠段内部（向中心）
+                            // 左端：向右
+                            overlapLayer.append('line')
+                                .attr('class', 'overlap-arrow opposing-left-end')
+                                .attr('x1', x1 - arrowLen)
+                                .attr('y1', yMid)
+                                .attr('x2', x1)
+                                .attr('y2', yMid)
                                 .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
-                                .attr('fill', 'none')
-                                .attr('opacity', 0.8)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow)');
+                                .attr('stroke-width', 2)
+                                .attr('opacity', 0.95)
+                                .attr('marker-end', 'url(#overlap-chevron-arrow)')
+                                .style('color', color);
 
-                            // 右段曲线（到中点）
-                            overlapLayer.append('path')
-                                .attr('class', `overlap-connector opposing-right ${best.label}`)
-                                .attr('d', `M${xRight},${yRight} C${r1x},${r1y} ${r2x},${r2y} ${mx},${my}`)
+                            // 右端：向左
+                            overlapLayer.append('line')
+                                .attr('class', 'overlap-arrow opposing-right-end')
+                                .attr('x1', x2 + arrowLen)
+                                .attr('y1', yMid)
+                                .attr('x2', x2)
+                                .attr('y2', yMid)
                                 .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
-                                .attr('fill', 'none')
-                                .attr('opacity', 0.8)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow)');
+                                .attr('stroke-width', 2)
+                                .attr('opacity', 0.95)
+                                .attr('marker-end', 'url(#overlap-chevron-arrow)')
+                                .style('color', color);
                         } else {
-                            // 同向：保持原有连接方式（start-start 和 end-end 各绘制一条）
-                            overlapLayer.append('path')
-                                .attr('class', 'overlap-connector start')
-                                .attr('d', `M${axStart},${ay} C${axStart},${(ay + by) / 2} ${bxStart},${(ay + by) / 2} ${bxStart},${by}`)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
-                                .attr('fill', 'none')
-                                .attr('opacity', 0.6);
+                            // 同向：两端箭头同向
+                            if (dirRight) {
+                                // 左端：向右
+                                overlapLayer.append('line')
+                                    .attr('class', 'overlap-arrow co-direction-left-end')
+                                    .attr('x1', x1 - arrowLen)
+                                    .attr('y1', yMid)
+                                    .attr('x2', x1)
+                                    .attr('y2', yMid)
+                                    .attr('stroke', color)
+                                    .attr('stroke-width', 2)
+                                    .attr('opacity', 0.95)
+                                    .attr('marker-end', 'url(#overlap-chevron-arrow)')
+                                    .style('color', color);
 
-                            overlapLayer.append('path')
-                                .attr('class', 'overlap-connector end')
-                                .attr('d', `M${axEnd},${ay} C${axEnd},${(ay + by) / 2} ${bxEnd},${(ay + by) / 2} ${bxEnd},${by}`)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
-                                .attr('fill', 'none')
-                                .attr('opacity', 0.6);
+                                // 右端：向右
+                                overlapLayer.append('line')
+                                    .attr('class', 'overlap-arrow co-direction-right-end')
+                                    .attr('x1', x2)
+                                    .attr('y1', yMid)
+                                    .attr('x2', x2 + arrowLen)
+                                    .attr('y2', yMid)
+                                    .attr('stroke', color)
+                                    .attr('stroke-width', 2)
+                                    .attr('opacity', 0.95)
+                                    .attr('marker-end', 'url(#overlap-chevron-arrow)')
+                                    .style('color', color);
+                            } else {
+                                // 左端：向左
+                                overlapLayer.append('line')
+                                    .attr('class', 'overlap-arrow co-direction-left-end')
+                                    .attr('x1', x1)
+                                    .attr('y1', yMid)
+                                    .attr('x2', x1 - arrowLen)
+                                    .attr('y2', yMid)
+                                    .attr('stroke', color)
+                                    .attr('stroke-width', 2)
+                                    .attr('opacity', 0.95)
+                                    .attr('marker-end', 'url(#overlap-chevron-arrow)')
+                                    .style('color', color);
+
+                                // 右端：向左
+                                overlapLayer.append('line')
+                                    .attr('class', 'overlap-arrow co-direction-right-end')
+                                    .attr('x1', x2 + arrowLen)
+                                    .attr('y1', yMid)
+                                    .attr('x2', x2)
+                                    .attr('y2', yMid)
+                                    .attr('stroke', color)
+                                    .attr('stroke-width', 2)
+                                    .attr('opacity', 0.95)
+                                    .attr('marker-end', 'url(#overlap-chevron-arrow)')
+                                    .style('color', color);
+                            }
                         }
                     }
 
@@ -2102,62 +2162,6 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
             }
 
         });
-
-
-        // 更新冲突数据
-        // const disposer2 = autorun(() => {
-        //     console.log("=== 冲突数据 autorun 触发 ===");
-        //     console.log("websocketStore.current_conflicts:", websocketStore.current_conflicts);
-        //     console.log("websocketStore.future_conflicts:", websocketStore.future_conflicts);
-
-        //     // 处理当前冲突数据
-        //     if (websocketStore.current_conflicts && Array.isArray(websocketStore.current_conflicts)) {
-        //         console.log("更新当前冲突数据，数量:", websocketStore.current_conflicts.length);
-                
-        //         // 使用红色样式配置处理当前冲突
-        //         const currentConflictStyles = {
-        //             pointColor: '#ff4d4f',
-        //             pointRadius: 6,
-        //             lineColor: '#ff4d4f',
-        //             lineWidth: 3,
-        //             lineDashArray: '5,5',
-        //             opacity: 0.9,
-        //             textColor: '#ff4d4f',
-        //             fontSize: '11px',
-        //             fontWeight: 'bold'
-        //         };
-                
-        //         updateConflictData(websocketStore.current_conflicts, 'current', currentConflictStyles);
-        //     } else {
-        //         console.log("没有当前冲突数据或数据格式错误");
-        //         // 清除当前冲突的显示
-        //         updateConflictData([], 'current');
-        //     }
-
-        //     // 处理未来冲突数据
-        //     if (websocketStore.future_conflicts && Array.isArray(websocketStore.future_conflicts)) {
-        //         console.log("更新未来冲突数据，数量:", websocketStore.future_conflicts.length);
-                
-        //         // 使用橙色样式配置处理未来冲突
-        //         const futureConflictStyles = {
-        //             pointColor: '#fa8c16',
-        //             pointRadius: 5,
-        //             lineColor: '#fa8c16',
-        //             lineWidth: 2,
-        //             lineDashArray: '3,3',
-        //             opacity: 0.7,
-        //             textColor: '#fa8c16',
-        //             fontSize: '10px',
-        //             fontWeight: 'normal'
-        //         };
-                
-        //         updateConflictData(websocketStore.future_conflicts, 'future', futureConflictStyles);
-        //     } else {
-        //         console.log("没有未来冲突数据或数据格式错误");
-        //         // 清除未来冲突的显示
-        //         updateConflictData([], 'future');
-        //     }
-        // })
 
         return () => {
             // 清理函数
