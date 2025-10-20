@@ -361,6 +361,8 @@ class WebSocketStore {
     updateConflicts(newConflicts) {
         // this.conflicts = newConflicts;
         console.log('更新冲突数据:', newConflicts);
+        console.log('current_conflicts:', newConflicts.current);
+        console.log('future_conflicts:', newConflicts.future);
         this.current_conflicts = newConflicts.current;
         this.future_conflicts = newConflicts.future;
          

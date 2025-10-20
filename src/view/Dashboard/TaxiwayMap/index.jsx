@@ -1085,35 +1085,60 @@ const TaxiwayMap = observer(() => {
             console.log('当前冲突数据 (current):', currentConflicts);
 
             if (Array.isArray(currentConflicts) && currentConflicts.length > 0) {
-              highlightTaxiwayByLayerWithArea(currentConflicts);
+              highlightTaxiwayByLayerWithArea(currentConflicts, 'current');
             } else {
               console.log('当前没有冲突数据');
-              // 清除现有的高亮显示
-              if (window._areaLayers) {
-                window._areaLayers.forEach(id => {
+              // 清除现有的当前冲突高亮显示
+              if (window._currentAreaLayers) {
+                window._currentAreaLayers.forEach(id => {
                   if (map.current.getLayer(id)) map.current.removeLayer(id);
                   if (map.current.getSource(id)) map.current.removeSource(id);
                 });
-                window._areaLayers = [];
+                window._currentAreaLayers = [];
               }
             }
-          
-       
-          
         });
 
-        function highlightTaxiwayByLayerWithArea(overlapData) {
-          // console.log('highlightTaxiwayByLayerWithArea', overlapData);
-          if (!map.current || !geojsonData) return;
+        // 监听future_conflicts变化
+        const disposer5 = autorun(() => {
+          const futureConflicts = websocketStore.future_conflicts || [];
+          console.log('future_conflicts监听触发，数据:', futureConflicts);
 
+          if (Array.isArray(futureConflicts) && futureConflicts.length > 0) {
+            console.log('绘制未来冲突数据 (future):', futureConflicts);
+            highlightTaxiwayByLayerWithArea(futureConflicts, 'future');
+          } else {
+            console.log('当前没有未来冲突数据或数据为空');
+            // 清除现有的未来冲突高亮显示
+            if (window._futureAreaLayers) {
+              window._futureAreaLayers.forEach(id => {
+                if (map.current.getLayer(id)) map.current.removeLayer(id);
+                if (map.current.getSource(id)) map.current.removeSource(id);
+              });
+              window._futureAreaLayers = [];
+            }
+          }
+        });
+
+        function highlightTaxiwayByLayerWithArea(overlapData, conflictType = 'current') {
+          console.log('highlightTaxiwayByLayerWithArea调用，类型:', conflictType, '数据:', overlapData);
+          if (!map.current || !geojsonData) {
+            console.log('地图或geojsonData未准备好');
+            return;
+          }
+
+          // 根据冲突类型选择不同的图层管理
+          const layerArrayName = conflictType === 'future' ? '_futureAreaLayers' : '_currentAreaLayers';
+          console.log('使用图层数组名称:', layerArrayName);
+          
           // 先移除旧的面积图层
-          if (window._areaLayers) {
-            window._areaLayers.forEach(id => {
+          if (window[layerArrayName]) {
+            window[layerArrayName].forEach(id => {
               if (map.current.getLayer(id)) map.current.removeLayer(id);
               if (map.current.getSource(id)) map.current.removeSource(id);
             });
           }
-          window._areaLayers = [];
+          window[layerArrayName] = [];
 
           overlapData.forEach((conflictItem, conflictIdx) => {
             const { merged_functions, taxiway_sequence, flight1_id, flight2_id, conflict_time } = conflictItem;
@@ -1312,20 +1337,34 @@ const TaxiwayMap = observer(() => {
               geometry: { type: 'Polygon', coordinates: [polygonCoords] }
             };
 
-            const areaId = `area-${flight1_id}-${flight2_id}-${conflictIdx}`;
+            const areaId = `${conflictType}-area-${flight1_id}-${flight2_id}-${conflictIdx}`;
+            
+            // 根据冲突类型设置不同的样式
+            let fillColor, fillOpacity;
+            if (conflictType === 'future') {
+              // 未来冲突：明显的样式 - 蓝色，适中透明度
+              fillColor = 'rgba(30, 144, 255, 0.4)'; // 道奇蓝，提高透明度
+              fillOpacity = 0.4;
+            } else {
+              // 当前冲突：原有样式 - 橙色，较高透明度
+              fillColor = 'rgba(255,165,0, 0.5)';
+              fillOpacity = 0.5;
+            }
+            
             try {
-
+              console.log('尝试添加图层:', areaId, '类型:', conflictType);
               map.current.addSource(areaId, { type: 'geojson', data: polygon });
               map.current.addLayer({
                 id: areaId,
                 type: 'fill',
                 source: areaId,
                 paint: {
-                  'fill-color': 'rgba(255,165,0, 0.5)',
-                  'fill-opacity': 0.5
+                  'fill-color': fillColor,
+                  'fill-opacity': fillOpacity
                 },
                 interactive: true
               });
+              console.log('成功添加图层:', areaId, '颜色:', fillColor);
               // // 外边框线图层
               // const borderId = `${areaId}-border`;
               // map.current.addSource(borderId, {
@@ -1363,7 +1402,7 @@ const TaxiwayMap = observer(() => {
                     .addTo(map.current);
                 }
               });
-              window._areaLayers.push(areaId);
+              window[layerArrayName].push(areaId);
               if (conflict_time && typeof conflict_time === 'number' && conflict_time > 0) {
                 const timeoutMs = conflict_time * 1000 * 20; // 转换为毫秒
 
@@ -1380,10 +1419,10 @@ const TaxiwayMap = observer(() => {
                     map.current.removeSource(areaId);
                   }
 
-                  // 从全局数组中移除
-                  const index = window._areaLayers.indexOf(areaId);
+                  // 从对应的全局数组中移除
+                  const index = window[layerArrayName].indexOf(areaId);
                   if (index > -1) {
-                    window._areaLayers.splice(index, 1);
+                    window[layerArrayName].splice(index, 1);
                   }
 
                   // 清除定时器记录
@@ -1394,7 +1433,7 @@ const TaxiwayMap = observer(() => {
                 areaTimers.current[areaId] = timerId;
               }
             } catch (error) {
-              console.error('Error creating merged area layer:', areaId, error);
+              console.error('Error creating merged area layer:', areaId, '类型:', conflictType, 'error:', error);
             }
 
 
@@ -1537,6 +1576,7 @@ const TaxiwayMap = observer(() => {
       disposer2(); // 清理观察者
       if (disposer3) disposer3(); // 清理冲突标记观察者
       if (disposer4) disposer4(); // 清理planned flights观察者
+      if (disposer5) disposer5(); // 清理future conflicts观察者
       if (disposerSim) disposerSim(); // 清理模拟观察者
       if (highlightTimer) clearTimeout(highlightTimer);
       // 新增：清理所有面积图定时器
