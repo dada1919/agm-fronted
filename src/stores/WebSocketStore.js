@@ -24,6 +24,13 @@ class WebSocketStore {
     future_conflicts = [];
     current_conflicts = [];
     
+    // 飞机颜色映射状态管理
+    aircraftColorMapping = new Map(); // 飞机ID到颜色的映射
+    activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
+    planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
+    activeColorIndex = 0;
+    planningColorIndex = 0;
+    
     // 当前模拟状态存储
     currentSimulation = {
         conflict_id: null,
@@ -487,6 +494,48 @@ class WebSocketStore {
             message: '',
             timestamp: null
         };
+    }
+
+    // 获取飞机颜色，如果不存在则分配新颜色
+    getAircraftColor(aircraftId, isActive = false) {
+        if (this.aircraftColorMapping.has(aircraftId)) {
+            return this.aircraftColorMapping.get(aircraftId);
+        }
+
+        // 分配新颜色
+        let color;
+        if (isActive) {
+            color = this.activeColors[this.activeColorIndex % this.activeColors.length];
+            this.activeColorIndex++;
+        } else {
+            color = this.planningColors[this.planningColorIndex % this.planningColors.length];
+            this.planningColorIndex++;
+        }
+
+        this.aircraftColorMapping.set(aircraftId, color);
+        return color;
+    }
+
+    // 设置飞机颜色
+    setAircraftColor(aircraftId, color) {
+        this.aircraftColorMapping.set(aircraftId, color);
+    }
+
+    // 获取所有飞机的颜色映射
+    getAllAircraftColors() {
+        return new Map(this.aircraftColorMapping);
+    }
+
+    // 清除颜色映射
+    clearAircraftColors() {
+        this.aircraftColorMapping.clear();
+        this.activeColorIndex = 0;
+        this.planningColorIndex = 0;
+    }
+
+    // 检查飞机是否为活跃状态
+    isAircraftActive(aircraftId) {
+        return this.planePosition && this.planePosition.some(plane => plane.id === aircraftId);
     }
 }
 const websocketStore = new WebSocketStore();

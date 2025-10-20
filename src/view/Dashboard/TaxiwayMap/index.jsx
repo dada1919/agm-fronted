@@ -46,7 +46,8 @@ const TaxiwayMap = observer(() => {
           container: mapContainer.current,
           style: { version: 8, sources: {}, layers: [] },
           center: [116.593238, 40.051893],  // 初始中心点
-          zoom: 17,
+          zoom: 23, // 提高初始缩放级别，让地图更大
+          maxZoom: 24, // 允许更大的缩放范围
           bearing: 90  // 向右旋转90度
         });
 
@@ -69,9 +70,8 @@ const TaxiwayMap = observer(() => {
               'line-color': [
                 'case',
                 ['==', ['get', 'name'], null],
-                '#888',  // 未命名滑行道颜色
-                // '#ff0000' // 命名滑行道颜色
-                '#e9e9e9'
+                '#cccccc',  // 未命名滑行道颜色（更浅）
+                '#f3f3f3'   // 命名滑行道颜色（更浅）
               ],
               'line-width': [
                 'interpolate', // 使用插值函数
@@ -82,9 +82,9 @@ const TaxiwayMap = observer(() => {
                 12, // 在缩放级别 12 时，线宽为 4
                 4, // 线宽为 4
                 18, // 在最大缩放级别 18 时，线宽为 10
-                10 // 线宽为 10
+                15 // 线宽为 10
               ],
-              'line-opacity': 0.8
+              'line-opacity': 1
             },
             layout: {
               'line-cap': 'round',
@@ -457,6 +457,92 @@ const TaxiwayMap = observer(() => {
       }
     };
 
+    // 绘制模拟结果的轨迹（使用浅蓝色系列）
+    const drawSimulatedTrajectory = (id, trajectorys, baseColor = 'rgb(24, 144, 255)', h = 0) => {
+      let geodata = { type: 'FeatureCollection', features: [] };
+      let index = 0;
+      const multiColor = generateAlphaVariants(baseColor, 10, 10);
+
+      trajectorys.forEach(trajectory => {
+        if (trajectory && trajectory.length > 0) {
+          geodata.features.push({
+            type: 'Feature',
+            properties: {
+              color: multiColor[Math.min(index++, multiColor.length - 1)],
+              height: h,
+            },
+            geometry: {
+              type: 'MultiLineString',
+              coordinates: trajectory
+            }
+          });
+        }
+      });
+
+      if (!map.current.getSource(id)) {
+        map.current.addSource(id, {
+          type: 'geojson',
+          data: geodata
+        });
+
+        map.current.addLayer({
+          id: id,
+          type: 'line',
+          source: id,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 3,
+            'line-offset': ['*', ['get', 'height']],
+            'line-opacity': 1.0,
+            'line-blur': 0.5
+          }
+        });
+      } else {
+        const source = map.current.getSource(id);
+        if (source) {
+          source.setData(geodata);
+        }
+      }
+    };
+
+    // 清理所有模拟轨迹图层
+    const clearSimulatedTrajectories = () => {
+      if (!map.current || !map.current.getStyle) return;
+      try {
+        const style = map.current.getStyle();
+        if (!style || !style.layers) return;
+
+        const layersToRemove = [];
+        const sourcesToRemove = [];
+
+        style.layers.forEach(layer => {
+          if (layer.id && layer.id.startsWith('sim-')) {
+            layersToRemove.push(layer.id);
+            if (layer.source && !sourcesToRemove.includes(layer.source)) {
+              sourcesToRemove.push(layer.source);
+            }
+          }
+        });
+
+        layersToRemove.forEach(layerId => {
+          if (map.current.getLayer(layerId)) {
+            map.current.removeLayer(layerId);
+          }
+        });
+        sourcesToRemove.forEach(sourceId => {
+          if (map.current.getSource(sourceId)) {
+            map.current.removeSource(sourceId);
+          }
+        });
+      } catch (e) {
+        console.error('清理模拟轨迹时出错:', e);
+      }
+    };
+
     // 移除飞机的轨迹
     const removeTrajectory = (id) => {
       if (map.current.getLayer(id)) {
@@ -486,6 +572,19 @@ const TaxiwayMap = observer(() => {
           [conflict.pos1, conflict.pos2]]
         ];
         drawConflict(conflict.id1 + '-' + conflict.id2, trajectory, color, 0); // 绘制轨迹
+      }
+    });
+
+    // 监听冲突解决方案数据变化，绘制冲突节点标记
+    disposer3 = autorun(() => {
+      console.log('冲突解决方案数据变化:', websocketStore.conflictResolutions);
+      
+      // 清除之前的冲突标记
+      clearConflictMarkers();
+      
+      // 绘制新的冲突标记
+      if (websocketStore.conflictResolutions && Array.isArray(websocketStore.conflictResolutions)) {
+        drawConflictMarkers(websocketStore.conflictResolutions);
       }
     });
 
@@ -543,11 +642,32 @@ const TaxiwayMap = observer(() => {
         return;
       }
 
+      // 注释掉本地颜色数组，改用WebSocketStore的统一颜色管理
+      // const activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
+      // const planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
+
+      // 不再需要本地索引，改用WebSocketStore的统一管理
+      // let activeIndex = 0;
+      // let planningIndex = 0;
+
       // 遍历每个planned航班
       Object.entries(plannedFlights).forEach(([flightId, flightData]) => {
         if (!flightData.node_path || !Array.isArray(flightData.node_path) || flightData.node_path.length < 2) {
           return;
         }
+
+        // 筛选飞机规划路径：如果飞机正在滑行中，就不绘制规划路径
+        const isCurrentlyTaxiing = websocketStore.planePosition && 
+          websocketStore.planePosition.some(plane => 
+            plane.id === flightId && 
+            (plane.state === 'taxiing' || plane.state === 'moving')
+          );
+        
+        if (isCurrentlyTaxiing) {
+          console.log(`飞机 ${flightId} 正在滑行中，跳过规划路径绘制`);
+          return;
+        }
+
         console.log('绘制规划路径', flightId, flightData);
 
         // 根据node_path中的滑行道ID找到对应的坐标
@@ -589,6 +709,14 @@ const TaxiwayMap = observer(() => {
           console.warn(`无法为航班 ${flightId} 构建完整路径`);
           return;
         }
+
+        // 根据航班类型确定颜色，使用WebSocketStore的统一颜色管理
+        // 检查是否为活跃航班（可以通过websocketStore.planePosition或其他方式判断）
+        const isActiveFlight = websocketStore.planePosition && 
+          websocketStore.planePosition.some(plane => plane.id === flightId);
+        
+        // 使用WebSocketStore的统一颜色管理
+        const pathColor = websocketStore.getAircraftColor(flightId, isActiveFlight);
 
         // 创建GeoJSON数据
         const pathGeoJSON = {
@@ -637,8 +765,8 @@ const TaxiwayMap = observer(() => {
                 'line-cap': 'round'
               },
               paint: {
-                'line-color': '#87CEEB', // 浅蓝色
-                'line-width': 3,
+                'line-color': pathColor, // 使用与PlanningView一致的颜色
+                'line-width': 2, // 调细规划路径的宽度
                 'line-dasharray': [2, 2], // 虚线样式
                 'line-opacity': 0.8
               }
@@ -691,6 +819,183 @@ const TaxiwayMap = observer(() => {
       }
     });
 
+    // 监听并绘制模拟结果的飞机轨迹（与实时轨迹一致的结构，但颜色不同）
+    const disposerSim = autorun(() => {
+      try {
+        const sim = websocketStore.getCurrentSimulation();
+        const state = sim && sim.simulated_state;
+        const positions = state && state.aircraft_positions;
+
+        if (!map.current) return;
+
+        if (positions && typeof positions === 'object' && Object.keys(positions).length > 0) {
+          clearSimulatedTrajectories();
+          Object.entries(positions).forEach(([aircraftId, aircraftData], idx) => {
+            const trajectory = aircraftData?.trajectory || [];
+            const simLayerId = `sim-${aircraftId}`;
+            // 使用浅蓝色系列，和规划视图颜色系保持一致（更浅）
+            drawSimulatedTrajectory(simLayerId, trajectory, 'rgb(24, 144, 255)', idx);
+          });
+        } else {
+          // 无模拟数据时清理
+          clearSimulatedTrajectories();
+        }
+      } catch (error) {
+        console.error('处理模拟轨迹时出错:', error);
+      }
+    });
+
+
+    // 根据severity级别获取颜色
+    const getSeverityColor = (severity) => {
+      switch (severity?.toUpperCase()) {
+        case 'HIGH':
+          return '#ff4d4f'; // 红色
+        case 'MEDIUM':
+          return '#faad14'; // 黄色
+        case 'LOW':
+          return '#52c41a'; // 绿色
+        default:
+          return '#d9d9d9'; // 灰色
+      }
+    };
+
+    // 绘制冲突节点圆圈标记
+    const drawConflictMarkers = (conflicts) => {
+      if (!conflicts || !Array.isArray(conflicts)) return;
+
+      conflicts.forEach((conflict, index) => {
+        const { conflict_node, safety_risk, severity } = conflict;
+        if (!conflict_node) return;
+
+        // 尝试从滑行道数据中找到节点坐标
+        let nodeCoordinates = null;
+        
+        // 查找包含该节点的滑行道
+        const relatedTaxiway = geojsonData.features.find(feature => {
+          const startNode = String(feature.properties.startnode);
+          const endNode = String(feature.properties.endnode);
+          return startNode === String(conflict_node) || endNode === String(conflict_node);
+        });
+
+        if (relatedTaxiway && relatedTaxiway.geometry && relatedTaxiway.geometry.coordinates) {
+          const coords = relatedTaxiway.geometry.coordinates[0];
+          if (coords && coords.length > 0) {
+            // 如果节点是起始节点，使用第一个坐标；如果是结束节点，使用最后一个坐标
+            const startNode = String(relatedTaxiway.properties.startnode);
+            nodeCoordinates = startNode === String(conflict_node) ? coords[0] : coords[coords.length - 1];
+          }
+        }
+
+        if (!nodeCoordinates) {
+          console.warn(`无法找到冲突节点 ${conflict_node} 的坐标`);
+          return;
+        }
+
+        const markerId = `conflict-marker-${conflict_node}-${index}`;
+        const color = getSeverityColor(severity);
+
+        // 创建冲突标记的GeoJSON数据
+        const markerGeoJSON = {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {
+              conflict_node,
+              safety_risk,
+              severity,
+              color
+            },
+            geometry: {
+              type: 'Point',
+              coordinates: nodeCoordinates
+            }
+          }]
+        };
+
+        // 添加数据源
+        if (!map.current.getSource(markerId)) {
+          map.current.addSource(markerId, {
+            type: 'geojson',
+            data: markerGeoJSON
+          });
+
+          // 添加圆圈图层
+          map.current.addLayer({
+            id: `${markerId}-circle`,
+            type: 'circle',
+            source: markerId,
+            paint: {
+              'circle-radius': 20,
+              'circle-color': color,
+              'circle-opacity': 0.8,
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff'
+            }
+          });
+
+          // 添加文本图层显示safety_risk数值
+          map.current.addLayer({
+            id: `${markerId}-text`,
+            type: 'symbol',
+            source: markerId,
+            layout: {
+              'text-field': String(safety_risk || ''),
+              'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              'text-size': 12,
+              'text-anchor': 'center'
+            },
+            paint: {
+              'text-color': '#ffffff',
+              'text-halo-color': '#000000',
+              'text-halo-width': 1
+            }
+          });
+        } else {
+          // 更新现有数据源
+          map.current.getSource(markerId).setData(markerGeoJSON);
+        }
+      });
+    };
+
+    // 清除冲突标记
+    const clearConflictMarkers = () => {
+      if (!map.current || !map.current.getStyle) return;
+
+      try {
+        const style = map.current.getStyle();
+        if (!style || !style.layers) return;
+
+        // 查找所有冲突标记图层
+        const layersToRemove = [];
+        const sourcesToRemove = [];
+
+        style.layers.forEach(layer => {
+          if (layer.id && layer.id.startsWith('conflict-marker-')) {
+            layersToRemove.push(layer.id);
+            if (layer.source && !sourcesToRemove.includes(layer.source)) {
+              sourcesToRemove.push(layer.source);
+            }
+          }
+        });
+
+        // 移除图层
+        layersToRemove.forEach(layerId => {
+          if (map.current.getLayer(layerId)) {
+            map.current.removeLayer(layerId);
+          }
+        });
+
+        // 移除数据源
+        sourcesToRemove.forEach(sourceId => {
+          if (map.current.getSource(sourceId)) {
+            map.current.removeSource(sourceId);
+          }
+        });
+      } catch (error) {
+        console.error('清除冲突标记时出错:', error);
+      }
+    };
 
     // 绘制冲突连线
     const drawConflict = (id, trajectorys, color, h) => {
@@ -1230,8 +1535,9 @@ const TaxiwayMap = observer(() => {
       map.current?.remove();
       disposer1(); // 清理观察者
       disposer2(); // 清理观察者
-      if (disposer3) disposer3(); // 清理观察者
+      if (disposer3) disposer3(); // 清理冲突标记观察者
       if (disposer4) disposer4(); // 清理planned flights观察者
+      if (disposerSim) disposerSim(); // 清理模拟观察者
       if (highlightTimer) clearTimeout(highlightTimer);
       // 新增：清理所有面积图定时器
       Object.values(areaTimers.current).forEach(timerId => {
@@ -1241,6 +1547,9 @@ const TaxiwayMap = observer(() => {
 
       // 清理planned paths图层
       clearPlannedPaths();
+      
+      // 清理冲突标记
+      clearConflictMarkers();
 
       if (window._areaLayers) {
         window._areaLayers.forEach(id => {
@@ -1249,29 +1558,28 @@ const TaxiwayMap = observer(() => {
         });
         window._areaLayers = [];
       }
-      disposer3 && disposer3();
     }
   }, []);
 
 
   return (
     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-      {/* 地图区域 - 80% 宽度 */}
-      <div style={{ width: '60%', height: '100%' }}>
-        <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
-      </div>
-
-      {/* 冲突解决界面 - 20% 宽度 */}
+      {/* 冲突解决界面 - 左侧 30% 宽度 */}
       <div style={{
-        width: '40%',
+        width: '30%',
         height: '100%',
-        backgroundColor: '#f8f9fa',
-        borderLeft: '1px solid #e9ecef',
+        backgroundColor: 'transparent',
+        borderRight: '1px solid #e9ecef',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden'
       }}>
         <ConflictResolutionPanel />
+      </div>
+
+      {/* 地图区域 - 右侧 70% 宽度 */}
+      <div style={{ width: '70%', height: '100%' }}>
+        <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       </div>
     </div>
   );
@@ -1314,6 +1622,44 @@ const ConflictResolutionPanel = observer(() => {
     }
   };
 
+  // 当选中冲突变化时，自动获取并展示解决方案
+  const REQUEST_INTERVAL_MS = 3000; // 请求间隔（毫秒）
+  const lastRequestRef = React.useRef({ id: null, ts: 0 });
+  React.useEffect(() => {
+    if (!selectedConflict) return;
+    const id = selectedConflict.conflict_id ?? selectedConflict.id;
+    if (!id) return;
+
+    const now = Date.now();
+    const alreadyLoaded = (
+      resolution_analysis && resolution_analysis.conflict_id === id &&
+      Array.isArray(resolutions) && resolutions.length > 0
+    );
+
+    // 如果已加载当前冲突的解决方案，更新时间戳并跳过
+    if (alreadyLoaded) {
+      lastRequestRef.current = { id, ts: now };
+      return;
+    }
+
+    // 限流：若正在加载或未到请求间隔，跳过
+    const timePassed = now - (lastRequestRef.current.ts || 0);
+    const sameId = lastRequestRef.current.id === id;
+    const canRequest = !loading && (!sameId || timePassed > REQUEST_INTERVAL_MS);
+    if (canRequest) {
+      lastRequestRef.current = { id, ts: now };
+      getConflictResolutions(id);
+    }
+  }, [selectedConflict, loading, resolutions, resolution_analysis]);
+
+  // 注释掉自动选择冲突的逻辑，让用户手动选择
+  // React.useEffect(() => {
+  //   if (!selectedConflict && Array.isArray(conflicts) && conflicts.length > 0) {
+  //     const firstUnresolved = conflicts.find(c => c.status !== 'resolved') || conflicts[0];
+  //     websocketStore.selectedConflict = firstUnresolved;
+  //   }
+  // }, [conflicts, selectedConflict]);
+
   return (
     <div style={{
       padding: '16px',
@@ -1321,21 +1667,7 @@ const ConflictResolutionPanel = observer(() => {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {/* 标题 */}
-      <div style={{
-        marginBottom: '16px',
-        paddingBottom: '12px',
-        borderBottom: '2px solid #007bff'
-      }}>
-        <h3 style={{
-          margin: 0,
-          fontSize: '16px',
-          fontWeight: 'bold',
-          color: '#333'
-        }}>
-          冲突解决方案
-        </h3>
-      </div>
+      {/* 标题与下划线已移除 */}
 
       {/* 加载状态 */}
       {loading && (
@@ -1350,7 +1682,7 @@ const ConflictResolutionPanel = observer(() => {
 
       {/* 冲突列表 */}
       {!selectedConflict && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="prettyScrollbar" style={{ flex: 1, overflowY: 'auto' }}>
           <h4 style={{
             fontSize: '14px',
             marginBottom: '12px',
@@ -1372,10 +1704,11 @@ const ConflictResolutionPanel = observer(() => {
               <div
                 key={conflict.id}
                 style={{
+                  position: 'relative',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
-                  padding: '12px',
-                  marginBottom: '8px',
+                  padding: '8px',
+                  marginBottom: '6px',
                   backgroundColor: conflict.status === 'resolved' ? '#f8f9fa' : 'white',
                   borderLeft: `4px solid ${conflict.severity === 'HIGH' ? '#dc3545' :
                     conflict.severity === 'MEDIUM' ? '#ffc107' : '#28a745'
@@ -1388,7 +1721,7 @@ const ConflictResolutionPanel = observer(() => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '8px'
+                  marginBottom: '6px'
                 }}>
                   <span style={{
                     fontWeight: 'bold',
@@ -1396,61 +1729,67 @@ const ConflictResolutionPanel = observer(() => {
                   }}>
                     {conflict.id}
                   </span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      backgroundColor:
+                        conflict.severity === 'HIGH' ? '#dc3545' :
+                          conflict.severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                      color: 'white'
+                    }}>
+                      {conflict.severity || 'UNKNOWN'}
+                    </span>
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      backgroundColor:
+                        conflict.conflict_type === 'CROSSING' ? '#dc3545' :
+                          conflict.conflict_type === 'parallel' ? '#ffc107' : '#28a745',
+                      color: 'white'
+                    }}>
+                      {conflict.conflict_type || 'UNKNOWN'}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>
+                  航班: {conflict.involved_flights?.join(', ') || 'N/A'} | 节点: {conflict.conflict_node || 'N/A'}
+                </div>
+
+                {/* 整卡点击即选中并自动获取解决方案 */}
+                <div
+                  onClick={() => {
+                    // 仅设置选中，实际请求由上面的副作用限流触发
+                    websocketStore.selectedConflict = conflict;
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    width: '20px',
+                    height: '20px',
+                    backgroundColor: '#e9f2ff',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    border: '1px solid #0b5ed7'
+                  }}
+                  title="查看详情与方案"
+                >
                   <span style={{
-                    fontSize: '11px',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    backgroundColor:
-                      conflict.severity === 'HIGH' ? '#dc3545' :
-                        conflict.severity === 'MEDIUM' ? '#ffc107' : '#28a745',
-                    color: 'white'
+                    fontSize: '10px',
+                    color: '#0b5ed7',
+                    fontWeight: 'bold'
                   }}>
-                    {conflict.severity || 'UNKNOWN'}
-                  </span>
-                   <span style={{
-                    fontSize: '11px',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    backgroundColor:
-                      conflict.conflict_type === 'CROSSING' ? '#dc3545' :
-                        conflict.conflict_type === 'parallel' ? '#ffc107' : '#28a745',
-                    color: 'white'
-                  }}>
-                    {conflict.conflict_type || 'UNKNOWN'}
+                    ▶
                   </span>
                 </div>
-
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-                  <div>航班: {conflict.involved_flights?.join(', ') || 'N/A'}</div>
-                  <div>节点: {conflict.conflict_node || 'N/A'}</div>
-                  {typeof conflict.safety_risk === 'number' && (
-                    <div>安全风险评分: {conflict.safety_risk}</div>
-                  )}
-                  {typeof conflict.estimated_delay === 'number' && (
-                    <div>预计延误: {conflict.estimated_delay*60}s</div>
-                  )}
-                </div>
-
-
-                {conflict.status !== 'resolved' && (
-                  <button
-                    onClick={() => getConflictResolutions(conflict.conflict_id ?? conflict.id)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 12px',
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      cursor: 'pointer'
-                    }}
-                    onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
-                    onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
-                  >
-                    查看解决方案
-                  </button>
-                )}
 
                 {conflict.status === 'resolved' && (
                   <div style={{
@@ -1470,7 +1809,7 @@ const ConflictResolutionPanel = observer(() => {
 
       {/* 解决方案详情 */}
       {selectedConflict && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="prettyScrollbar" style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1501,84 +1840,186 @@ const ConflictResolutionPanel = observer(() => {
             </h4>
           </div>
 
-          {resolutions.map((resolution, index) => (
-            <div
-              key={resolution.option_id}
-              style={{
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                padding: '12px',
-                marginBottom: '12px',
-                backgroundColor: 'white'
-              }}
-            >
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '8px'
-              }}>
-                <h5 style={{
-                  margin: 0,
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  flex: 1
-                }}>
-                  {resolution.description}
-                </h5>
-                <span style={{
-                  fontSize: '11px',
-                  color: '#666',
-                  marginLeft: '8px'
-                }}>
-                  置信度: {(resolution.probability * 100).toFixed(1)}%
-                </span>
-              </div>
+          {/* 计算度量最大值用于归一化显示 */}
+          {(() => {
+            return null;
+          })()}
 
-              <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
-                <div>策略: {resolution.strategy}</div>
-                <div>延误减少: {resolution.cost}秒</div>
-                <div>影响航班: {resolution.side_effects?.join(', ') || 'N/A'}</div>
-              </div>
+          {(() => {
+            // 辅助：策略图标
+            const StrategyIcon = ({ strategy }) => {
+              const color = strategy === 'emergency_mode' ? '#dc3545'
+                : strategy === 'waiting' ? '#ffc107'
+                : strategy === 'rerouting' ? '#17a2b8'
+                : '#6c757d';
+              return (
+                <svg width="18" height="18" viewBox="0 0 24 24" style={{ marginRight: 8 }}>
+                  {strategy === 'emergency_mode' && (
+                    <g fill={color}>
+                      <rect x="10" y="3" width="4" height="10" rx="2"></rect>
+                      <circle cx="12" cy="19" r="3"></circle>
+                    </g>
+                  )}
+                  {strategy === 'waiting' && (
+                    <g stroke={color} strokeWidth="2" fill="none">
+                      <circle cx="12" cy="12" r="9"></circle>
+                      <path d="M12 12 L12 7"></path>
+                      <path d="M12 12 L16 14"></path>
+                    </g>
+                  )}
+                  {strategy === 'rerouting' && (
+                    <g fill="none" stroke={color} strokeWidth="2">
+                      <path d="M4 18 C8 10, 12 14, 16 6" />
+                      <path d="M16 6 L13 6 M16 6 L16 9" />
+                    </g>
+                  )}
+                  {strategy !== 'emergency_mode' && strategy !== 'waiting' && strategy !== 'rerouting' && (
+                    <g fill={color}>
+                      <circle cx="12" cy="12" r="8"></circle>
+                    </g>
+                  )}
+                </svg>
+              );
+            };
 
-              <button
-                onClick={() => applyResolution(resolution_analysis.conflict_id, resolution.option_id)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  marginBottom: '8px'
-                }}
-                onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
-                onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
-              >
-                应用此方案
-              </button>
-              
-              <button
-                onClick={() => simulateResolution(resolution_analysis.conflict_id, resolution.option_id)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-                onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
-                onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
-              >
-                模拟应用
-              </button>
-            </div>
-          ))}
+            // 辅助：度量条形图（路径增量/时间增量）
+            const MetricBars = ({ pathDelta = 0, timeDelta = 0, maxPath = 1, maxTime = 1 }) => {
+              const pw = 160, ph = 40; // SVG尺寸
+              const pNorm = Math.min(1, Math.abs(pathDelta) / (maxPath || 1));
+              const tNorm = Math.min(1, Math.abs(timeDelta) / (maxTime || 1));
+              const barWPath = Math.max(2, pNorm * (pw - 60));
+              const barWTime = Math.max(2, tNorm * (pw - 60));
+              return (
+                <svg width={pw} height={ph} style={{ border: '1px solid #eee', borderRadius: 4 }}>
+                  <text x="6" y="14" fontSize="11" fill="#666">路径增量</text>
+                  <rect x="60" y="6" width={pw - 70} height="8" fill="#f0f0f0" rx="3" />
+                  <rect x="60" y="6" width={barWPath} height="8" fill="#17a2b8" rx="3" />
+                  <text x={60 + barWPath + 4} y="13" fontSize="10" fill="#333">{pathDelta?.toFixed ? pathDelta.toFixed(2) : pathDelta}</text>
+
+                  <text x="6" y="34" fontSize="11" fill="#666">时间增量</text>
+                  <rect x="60" y="26" width={pw - 70} height="8" fill="#f0f0f0" rx="3" />
+                  <rect x="60" y="26" width={barWTime} height="8" fill="#007bff" rx="3" />
+                  <text x={60 + barWTime + 4} y="33" fontSize="10" fill="#333">{timeDelta?.toFixed ? timeDelta.toFixed(2) : timeDelta}</text>
+                </svg>
+              );
+            };
+
+            // 辅助：影响图（impact_graph）
+            const ImpactGraph = ({ impactGraph }) => {
+              const nodes = impactGraph?.nodes ? Object.entries(impactGraph.nodes) : [];
+              const edges = impactGraph?.edges || [];
+              const w = 220, h = 80;
+              const positions = nodes.map((n, i) => ({ key: n[0], x: 40 + i * (w / Math.max(3, nodes.length)), y: h / 2 }));
+              const severityColor = (sev) => sev === 'high' || sev === 'HIGH' ? '#dc3545' : sev === 'medium' || sev === 'MEDIUM' ? '#ffc107' : '#28a745';
+              return (
+                <svg width={w} height={h} style={{ border: '1px solid #eee', borderRadius: 4 }}>
+                  {/* 边 */}
+                  {edges.map((e, idx) => {
+                    const fromIdx = positions.findIndex(p => p.key === e[0] || p.key === e.from);
+                    const toIdx = positions.findIndex(p => p.key === e[1] || p.key === e.to);
+                    if (fromIdx === -1 || toIdx === -1) return null;
+                    const from = positions[fromIdx];
+                    const to = positions[toIdx];
+                    return <line key={idx} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#bbb" strokeWidth="1" />
+                  })}
+                  {/* 节点 */}
+                  {nodes.map(([id, info], i) => (
+                    <g key={id}>
+                      <circle cx={positions[i].x} cy={positions[i].y} r={12} fill={severityColor(info.severity)} opacity="0.8" />
+                      <text x={positions[i].x} y={positions[i].y - 16} textAnchor="middle" fontSize="10" fill="#333">{id}</text>
+                      {typeof info.delay_minutes === 'number' && (
+                        <text x={positions[i].x} y={positions[i].y + 18} textAnchor="middle" fontSize="10" fill="#333">{info.delay_minutes.toFixed(2)}m</text>
+                      )}
+                    </g>
+                  ))}
+                </svg>
+              );
+            };
+
+            // 计算归一化用的最大值
+            const maxPath = Math.max(...resolutions.map(r => Math.abs(r.path_length_delta || 0)), 1);
+            const maxTime = Math.max(...resolutions.map(r => Math.abs(r.time_delta_minutes || 0)), 1);
+
+            return (
+              <>
+                {resolutions.map((resolution) => (
+                  <div
+                    key={resolution.option_id}
+                    style={{
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      padding: '12px',
+                      marginBottom: '12px',
+                      backgroundColor: 'transparent'
+                    }}
+                  >
+                    {/* 顶部：策略图标 + 策略名称 + 目标航班 */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                      <StrategyIcon strategy={resolution.strategy} />
+                      <div style={{ fontSize: 13, fontWeight: 'bold', color: '#333' }}>{resolution.strategy}</div>
+                      <span style={{ marginLeft: '8px', fontSize: 11, padding: '2px 6px', borderRadius: 3, backgroundColor: '#e8f3ff', color: '#1677ff' }}>
+                        目标: {resolution.target_flight}
+                      </span>
+                    </div>
+
+                    {/* 指标、影响图与操作按钮在同一行 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <MetricBars
+                        pathDelta={resolution.path_length_delta || 0}
+                        timeDelta={resolution.time_delta_minutes || 0}
+                        maxPath={maxPath}
+                        maxTime={maxTime}
+                      />
+                      <ImpactGraph impactGraph={resolution.impact_graph} />
+                      {/* 右侧图标按钮 */}
+                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button
+                          title="应用此方案"
+                          aria-label="应用此方案"
+                          onClick={() => applyResolution(resolution_analysis.conflict_id, resolution.option_id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '4px',
+                            cursor: 'pointer',
+                            color: '#28a745',
+                            borderRadius: '4px'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.color = '#218838'}
+                          onMouseOut={(e) => e.currentTarget.style.color = '#28a745'}
+                        >
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="10" opacity="0.15" />
+                            <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        <button
+                          title="模拟应用"
+                          aria-label="模拟应用"
+                          onClick={() => simulateResolution(resolution_analysis.conflict_id, resolution.option_id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '4px',
+                            cursor: 'pointer',
+                            color: '#007bff',
+                            borderRadius: '4px'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.color = '#0056b3'}
+                          onMouseOut={(e) => e.currentTarget.style.color = '#007bff'}
+                        >
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="10" opacity="0.15" />
+                            <path d="M9 8l7 4-7 4z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

@@ -6,14 +6,17 @@ import * as d3 from 'd3';
 import { Table } from 'antd';
 import { createStyles } from 'antd-style';
 
-// SVG表格组件
-const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef }) => {
+// 统一底部额外空间，保证左右内容高度一致
+const EXTRA_BOTTOM_SPACE = 200;
+
+// SVG表格组件（圆角矩形独立行，保留表头与行内分割）
+const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef, className }) => {
     const svgTableRef = useRef();
     const containerRef = useRef();
 
     // 计算表格尺寸
     const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
-    const totalHeight = headerHeight + dataSource.length * rowHeight;
+    const totalHeight = headerHeight + dataSource.length * rowHeight + EXTRA_BOTTOM_SPACE;
 
     useEffect(() => {
         if (tableRef) {
@@ -69,7 +72,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                 overflow: 'auto',
                 backgroundColor: '#ffffff'
             }}
-            className="svg-table-container"
+            className={`svg-table-container ${className || ''}`}
         >
             <svg
                 ref={svgTableRef}
@@ -110,7 +113,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                                 {column.title}
                             </text>
 
-                            {/* 列分割线 */}
+                            {/* 列分割线（仅表头范围）*/}
                             {colIndex < columns.length - 1 && (
                                 <line
                                     x1={x + column.width}
@@ -128,41 +131,33 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                 {/* 表格数据行 */}
                 {dataSource.map((record, rowIndex) => {
                     const y = headerHeight + rowIndex * rowHeight;
+                    const borderColor = record.status === 'normal' ? '#52c41a' : '#1890ff';
+                    const fillNormal = '#ffffff';
+                    const fillHover = '#f5faff';
+                    const rectX = 6;
+                    const rectY = y + 4;
+                    const rectW = tableWidth - 12;
+                    const rectH = rowHeight - 8;
                     return (
                         <g key={`row-${rowIndex}`}>
-                            {/* 行背景 */}
+                            {/* 圆角矩形行 */}
                             <rect
-                                x={0}
-                                y={y}
-                                width={tableWidth}
-                                height={rowHeight}
-                                fill="#ffffff"
-                                stroke="#f0f0f0"
+                                x={rectX}
+                                y={rectY}
+                                width={rectW}
+                                height={rectH}
+                                rx={8}
+                                ry={8}
+                                fill={fillNormal}
+                                stroke={borderColor}
                                 strokeWidth={1}
-                                className="table-row"
-                                style={{
-                                    cursor: 'pointer'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.target.setAttribute('fill', '#f5f5f5');
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.target.setAttribute('fill', '#ffffff');
-                                }}
+                                className="rounded-row"
+                                style={{ cursor: 'pointer' }}
+                                onMouseEnter={(e) => { e.target.setAttribute('fill', fillHover); }}
+                                onMouseLeave={(e) => { e.target.setAttribute('fill', fillNormal); }}
                             />
 
-                            {/* 行中心线（用于与右侧对齐） */}
-                            <line
-                                x1={0}
-                                y1={y + rowHeight / 2}
-                                x2={tableWidth}
-                                y2={y + rowHeight / 2}
-                                stroke="transparent"
-                                strokeWidth={1}
-                                className="row-center-line"
-                            />
-
-                            {/* 单元格内容 */}
+                            {/* 行内列分割线与单元格文本 */}
                             {columns.map((column, colIndex) => {
                                 const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
                                 const value = record[column.dataIndex];
@@ -171,9 +166,9 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
 
                                 return (
                                     <g key={`cell-${rowIndex}-${colIndex}`}>
-                                        {/* 单元格文本 */}
+                                        {/* 单元格文本，居中显示在该列范围内 */}
                                         <text
-                                            x={x + column.width / 2}
+                                            x={rectX + x + column.width / 2}
                                             y={y + rowHeight / 2}
                                             textAnchor="middle"
                                             dominantBaseline="middle"
@@ -184,13 +179,13 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                                             {displayText}
                                         </text>
 
-                                        {/* 列分割线 */}
+                                        {/* 行内列分割线（只在该行范围内绘制）*/}
                                         {colIndex < columns.length - 1 && (
                                             <line
-                                                x1={x + column.width}
-                                                y1={y}
-                                                x2={x + column.width}
-                                                y2={y + rowHeight}
+                                                x1={rectX + x + column.width}
+                                                y1={rectY}
+                                                x2={rectX + x + column.width}
+                                                y2={rectY + rectH}
                                                 stroke="#f0f0f0"
                                                 strokeWidth={1}
                                             />
@@ -202,16 +197,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
                     );
                 })}
 
-                {/* 表格外边框 */}
-                <rect
-                    x={0}
-                    y={0}
-                    width={tableWidth}
-                    height={totalHeight}
-                    fill="none"
-                    stroke="#f0f0f0"
-                    strokeWidth={1}
-                />
+                {/* 外层边框移除，保持简洁 */}
             </svg>
         </div>
     );
@@ -231,6 +217,26 @@ const useStyle = createStyles(({ css, token }) => {
           
           scrollbar-width: none; /* Firefox */
           -ms-overflow-style: none; /* IE and Edge */
+        `,
+        // 更细、更透明、蓝色的自定义滚动条样式
+        prettyScrollbar: css`
+          ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+          }
+          ::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          ::-webkit-scrollbar-thumb {
+            background-color: rgba(24, 144, 255, 0.35);
+            border-radius: 3px;
+            border: 1px solid rgba(24, 144, 255, 0.15);
+          }
+          ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(24, 144, 255, 0.55);
+          }
+          scrollbar-width: thin; /* Firefox */
+          scrollbar-color: rgba(24, 144, 255, 0.35) transparent; /* Firefox */
         `,
         customTable: css`
       ${antCls}-table {
@@ -395,6 +401,7 @@ const PlanningView = observer(() => {
     const [aircraftOrder, setAircraftOrder] = useState([]); // 航班顺序，用于同步滚动
     const tableRef = useRef(); // 表格引用
     const chartRef = useRef(); // 图表容器引用
+    const isSyncingScroll = useRef(false); // 防止滚动事件互相触发造成循环
     const ROW_HEIGHT = 40;
     const ROW_HEIGHT_P = 40; // 每行高度，用于同步滚动
     const HEADER_HEIGHT = 40; // 表头高度
@@ -1000,7 +1007,7 @@ const PlanningView = observer(() => {
             const baseHeight = 400;
 
             // const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
-            const height = requiredHeight + 200; // 额外增加200px用于边距和图例
+            const height = requiredHeight + EXTRA_BOTTOM_SPACE; // 使用统一的底部空间
 
             // 为右侧图例预留空间，避免与时间线重叠
             const LEGEND_WIDTH = 200;
@@ -1108,12 +1115,14 @@ const PlanningView = observer(() => {
             // 绘制时间线
 
             // 为不同类型的飞机定义不同的颜色和样式
-            const activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
-            const planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
+            // 注释掉本地颜色数组，改用WebSocketStore的统一颜色管理
+            // const activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
+            // const planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
             const simulationColors = ['#9B59B6', '#8E44AD', '#E74C3C', '#C0392B', '#F39C12']; // 模拟数据：紫红色调
 
-            let activeIndex = 0;
-            let planningIndex = 0;
+            // 不再需要本地索引，改用WebSocketStore的统一管理
+            // let activeIndex = 0;
+            // let planningIndex = 0;
 
 
 
@@ -1132,18 +1141,18 @@ const PlanningView = observer(() => {
             flights.each(function (plannedResult, i) {
                 const flightGroup = d3.select(this);
 
-                // 根据飞机类型选择颜色和样式
-                let color, strokeWidth, strokeDasharray;
-                if (plannedResult.type === 'active') {
-                    color = activeColors[activeIndex % activeColors.length];
+                // 使用统一颜色：滑行中飞机用一种颜色，规划飞机用另一种颜色
+                const isActive = plannedResult.type === 'active';
+                const color = isActive ? '#FF6B6B' : '#4ECDC4'; // 滑行中：红色，规划：青色
+                
+                // 根据飞机类型选择样式
+                let strokeWidth, strokeDasharray;
+                if (isActive) {
                     strokeWidth = 4; // 活跃飞机线条更粗
                     strokeDasharray = "none"; // 实线
-                    activeIndex++;
                 } else {
-                    color = planningColors[planningIndex % planningColors.length];
                     strokeWidth = 2; // 计划飞机线条较细
                     strokeDasharray = "5,5"; // 虚线
-                    planningIndex++;
                 }
 
                 // 绘制时间线
@@ -1361,66 +1370,55 @@ const PlanningView = observer(() => {
                                 xRight = best.ax; yRight = best.ay;
                             }
 
-                            // 由两段曲线组成，每段末端绘制指向中点的箭头
+                            // 由两段折线组成，每段末端绘制指向中点的箭头
                             const mx = (xLeft + xRight) / 2;
                             const my = (yLeft + yRight) / 2;
 
-                            // 为保证箭头方向与曲线末端切线一致，使用对称控制点：
-                            // P1 在起点沿指向中点方向偏移，P2 在终点（中点）沿相同方向反向偏移
-                            const lx = mx - xLeft;
-                            const ly = my - yLeft;
-                            const llen = Math.sqrt(lx * lx + ly * ly) || 1;
-                            const lux = lx / llen;
-                            const luy = ly / llen;
-                            const lHandle = Math.min(40, llen * 0.35);
-                            const l1x = xLeft + lux * lHandle;
-                            const l1y = yLeft + luy * lHandle;
-                            const l2x = mx - lux * lHandle;
-                            const l2y = my - luy * lHandle;
+                            // 计算折线的中间点，创建L形或Z形折线
+                            // 左段折线：从起点到中点，经过一个中间转折点
+                            const leftMidX = xLeft + (mx - xLeft) * 0.7; // 70%处转折
+                            const leftMidY = yLeft; // 先水平移动
+                            
+                            // 右段折线：从起点到中点，经过一个中间转折点
+                            const rightMidX = xRight + (mx - xRight) * 0.7; // 70%处转折
+                            const rightMidY = yRight; // 先水平移动
 
-                            const rx = mx - xRight;
-                            const ry = my - yRight;
-                            const rlen = Math.sqrt(rx * rx + ry * ry) || 1;
-                            const rux = rx / rlen;
-                            const ruy = ry / rlen;
-                            const rHandle = Math.min(40, rlen * 0.35);
-                            const r1x = xRight + rux * rHandle;
-                            const r1y = yRight + ruy * rHandle;
-                            const r2x = mx - rux * rHandle;
-                            const r2y = my - ruy * rHandle;
-
-                            // 左段曲线（到中点）
+                            // 左段折线（到中点）
                             overlapLayer.append('path')
                                 .attr('class', `overlap-connector opposing-left ${best.label}`)
-                                .attr('d', `M${xLeft},${yLeft} C${l1x},${l1y} ${l2x},${l2y} ${mx},${my}`)
+                                .attr('d', `M${xLeft},${yLeft} L${leftMidX},${leftMidY} L${mx},${my}`)
                                 .attr('stroke', color)
                                 .attr('stroke-width', 1.5)
                                 .attr('fill', 'none')
                                 .attr('opacity', 0.8)
                                 .attr('marker-end', 'url(#overlap-chevron-arrow)');
 
-                            // 右段曲线（到中点）
+                            // 右段折线（到中点）
                             overlapLayer.append('path')
                                 .attr('class', `overlap-connector opposing-right ${best.label}`)
-                                .attr('d', `M${xRight},${yRight} C${r1x},${r1y} ${r2x},${r2y} ${mx},${my}`)
+                                .attr('d', `M${xRight},${yRight} L${rightMidX},${rightMidY} L${mx},${my}`)
                                 .attr('stroke', color)
                                 .attr('stroke-width', 1.5)
                                 .attr('fill', 'none')
                                 .attr('opacity', 0.8)
                                 .attr('marker-end', 'url(#overlap-chevron-arrow)');
                         } else {
-                            // 同向：保持原有连接方式（start-start 和 end-end 各绘制一条）
+                            // 同向：保持原有连接方式（start-start 和 end-end 各绘制一条），改为折线
+                            // start-start 连线
+                            const startMidY = (ay + by) / 2;
                             overlapLayer.append('path')
                                 .attr('class', 'overlap-connector start')
-                                .attr('d', `M${axStart},${ay} C${axStart},${(ay + by) / 2} ${bxStart},${(ay + by) / 2} ${bxStart},${by}`)
+                                .attr('d', `M${axStart},${ay} L${axStart},${startMidY} L${bxStart},${startMidY} L${bxStart},${by}`)
                                 .attr('stroke', color)
                                 .attr('stroke-width', 1.5)
                                 .attr('fill', 'none')
                                 .attr('opacity', 0.6);
 
+                            // end-end 连线
+                            const endMidY = (ay + by) / 2;
                             overlapLayer.append('path')
                                 .attr('class', 'overlap-connector end')
-                                .attr('d', `M${axEnd},${ay} C${axEnd},${(ay + by) / 2} ${bxEnd},${(ay + by) / 2} ${bxEnd},${by}`)
+                                .attr('d', `M${axEnd},${ay} L${axEnd},${endMidY} L${bxEnd},${endMidY} L${bxEnd},${by}`)
                                 .attr('stroke', color)
                                 .attr('stroke-width', 1.5)
                                 .attr('fill', 'none')
@@ -1481,32 +1479,32 @@ const PlanningView = observer(() => {
                         const ux = dvx / dlen, uy = dvy / dlen; // 方向
                         const px = -uy, py = ux;                // 垂直
 
-                        // 卷的半径与入口/出口点（相对中点）
-                        const r = Math.min(10, dlen * 0.12);
-                        const loopOffset = Math.min(12, dlen * 0.2); // 控制入口/出口与中点的距离
-                        const entryX = mx - ux * loopOffset + px * r;
-                        const entryY = my - uy * loopOffset + py * r;
-                        const exitX  = mx + ux * loopOffset - px * r;
-                        const exitY  = my + uy * loopOffset - py * r;
-                        const leftX  = mx - px * r;
-                        const leftY  = my - py * r;
-                        const rightX = mx + px * r;
-                        const rightY = my + py * r;
+                        // 路径由折线组成：起点到中点的矩形环路，然后到终点
+                        const loopWidth = Math.min(20, dlen * 0.3); // 环路宽度
+                        const loopHeight = Math.min(15, dlen * 0.2); // 环路高度
+                        
+                        // 计算环路的四个角点
+                        const entryX = mx - ux * (loopWidth / 2);
+                        const entryY = my - uy * (loopWidth / 2);
+                        const exitX = mx + ux * (loopWidth / 2);
+                        const exitY = my + uy * (loopWidth / 2);
+                        
+                        // 环路的上下两个点
+                        const topX = mx + px * loopHeight;
+                        const topY = my + py * loopHeight;
+                        const bottomX = mx - px * loopHeight;
+                        const bottomY = my - py * loopHeight;
 
-                        // 起点控制手柄与终点控制手柄（使连接更顺畅）
-                        const h = Math.min(40, dlen * 0.35);
-                        const s1x = ax + ux * h;
-                        const s1y = ay + uy * h;
-                        const e2x = bx - ux * h;
-                        const e2y = by - uy * h;
-
-                        // 路径由三段组成：起点到入口的平滑曲线 + 中点处的完整单圈 + 出口到终点的平滑曲线
+                        // 路径由多段折线组成：起点到入口 + 矩形环路 + 出口到终点
                         const pathD = [
                             `M${ax},${ay}`,
-                            `C${s1x},${s1y} ${entryX - px * (h * 0.25)},${entryY - py * (h * 0.25)} ${entryX},${entryY}`,
-                            `A${r},${r} 0 1 1 ${rightX},${rightY}`,
-                            `A${r},${r} 0 1 1 ${leftX},${leftY}`,
-                            `C${exitX + px * (h * 0.25)},${exitY + py * (h * 0.25)} ${e2x},${e2y} ${bx},${by}`
+                            `L${entryX},${entryY}`,
+                            `L${topX},${topY}`,
+                            `L${exitX},${exitY}`,
+                            `L${bottomX},${bottomY}`,
+                            `L${entryX},${entryY}`,
+                            `L${exitX},${exitY}`,
+                            `L${bx},${by}`
                         ].join(' ');
 
                         nodeLayer.append('path')
@@ -1827,7 +1825,68 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
 
             });
 
+            // 在柱状图和时间线之间添加飞机图标
+            const aircraftIconGroup = svg.append("g")
+                .attr("class", "aircraft-icons")
+                .attr("transform", `translate(${margin.left - 50},${margin.top})`); // 位于柱状图和时间线之间
 
+            aircraftIds.forEach((id, i) => {
+                const yBase = getYPosition(id); // 获取飞机对应的Y位置
+                
+                // 找到对应的飞机数据以确定类型
+                const allAircraftData = plannedResults.filter(result => result.aircraft_id === id);
+                const aircraftData = allAircraftData.find(data => data.type === 'active') || allAircraftData[0];
+                const isActive = aircraftData && aircraftData.type === 'active';
+                
+                // 使用WebSocketStore获取与TaxiwayMap一致的颜色
+                const aircraftColor = websocketStore.getAircraftColor(id, isActive);
+                
+                // 创建飞机图标（使用SVG路径绘制简单的飞机形状）
+                const aircraftIcon = aircraftIconGroup.append("g")
+                    .attr("class", `aircraft-icon-${id}`)
+                    .attr("transform", `translate(0, ${yBase})`);
+                
+                // 绘制飞机机身（椭圆形）
+                aircraftIcon.append("ellipse")
+                    .attr("cx", 0)
+                    .attr("cy", 0)
+                    .attr("rx", 12)
+                    .attr("ry", 4)
+                    .attr("fill", aircraftColor)
+                    .attr("opacity", 0.8);
+                
+                // 绘制飞机机翼（两个小椭圆）
+                aircraftIcon.append("ellipse")
+                    .attr("cx", -2)
+                    .attr("cy", -6)
+                    .attr("rx", 8)
+                    .attr("ry", 2)
+                    .attr("fill", aircraftColor)
+                    .attr("opacity", 0.6);
+                    
+                aircraftIcon.append("ellipse")
+                    .attr("cx", -2)
+                    .attr("cy", 6)
+                    .attr("rx", 8)
+                    .attr("ry", 2)
+                    .attr("fill", aircraftColor)
+                    .attr("opacity", 0.6);
+                
+                // 绘制飞机尾翼（小三角形）
+                aircraftIcon.append("polygon")
+                    .attr("points", "-10,-3 -15,0 -10,3")
+                    .attr("fill", aircraftColor)
+                    .attr("opacity", 0.7);
+                
+                // 添加飞机状态指示器（小圆点）
+                aircraftIcon.append("circle")
+                    .attr("cx", 8)
+                    .attr("cy", 0)
+                    .attr("r", 2)
+                    .attr("fill", isActive ? "#FF6B6B" : "#4ECDC4")
+                    .attr("stroke", "white")
+                    .attr("stroke-width", 1);
+            });
 
             // 添加图例
             const legendGroup = svg.append("g")
@@ -2171,15 +2230,14 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
     // 表格容器滚动处理函数
     const handleTableContainerScroll = (e) => {
         const { scrollTop } = e.target;
-        if (chartRef.current) {
+        if (chartRef.current && chartRef.current.scrollTop !== scrollTop) {
             chartRef.current.scrollTop = scrollTop;
         }
     };
 
     const handleChartScroll = (e) => {
         const { scrollTop } = e.target;
-        if (tableRef.current) {
-            // 直接设置表格容器的滚动位置
+        if (tableRef.current && tableRef.current.scrollTop !== scrollTop) {
             tableRef.current.scrollTop = scrollTop;
         }
     };
@@ -2213,6 +2271,7 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
                         headerHeight={HEADER_HEIGHT}
                         onScroll={handleTableContainerScroll}
                         tableRef={tableRef}
+                        className={styles.prettyScrollbar}
                     />
                 </div>
 
