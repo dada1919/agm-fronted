@@ -26,8 +26,15 @@ class WebSocketStore {
     
     // 飞机颜色映射状态管理
     aircraftColorMapping = new Map(); // 飞机ID到颜色的映射
-    activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
-    planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
+    // activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
+    planningColors = ['#fbb4ae',
+        '#b3cde3',
+        '#ccebc5',
+        '#decbe4',
+        '#fed9a6',
+        '#ffffcc',
+        '#e5d8bd',
+        '#fddaec']; // 计划飞机：冷色调a
     activeColorIndex = 0;
     planningColorIndex = 0;
     
@@ -269,12 +276,6 @@ class WebSocketStore {
     }
     
 
-
-
-
-
-
-
     //----------------------------------功能函数--------------------------
     //    // System state updated:活跃飞机的轨迹数据
     updatePlanePosition(newPosition) {
@@ -305,29 +306,29 @@ class WebSocketStore {
     updateFlightPlans(flightData) {
        
         if (flightData) {
-        // 在存储数据前先转换numpy数据类型
-        const convertedData = this.convertNumpyData(flightData);
-        // console.log('转换前的数据:', flightData);
-        // console.log('转换后的数据:', convertedData);
-        console.log('更新规划数据:', convertedData);
-        // 直接使用包含planned_flights、active_flights和conflicts的完整数据
-        this.plannedFlights = convertedData.planned_flights;
-        this.activeFlights = convertedData.active_flights;
+            // 在存储数据前先转换numpy数据类型
+            const convertedData = this.convertNumpyData(flightData);
+            // console.log('转换前的数据:', flightData);
+            // console.log('转换后的数据:', convertedData);
+            console.log('更新规划数据:', convertedData);
+            // 直接使用包含planned_flights、active_flights和conflicts的完整数据
+            this.plannedFlights = convertedData.planned_flights;
+            this.activeFlights = convertedData.active_flights;
+        }
     }
-    }
-    updatePlannedFlightsTime(planned_results) {
-        if(planned_results.planned_flights){
-            this.plannedFlights = planned_results.planned_flights;
-        }
-        if(planned_results.active_flights){
-            this.activeFlights = planned_results.active_flights;
-        }
-        if(planned_results.conflicts){
-            this.conflicts = planned_results.conflicts;
-        }
+    // updatePlannedFlightsTime(planned_results) {
+    //     if(planned_results.planned_flights){
+    //         this.plannedFlights = planned_results.planned_flights;
+    //     }
+    //     if(planned_results.active_flights){
+    //         this.activeFlights = planned_results.active_flights;
+    //     }
+    //     if(planned_results.conflicts){
+    //         this.conflicts = planned_results.conflicts;
+    //     }
        
 
-    }
+    // }
     
     // 更新指定航班的开始时间
     updateFlightStartTime(flightId, adjustTime) {
@@ -467,10 +468,7 @@ class WebSocketStore {
                 return c; // 不匹配，返回原对象
             }
         });
-        
-        
-        
-       
+
     }
 
     // 获取当前模拟结果
@@ -498,18 +496,26 @@ class WebSocketStore {
         };
     }
 
-    // 获取飞机颜色，如果不存在则分配新颜色
+    // 获取飞机颜色（同一飞机在active/planning状态保持同色）。
+    // 如果不存在则从规划颜色池中分配一个未使用的颜色，保证不与其他飞机重复；颜色唯一性由映射维护。
     getAircraftColor(aircraftId, isActive = false) {
         if (this.aircraftColorMapping.has(aircraftId)) {
             return this.aircraftColorMapping.get(aircraftId);
         }
 
-        // 分配新颜色
-        let color;
-        if (isActive) {
-            color = this.activeColors[this.activeColorIndex % this.activeColors.length];
-            this.activeColorIndex++;
-        } else {
+        // 分配新颜色：优先选择未被使用的颜色，确保不与其他飞机重复
+        const used = new Set(this.aircraftColorMapping.values());
+        let color = null;
+        for (let i = 0; i < this.planningColors.length; i++) {
+            const c = this.planningColors[(this.planningColorIndex + i) % this.planningColors.length];
+            if (!used.has(c)) {
+                color = c;
+                this.planningColorIndex = (this.planningColorIndex + i + 1) % this.planningColors.length;
+                break;
+            }
+        }
+        // 如果颜色池已用尽（飞机数量超过颜色数量），则回退到循环使用
+        if (!color) {
             color = this.planningColors[this.planningColorIndex % this.planningColors.length];
             this.planningColorIndex++;
         }
