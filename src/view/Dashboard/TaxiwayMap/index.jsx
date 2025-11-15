@@ -455,20 +455,28 @@ const TaxiwayMap = observer(() => {
     // 计算在屏幕像素空间的法向量（相对于轨迹/运动方向的右侧），用于将图标偏移到与线偏移一致的位置
     function computePerpendicularUnitPixel(lastLngLat, currentLngLat, trajectory) {
       if (!map.current) return null;
+
+      const isValidPair = (pair) => {
+        return Array.isArray(pair) && pair.length >= 2 &&
+          Number.isFinite(pair[0]) && Number.isFinite(pair[1]) &&
+          Math.abs(pair[0]) <= 180 && Math.abs(pair[1]) <= 90;
+      };
+
       // 优先使用最近的运动方向（上一个位置 -> 当前位置）
-      if (lastLngLat && Array.isArray(lastLngLat) && lastLngLat.length >= 2) {
+      if (isValidPair(lastLngLat) && isValidPair(currentLngLat)) {
         const p0 = map.current.project({ lng: lastLngLat[0], lat: lastLngLat[1] });
         const p1 = map.current.project({ lng: currentLngLat[0], lat: currentLngLat[1] });
         const vx = p1.x - p0.x;
         const vy = p1.y - p0.y;
         const len = Math.sqrt(vx * vx + vy * vy);
-        if (len > 0.0001) {
+        if (len > 0.0001 && Number.isFinite(len)) {
           const ux = vx / len;
           const uy = vy / len;
           // 屏幕空间右侧法向量：(-uy, ux)
           return { x: -uy, y: ux };
         }
       }
+
       // 若无运动（或新建时），尝试从轨迹末段估计方向
       if (trajectory && Array.isArray(trajectory) && trajectory.length > 0) {
         const lastSeg = trajectory[trajectory.length - 1];
@@ -476,13 +484,13 @@ const TaxiwayMap = observer(() => {
         if (Array.isArray(lastSeg) && lastSeg.length >= 2) {
           const a = lastSeg[lastSeg.length - 2];
           const b = lastSeg[lastSeg.length - 1];
-          if (Array.isArray(a) && Array.isArray(b)) {
+          if (isValidPair(a) && isValidPair(b)) {
             const p0 = map.current.project({ lng: a[0], lat: a[1] });
             const p1 = map.current.project({ lng: b[0], lat: b[1] });
             const vx = p1.x - p0.x;
             const vy = p1.y - p0.y;
             const len = Math.sqrt(vx * vx + vy * vy);
-            if (len > 0.0001) {
+            if (len > 0.0001 && Number.isFinite(len)) {
               const ux = vx / len;
               const uy = vy / len;
               return { x: -uy, y: ux };
@@ -496,10 +504,20 @@ const TaxiwayMap = observer(() => {
     // 将当前经纬度按与线一致的偏移规则，转换为新的经纬度（屏幕像素偏移转回地理坐标）
     function applyDisplayOffsetToLngLat(lngLat, lastLngLat, trajectory, displayOffset, lastPerp) {
       const offsetPx = getLineOffsetPixel(displayOffset, map.current ? map.current.getZoom() : 0);
+      const safeReturn = () => {
+        if (Array.isArray(lastLngLat) && lastLngLat.length >= 2 && Number.isFinite(lastLngLat[0]) && Number.isFinite(lastLngLat[1])) {
+          return { lng: lastLngLat[0], lat: lastLngLat[1] };
+        }
+        return { lng: Number(lngLat?.[0]) || 0, lat: Number(lngLat?.[1]) || 0 };
+      };
       if (!offsetPx) return { lng: lngLat[0], lat: lngLat[1] };
 
       const perp = computePerpendicularUnitPixel(lastLngLat, lngLat, trajectory) || lastPerp;
-      if (!perp) return { lng: lngLat[0], lat: lngLat[1] };
+      if (!perp || !Number.isFinite(perp.x) || !Number.isFinite(perp.y)) return { lng: lngLat[0], lat: lngLat[1] };
+
+      if (!lngLat || !Array.isArray(lngLat) || lngLat.length < 2 || !Number.isFinite(lngLat[0]) || !Number.isFinite(lngLat[1])) {
+        return safeReturn();
+      }
 
       const base = map.current.project({ lng: lngLat[0], lat: lngLat[1] });
       const target = { x: base.x + perp.x * offsetPx, y: base.y + perp.y * offsetPx };
@@ -1466,14 +1484,7 @@ const TaxiwayMap = observer(() => {
           paint: {
             "line-color": color, // 使用指定颜色
             "line-width": 4,
-            'line-offset': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              10, ['*', ['get', 'height'], 3],
-              15, ['*', ['get', 'height'], 6],
-              20, ['*', ['get', 'height'], 9]
-            ],
+            'line-offset': 0,
             'line-opacity': 0.6,
             'line-blur': 0.5
           }
@@ -1572,15 +1583,27 @@ const TaxiwayMap = observer(() => {
           // 收集本次更新的键集合，用于差异化更新
           const newKeys = new Set();
 
-          overlapData.forEach((conflictItem, conflictIdx) => {
-            const { merged_functions, taxiway_sequence, flight1_id, flight2_id, conflict_time } = conflictItem;
-            const conflictKey = conflictItem.conflict_id ?? `${flight1_id || ''}-${flight2_id || ''}-${Array.isArray(taxiway_sequence) ? taxiway_sequence.join('_') : ''}`;
+          // 规范化冲突数据结构，兼容不同字段命名与 Proxy
+          const normalizeConflict = (item) => {
+            const mf = item?.merged_functions || item?.functions || item?.piecewise_functions;
+            const seq = item?.taxiway_sequence || item?.taxiway_ids || item?.taxiways || item?.path?.taxiway_sequence;
+            const f1 = item?.flight1_id || item?.id1 || item?.flight1;
+            const f2 = item?.flight2_id || item?.id2 || item?.flight2;
+            const t = item?.conflict_time || item?.time || 0;
+            const kid = item?.conflict_id || `${f1 || ''}-${f2 || ''}-${Array.isArray(seq) ? seq.join('_') : ''}`;
+            return { merged_functions: mf, taxiway_sequence: seq, flight1_id: f1, flight2_id: f2, conflict_time: t, conflict_id: kid, is_unchanged: item?.is_unchanged };
+          };
+
+          overlapData.forEach((rawItem, conflictIdx) => {
+            const conflictItem = normalizeConflict(rawItem);
+            const { merged_functions, taxiway_sequence, flight1_id, flight2_id, conflict_time, conflict_id, is_unchanged } = conflictItem;
+            const conflictKey = conflict_id;
             newKeys.add(conflictKey);
-            const isUnchanged = conflictItem.is_unchanged;
 
 
-            if (!merged_functions || !Array.isArray(merged_functions) || !taxiway_sequence || !Array.isArray(taxiway_sequence)) {
-              console.warn('Invalid data format:', conflictItem);
+            if (!Array.isArray(merged_functions) || !Array.isArray(taxiway_sequence)) {
+              // 仅输出关键标识，避免打印 Proxy 引发噪声
+              console.warn(`Invalid conflict data, skip. key=${conflictKey}`);
               return;
             }
 
@@ -1588,9 +1611,20 @@ const TaxiwayMap = observer(() => {
 
             // 采样所有分段函数的边界点（跨道路分段）
             // Step 1: Get all segments and orient them to form a continuous path
-            const features = taxiway_sequence
-              .map(id => geojsonData.features.find(f => String(parseInt(f.id)) === String(id)))
-              .filter(Boolean);
+            const featuresRaw = taxiway_sequence.map(id => ({
+              id: String(id),
+              feat: geojsonData.features.find(f => String(parseInt(f.id)) === String(id)) || null
+            }));
+            const missingIds = featuresRaw.filter(r => !r.feat).map(r => r.id);
+            if (missingIds.length > 0) {
+              console.warn(`部分滑行道ID未找到，可能导致路径断裂或偏移:`, missingIds);
+            }
+            const features = featuresRaw.filter(r => !!r.feat).map(r => r.feat);
+
+            if (!features.length) {
+              console.warn(`No taxiway features found for key=${conflictKey}`);
+              return;
+            }
 
             const orientedSegments = [];
             if (features.length > 0) {
@@ -1666,6 +1700,14 @@ const TaxiwayMap = observer(() => {
             // Step 3: Generate points for the area polygon based on merged_functions
             const allLeftPoints = [];
             const allRightPoints = [];
+            // 使用像素空间法向量与偏移，以保证视觉关于滑行道对称
+            const metersPerPixelAtLat = (lat, zoom) => {
+              const rad = Math.PI / 180;
+              const worldCircumference = 2 * Math.PI * 6378137;
+              const scale = Math.pow(2, Number(zoom) || 0) * 512; // MapLibre默认瓦片尺寸512
+              return (Math.cos(lat * rad) * worldCircumference) / scale;
+            };
+            let lastPerpPx = null;
 
             merged_functions.forEach(seg => {
               const { x1, x2, a, b, c } = seg;
@@ -1676,25 +1718,49 @@ const TaxiwayMap = observer(() => {
 
               if (globalEnd <= globalStart) return;
 
-              const scale = 0.25;
+              const scale = 0.1; // 宽度缩放系数与旧实现保持一致
               const sampleStep = 1; // Sample every 1 meter
               const nSamples = Math.max(2, Math.ceil((globalEnd - globalStart) / sampleStep));
 
               for (let i = 0; i <= nSamples; i++) {
                 const dist = globalStart + (globalEnd - globalStart) * (i / nSamples);
-                const y = b !== 0 ? (-(a * dist + c) / b) * scale : 0;
+                const yRaw = b !== 0 ? (-(a * dist + c) / b) * scale : 0;
+                const y = Math.abs(yRaw); // 始终以中心线为对称轴，左右各偏移 y/2
 
                 const pt = getPointAtDistance(continuousPath, pathDists, dist);
-                const tangent = getTangentAtDistance(continuousPath, pathDists, dist);
-                const normal = [-tangent[1], tangent[0]];
-                const normLen = Math.sqrt(normal[0] ** 2 + normal[1] ** 2) || 1;
-                const n = [normal[0] / normLen, normal[1] / normLen];
+                const zoom = map.current.getZoom ? map.current.getZoom() : 0;
+                const aheadDist = Math.min(dist + 0.5, totalPathLength);
+                const behindDist = Math.max(dist - 0.5, 0);
+                const ptAhead = getPointAtDistance(continuousPath, pathDists, aheadDist);
+                const ptBehind = getPointAtDistance(continuousPath, pathDists, behindDist);
 
-                const leftPt = offsetPoint(pt, n, y / 2);
-                const rightPt = offsetPoint(pt, [-n[0], -n[1]], y / 2);
+                const pBehind = map.current.project({ lng: ptBehind[0], lat: ptBehind[1] });
+                const pAhead = map.current.project({ lng: ptAhead[0], lat: ptAhead[1] });
+                const vx = pAhead.x - pBehind.x;
+                const vy = pAhead.y - pBehind.y;
+                const len = Math.sqrt(vx * vx + vy * vy);
+                let perpPx;
+                if (len > 0.0001 && Number.isFinite(len)) {
+                  const ux = vx / len;
+                  const uy = vy / len;
+                  perpPx = { x: -uy, y: ux };
+                  lastPerpPx = perpPx;
+                } else {
+                  perpPx = lastPerpPx || { x: 0, y: 0 };
+                }
 
-                allLeftPoints.push(leftPt);
-                allRightPoints.push(rightPt);
+                const mpp = metersPerPixelAtLat(pt[1], zoom) || 1;
+                const offsetPx = (y / 2) / mpp;
+
+                const p0 = map.current.project({ lng: pt[0], lat: pt[1] });
+                const leftPx = { x: p0.x + perpPx.x * offsetPx, y: p0.y + perpPx.y * offsetPx };
+                const rightPx = { x: p0.x - perpPx.x * offsetPx, y: p0.y - perpPx.y * offsetPx };
+
+                const leftLL = map.current.unproject(leftPx);
+                const rightLL = map.current.unproject(rightPx);
+
+                allLeftPoints.push([leftLL.lng, leftLL.lat]);
+                allRightPoints.push([rightLL.lng, rightLL.lat]);
               }
             });
 
@@ -1721,6 +1787,19 @@ const TaxiwayMap = observer(() => {
             };
 
             const areaId = `${conflictType}-area-${conflictKey}`;
+            // 调试：用于确认冲突带对称轴是否贴合滑行道中心线
+            const axisId = `${conflictType}-axis-${conflictKey}`;
+            const axisFeature = {
+              type: 'Feature',
+              properties: {
+                conflict_idx: conflictIdx,
+                flight1_id,
+                flight2_id,
+                conflict_time,
+                conflict_key: conflictKey
+              },
+              geometry: { type: 'LineString', coordinates: continuousPath }
+            };
             
             // 根据冲突类型设置不同的样式
             let fillColor, fillOpacity;
@@ -1737,22 +1816,48 @@ const TaxiwayMap = observer(() => {
             try {
               console.log('尝试添加图层:', areaId, '类型:', conflictType);
               // 如果标记为未修改且已存在，则无需重绘，直接跳过
-              if (isUnchanged === true && window[registryName][conflictKey]) {
+              if (is_unchanged === true && window[registryName][conflictKey]) {
                 console.log('跳过重绘（未修改）：key=', conflictKey, 'areaId=', window[registryName][conflictKey].areaId, 'type=', conflictType);
                 // 已存在于注册表，保持现状
                 return;
               }
 
-              // 如果已有同键的旧图层，则先移除旧图层与数据源
+              // 如果已有同键的旧图层，则先移除旧图层与数据源（包含调试轴）
               const existing = window[registryName][conflictKey];
               if (existing) {
-                console.log('重绘前移除旧图层: key=', conflictKey, 'areaId=', existing.areaId, 'type=', conflictType);
+                console.log('重绘前移除旧图层: key=', conflictKey, 'areaId=', existing.areaId, 'axisId=', existing.axisId, 'type=', conflictType);
                 if (map.current.getLayer(existing.areaId)) map.current.removeLayer(existing.areaId);
                 if (map.current.getSource(existing.areaId)) map.current.removeSource(existing.areaId);
+                if (existing.axisId) {
+                  if (map.current.getLayer(existing.axisId)) map.current.removeLayer(existing.axisId);
+                  if (map.current.getSource(existing.axisId)) map.current.removeSource(existing.axisId);
+                }
                 // 从数组中移除旧ID
                 const idx = window[layerArrayName].indexOf(existing.areaId);
                 if (idx > -1) window[layerArrayName].splice(idx, 1);
+                const idx2 = window[layerArrayName].indexOf(existing.axisId);
+                if (idx2 > -1) window[layerArrayName].splice(idx2, 1);
               }
+
+              // 添加对称轴调试图层（细线）
+              if (map.current.getSource(axisId)) {
+                map.current.removeSource(axisId);
+              }
+              map.current.addSource(axisId, { type: 'geojson', data: axisFeature });
+              if (map.current.getLayer(axisId)) {
+                map.current.removeLayer(axisId);
+              }
+              map.current.addLayer({
+                id: axisId,
+                type: 'line',
+                source: axisId,
+                paint: {
+                  'line-color': '#00FFFF',
+                  'line-width': 2,
+                  'line-opacity': 0.9,
+                  'line-dasharray': [2, 2]
+                }
+              });
 
               map.current.addSource(areaId, { type: 'geojson', data: polygon });
               map.current.addLayer({
@@ -1777,9 +1882,10 @@ const TaxiwayMap = observer(() => {
                 }
               });
               window[layerArrayName].push(areaId);
+              window[layerArrayName].push(axisId);
               // 记录/更新注册表，存储当前冲突键的图层ID与数据快照（用于后续 diff）
               const snapshotHash = JSON.stringify({ merged_functions, taxiway_sequence, flight1_id, flight2_id });
-              window[registryName][conflictKey] = { areaId, hash: snapshotHash };
+              window[registryName][conflictKey] = { areaId, axisId, hash: snapshotHash };
             } catch (error) {
               console.error('Error creating merged area layer:', areaId, '类型:', conflictType, 'error:', error);
             }
@@ -1793,11 +1899,17 @@ const TaxiwayMap = observer(() => {
             if (!newKeys.has(key)) {
               const info = window[registryName][key];
               if (info) {
-                console.log('差异清理：移除缺失的冲突', key, 'areaId=', info.areaId, 'type=', conflictType);
+                console.log('差异清理：移除缺失的冲突', key, 'areaId=', info.areaId, 'axisId=', info.axisId, 'type=', conflictType);
                 if (map.current.getLayer(info.areaId)) map.current.removeLayer(info.areaId);
                 if (map.current.getSource(info.areaId)) map.current.removeSource(info.areaId);
+                if (info.axisId) {
+                  if (map.current.getLayer(info.axisId)) map.current.removeLayer(info.axisId);
+                  if (map.current.getSource(info.axisId)) map.current.removeSource(info.axisId);
+                }
                 const idx = window[layerArrayName].indexOf(info.areaId);
                 if (idx > -1) window[layerArrayName].splice(idx, 1);
+                const idx2 = window[layerArrayName].indexOf(info.axisId);
+                if (idx2 > -1) window[layerArrayName].splice(idx2, 1);
               }
               delete window[registryName][key];
             }

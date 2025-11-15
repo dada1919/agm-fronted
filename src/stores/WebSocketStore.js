@@ -87,7 +87,7 @@ class WebSocketStore {
 }
 
     connect() {
-        this.socket = io('http://127.0.0.1:5000', {
+        this.socket = io('wss://nonpenetrating-holly-unmathematically.ngrok-free.dev', {
             transports: ['websocket'], // 如果所需，指定传输协议
         });
         //1.系统状态控制OK

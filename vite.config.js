@@ -14,4 +14,8 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
+  server: {
+    // 将你的ngrok域名添加到允许列表
+    allowedHosts: ['nonpenetrating-holly-unmathematically.ngrok-free.dev']
+  }
 })
