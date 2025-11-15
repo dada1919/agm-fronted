@@ -5,54 +5,165 @@ import { io } from 'socket.io-client';
 class WebSocketStore {
     socket = null;
     planePosition = [];
-
     isConnected = false;
-    conflicts = null;
-    overlapTaxiways = null; // 新增：存储重叠滑行道数据
-
-
+    overlap_conflicts = null;
+    overlapTaxiways = null; //存储重叠滑行道数据
+    overlaps = { nodes: [], taxiways: [] }; // 系统状态中的重叠信息
     
-    // plannedPath = null; // 新增 plannedPath 属性
     plannedFlights = {}; // 计划航班数据
     activeFlights = {}; // 活跃航班数据
     pathConflicts = []; // 路径冲突数据
+    isDragging = false;// 新增：存储拖拽状态，防止拖拽时数据更新干扰
+    draggedFlightId = null;
+    conflictResolutions = []; // 冲突解决方案列表
+    selectedConflict = null; // 当前选中的冲突
+    analysis = null;
+    resolutions = []; // 当前冲突的解决方案
+    conflictResolutionLoading = false; // 冲突解决加载状态
 
+    future_conflicts = [];
+    current_conflicts = [];
+    
+    // 飞机颜色映射状态管理
+    aircraftColorMapping = new Map(); // 飞机ID到颜色的映射
+    // activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
+    planningColors = ['#fbb4ae',
+        '#b3cde3',
+        '#ccebc5',
+        '#decbe4',
+        '#fed9a6',
+        '#ffffcc',
+        '#e5d8bd',
+        '#fddaec']; // 计划飞机：冷色调a
+    activeColorIndex = 0;
+    planningColorIndex = 0;
+    
+    // 当前模拟状态存储
+    currentSimulation = {
+        conflict_id: null,
+        solution_id: null,
+        simulated_state: null,
+        original_state: null,
+        solution: null,
+        success: false,
+        message: '',
+        timestamp: null
+    };
+    
     constructor() {
         makeAutoObservable(this);
         this.connect();
     }
+    convertNumpyData(obj) {
+    if (obj === null || obj === undefined) {
+        return obj;
+    }
+    
+    // 如果是数组，递归处理每个元素
+    if (Array.isArray(obj)) {
+        return obj.map(item => this.convertNumpyData(item));
+    }
+    
+    // 如果是对象，递归处理每个属性
+    if (typeof obj === 'object') {
+        const converted = {};
+        for (const [key, value] of Object.entries(obj)) {
+            converted[key] = this.convertNumpyData(value);
+        }
+        return converted;
+    }
+    
+    // 检查是否是numpy数据类型（通过字符串表示判断）
+    if (typeof obj === 'object' && obj.toString && 
+        (obj.toString().includes('np.float') || 
+         obj.toString().includes('np.int') ||
+         obj.toString().includes('numpy.'))) {
+        // 尝试转换为JavaScript数字
+        const numValue = Number(obj);
+        return isNaN(numValue) ? obj : numValue;
+    }
+    
+    return obj;
+}
 
     connect() {
-        this.socket = io('http://127.0.0.1:5000', {
+        this.socket = io('wss://nonpenetrating-holly-unmathematically.ngrok-free.dev', {
             transports: ['websocket'], // 如果所需，指定传输协议
         });
+        //1.系统状态控制OK
+        this.socket.on('simulation_status', (data) => { 
+            console.log(`模拟状态: ${data.status} - ${data.message}`);
+        });
+        //2.系统状态查询
 
-        // 处理接收到的消息
+        //系统状态数据推送 OK
         this.socket.on('system_state_update', (data) => {
             console.log('System state updated:', data);
-            // 更新前端显示
+            
+            // 如果正在拖拽，则不更新被拖拽航班的数据
+            // if (!this.isDragging) {
+            //     this.updatePlanePosition(data.aircraft_positions);
+            //     this.updateFlightPlans({
+            //         planned_flights: data.planned_flights || {},
+            //         active_flights: data.active_flights || {},
+            //         conflicts: data.conflicts || []
+            //     });
+            //     this.updateConflicts(data.conflicts);
+            // }
+            //活跃飞机的轨迹数据
             this.updatePlanePosition(data.aircraft_positions);
-            // 将完整的数据传递给updateFlightPlans，包含active_flights和planned_flights
             this.updateFlightPlans({
-                planned_flights: data.planned_flights || {},
-                active_flights: data.active_flights || {},
-                conflicts: data.conflicts || []
+            planned_flights: data.planned_flights || {},
+            active_flights: data.active_flights || {},
+            
             });
-            this.updateConflicts(data.conflicts);
+
+            // 更新系统状态中的 overlaps（节点与滑行道重叠）
+            if (data && data.overlaps) {
+                this.updateOverlaps(data.overlaps);
+            }
         });
-        this.socket.on('conflict_alert', (data) => {
-            console.log("Received conflict update:", data);
-            this.updateConflicts(data);
+        //3. 航班管理
+        //调整航班滑行时间
+       
+        this.socket.on('flight_adjustment_result', (data) => {
+            console.log('Flight adjustment result:', data);
+            // 收到后端响应后，清除拖拽状态
+            this.setDraggingState(false, null);
+            if (data.success) {
+                console.log(`航班 ${data.flight_id} 时间调整成功`);
+                // 更新对应航班的start_time
+                this.updateFlightStartTime(data.flight_id, parseFloat(data.adjust_time));
+            } else {
+                console.error(`航班时间调整失败: ${data.message}`);
+                // 可以在这里添加错误提示
+            }
         });
-        // 新增：处理重叠滑行道更新事件
-        this.socket.on('overlap_taxiways_update', (data) => {
-            console.log("Received overlap taxiways update:", data);
+
+        //4. 实时数据推送
+         //飞机状态实时更新,约每秒一次
+        // this.socket.on('aircraft_status_update',(data)=>{
+        //     console.log('aircraft_status_update:',data);
+        //     // this.updatePlanePosition(data.aircraft_positions);
+            
+        // })
+        //规划结果更新,在规划变更时触发
+        //  this.socket.on('planning_update', (data) => {
+        //     console.log('planning_update',data);
+        //     // console.log('Received planning update:', data);
+        //     this.updatePlannedFlightsTime(data);
+        // })
+
+        //5. 冲突检测与解决，需要解决5
+        //冲突的数据
+        this.socket.on('conflicts_update', (data) => {
+            console.log("conflicts_update:", data);
             this.updateOverlapTaxiways(data);
+            this.updateConflictResolutions(data.current)
+            this.updateConflicts(data)
         });
-        this.socket.on('path_planning_result', (data) => {
-            console.log("Received planned path:", data);
-            this.updatePlannedPath(data);
-        })
+
+      
 
         // 连接成功和断开连接事件
         this.socket.on('connect', () => console.log('Connected to WebSocket server'));
@@ -60,8 +171,72 @@ class WebSocketStore {
         this.socket.on('connect_error', (error) => {
             console.error('Connection Error:', error); // 打印连接错误
         });
-    }
 
+
+    
+
+
+          //---------------------以下为未处理的函数--------------
+
+        // 冲突解决方案推荐
+        this.socket.on('conflict_resolutions_result', (response) => {
+            console.log(response)
+           
+            this.conflictResolutionLoading = false;
+            if (response.success) {
+                console.log('获取解决方案成功:', response.data);
+                this.selectedConflict = response.data.conflict;
+                this.resolution_analysis = response.data.analysis;
+                this.resolutions = response.data.recommendations;
+                 
+            } else {
+                console.error('获取解决方案失败:', response.message);
+            }
+        });
+
+        // 处理冲突解决方案应用结果
+        this.socket.on('conflict_resolution_applied', (result) => {
+            console.log('这是解决方案:', result);
+            this.conflictResolutionLoading = false;
+            if (result.status === 'applied') {
+               console.log('冲突已解决:', );
+                this.updateConflictStatus(result.conflict_id, 'resolved');
+                
+                console.log('解决方案应用成功:', result.message);
+                // 更新冲突状态
+            } else {
+                console.error('解决方案应用失败:', result.message);
+            }
+        });
+
+        // 处理冲突解决方案模拟结果
+        this.socket.on('conflict_resolution_simulated', (result) => {
+            console.log('冲突解决方案模拟结果:', result);
+            
+            // 更新当前模拟状态
+            this.currentSimulation = {
+                conflict_id: result.conflict_id,
+                solution_id: result.solution_id,
+                success: result.success,
+                message: result.message,
+                simulated_state: result.simulated_state,
+                original_state: result.original_state,
+                solution: result.solution,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('当前模拟状态:', this.currentSimulation.simulated_state);
+            
+            if (result.success) {
+                console.log(`当前模拟 - 冲突ID: ${result.conflict_id}, 方案ID: ${result.solution_id}`);
+                console.log('模拟状态:', result.simulated_state);
+            } else {
+                console.error('冲突解决方案模拟失败:', result.message);
+            }
+        });
+    }
+    //-----------------------接口函数---------------------------
+    //1.系统控制
     startSimulate () {
         console.log('Starting simulation...');
         if (this.socket) {
@@ -69,6 +244,40 @@ class WebSocketStore {
         }
     }
 
+    stoptSimulate () {
+        console.log('Stop simulation...');
+        if (this.socket) {
+            this.socket.emit('simulate_stop');
+        }
+    }
+
+    //2. 系统状态查询
+    //获取系统状态
+    getSystemState () {
+        console.log('获取系统状态...');
+        if (this.socket) {
+            this.socket.emit('get_system_state');
+        }
+    }
+    //3. 航班管理
+     //拖拽规划轴视图
+    adjustFlightTime(flightId, adjustTime) {
+        if (this.socket && this.socket.connected) {
+            // 设置拖拽状态，防止在等待后端确认时发生数据冲突
+            this.setDraggingState(true, flightId);
+            console.log(`发送航班时间调整请求: ${flightId}, 调整时间: ${adjustTime} 分钟`);
+            this.socket.emit('adjust_flight_time', {
+                flight_id: flightId,
+                adjust_time: adjustTime.toString()
+            });
+        } else {
+            console.error('WebSocket未连接，无法发送航班时间调整请求');
+        }
+    }
+    
+
+    //----------------------------------功能函数--------------------------
+    //    // System state updated:活跃飞机的轨迹数据
     updatePlanePosition(newPosition) {
         // 将新的对象格式转换为数组格式以兼容现有绘制逻辑
         // 实际格式: { [aircraft_id]: { coords: [lng, lat], speed, state, path_progress, position, departure_time, remaining_taxi_time, time_to_takeoff } }
@@ -78,7 +287,7 @@ class WebSocketStore {
                 id: aircraftId,
                 coords: aircraftData.coords,             // 直接使用 coords 字段
                 cur_path: [],                            // 暂时设为空数组，如果后续有路径数据可以更新
-                trajectory: [],                          // 暂时设为空数组，如果后续有轨迹数据可以更新
+                trajectory: aircraftData.trajectory,                          // 暂时设为空数组，如果后续有轨迹数据可以更新
                 speed: aircraftData.speed,
                 state: aircraftData.state,
                 path_progress: aircraftData.path_progress,
@@ -90,34 +299,252 @@ class WebSocketStore {
         } else {
             this.planePosition = [];
         }
-        console.log('planePosition', this.planePosition);
+        // console.log('planePosition', this.planePosition);
     }
-
-    updateConflicts(newConflicts) {
-        this.conflicts = newConflicts;
-    }
-
-    // 新增：更新重叠滑行道数据的方法
-    updateOverlapTaxiways(newOverlapTaxiways) {
-        this.overlapTaxiways = newOverlapTaxiways;
-    }
-    updatePlannedPath(newPlannedPath) {
-        // 适配新的后端数据格式
-        // 新格式: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
-        this.plannedPath = newPlannedPath;
-        this.plannedFlights = newPlannedPath.planned_flights || {};
-        this.activeFlights = newPlannedPath.active_flights || {};
-        this.pathConflicts = newPlannedPath.conflicts || [];
-    }
-
+    //规划数据更新
+    //System state updated:
     updateFlightPlans(flightData) {
+       
         if (flightData) {
+            // 在存储数据前先转换numpy数据类型
+            const convertedData = this.convertNumpyData(flightData);
+            // console.log('转换前的数据:', flightData);
+            // console.log('转换后的数据:', convertedData);
+            console.log('更新规划数据:', convertedData);
             // 直接使用包含planned_flights、active_flights和conflicts的完整数据
-            // 数据格式已经符合PlanningView期望的格式: { planned_flights: {...}, active_flights: {...}, conflicts: [...] }
-            this.plannedFlights = flightData;
+            this.plannedFlights = convertedData.planned_flights;
+            this.activeFlights = convertedData.active_flights;
         }
     }
-}
+    // updatePlannedFlightsTime(planned_results) {
+    //     if(planned_results.planned_flights){
+    //         this.plannedFlights = planned_results.planned_flights;
+    //     }
+    //     if(planned_results.active_flights){
+    //         this.activeFlights = planned_results.active_flights;
+    //     }
+    //     if(planned_results.conflicts){
+    //         this.conflicts = planned_results.conflicts;
+    //     }
+       
 
+    // }
+    
+    // 更新指定航班的开始时间
+    updateFlightStartTime(flightId, adjustTime) {
+        console.log("当前航班",this.plannedFlights,this.plannedFlights[flightId].start_time);
+        // 更新plannedFlights中的航班时间
+        if (this.plannedFlights && this.plannedFlights[flightId]) {
+            // start_time = start_time + adjust_time (adjust_time单位为秒)
+            this.plannedFlights[flightId].start_time = this.plannedFlights[flightId].start_time + adjustTime;
+            if(this.plannedFlights[flightId].start_time<=0)
+            {
+                this.plannedFlights[flightId].start_time = 0;
+            }
+            console.log(`航班 ${flightId} 的start_time已更新为: ${this.plannedFlights[flightId].start_time}秒`);
+        }
+        
+    }
+    setDraggingState(isDragging, flightId = null) {
+        this.isDragging = isDragging;
+        this.draggedFlightId = flightId;
+    }
+
+
+
+    //----------------需要确定----------------------------
+    //规划视图返回结果
+    // adjustFlightTimeResult(planned_results) { 
+    //     this.
+    // }
+  
+    //  this.socket.on('system_state_update', (data) => {暂时不用
+    updateConflicts(newConflicts) {
+        // this.conflicts = newConflicts;
+        console.log('更新冲突数据:', newConflicts);
+        console.log('current_conflicts:', newConflicts.current);
+        console.log('future_conflicts:', newConflicts.future);
+        this.current_conflicts = newConflicts.current;
+        this.future_conflicts = newConflicts.future;
+         
+    }
+
+    // 冲突数据：更新重叠滑行道数据的方法
+    updateOverlapTaxiways(newOverlapTaxiways) {
+        this.overlapTaxiways = newOverlapTaxiways.current;
+        
+    }
+
+    // 更新系统状态中的 overlaps 数据（包含 nodes 和 taxiways）
+    updateOverlaps(rawOverlaps) {
+        try {
+            const converted = this.convertNumpyData(rawOverlaps);
+            // 兜底结构，防止空值导致绘制报错
+            const safe = converted && typeof converted === 'object' ? converted : { nodes: [], taxiways: [] };
+            // 规范化字段
+            this.overlaps = {
+                nodes: Array.isArray(safe.nodes) ? safe.nodes : [],
+                taxiways: Array.isArray(safe.taxiways) ? safe.taxiways : []
+            };
+            // console.log('✅ overlaps 更新:', this.overlaps);
+        } catch (e) {
+            console.error('❌ 更新 overlaps 失败:', e);
+            this.overlaps = { nodes: [], taxiways: [] };
+        }
+    }
+    //规划数据更新
+    
+  
+    // 更新冲突解决方案数据
+    updateConflictResolutions(data) {
+    try {
+        console.log('📊 处理冲突解决方案数据:',data);
+
+
+    this.conflictResolutions = data;
+    console.log('✅ 冲突解决方案数据已更新:', this.conflictResolutions);
+  } catch (err) {
+    console.error('❌ 解析冲突解决方案数据失败:', err);
+    // 视需要把错误状态暴露给 UI
+    this.conflictResolutions = [];
+  }
+}
+    // 获取特定冲突的解决方案
+    getConflictResolutions(conflictId) {
+        this.conflictResolutionLoading = true;
+        if (this.socket && this.socket.connected) {
+            console.log("获取特定冲突的解决方案：",conflictId)
+            this.socket.emit('get_conflict_resolutions', {
+                conflict_id: conflictId
+            });
+        } else {
+            console.error('WebSocket未连接，无法获取冲突解决方案');
+            this.conflictResolutionLoading = false;
+        }
+    }
+
+    // 应用解决方案
+    applyConflictResolution(conflictId, solutionId) {
+        this.conflictResolutionLoading = true;
+        if (this.socket && this.socket.connected) {
+            console.log("应用冲突解决方案",conflictId,solutionId)
+            this.socket.emit('apply_conflict_resolution', {
+                conflict_id: conflictId,
+                solution_id: solutionId
+            });
+        } else {
+            console.error('WebSocket未连接，无法应用冲突解决方案');
+            this.conflictResolutionLoading = false;
+        }
+    }
+
+    // 冲突解决方案应用结果
+    updateConflictStatus(conflictId, status) {
+       
+        
+        this.conflictResolutions = this.conflictResolutions.map(c => {
+            // 获取当前冲突的ID
+            const currentConflictId = c.analysis?.conflict_id ?? c.id;
+            
+            // 提取ID的最后一位进行匹配（真正的ID）
+            const extractLastDigit = (id) => {
+                if (typeof id === 'string') {
+                    const parts = id.split('_');
+                    return parts[parts.length - 1]; // 获取最后一部分
+                }
+                return id;
+            };
+            
+            const currentLastDigit = extractLastDigit(currentConflictId);
+            const targetLastDigit = extractLastDigit(conflictId);
+          
+            
+            // 只匹配ID的最后一位
+            if (currentLastDigit === targetLastDigit) {
+                
+               
+                return { ...c, status }; // 直接在冲突对象上添加status
+            } else {
+                return c; // 不匹配，返回原对象
+            }
+        });
+
+    }
+
+    // 获取当前模拟结果
+    getCurrentSimulation() {
+        return this.currentSimulation;
+    }
+
+    // 检查是否有当前模拟结果
+    hasCurrentSimulation() {
+        return this.currentSimulation.conflict_id !== null && 
+               this.currentSimulation.solution_id !== null;
+    }
+
+    // 清除当前模拟结果
+    clearCurrentSimulation() {
+        this.currentSimulation = {
+            conflict_id: null,
+            solution_id: null,
+            simulated_state: null,
+            original_state: null,
+            solution: null,
+            success: false,
+            message: '',
+            timestamp: null
+        };
+    }
+
+    // 获取飞机颜色（同一飞机在active/planning状态保持同色）。
+    // 如果不存在则从规划颜色池中分配一个未使用的颜色，保证不与其他飞机重复；颜色唯一性由映射维护。
+    getAircraftColor(aircraftId, isActive = false) {
+        if (this.aircraftColorMapping.has(aircraftId)) {
+            return this.aircraftColorMapping.get(aircraftId);
+        }
+
+        // 分配新颜色：优先选择未被使用的颜色，确保不与其他飞机重复
+        const used = new Set(this.aircraftColorMapping.values());
+        let color = null;
+        for (let i = 0; i < this.planningColors.length; i++) {
+            const c = this.planningColors[(this.planningColorIndex + i) % this.planningColors.length];
+            if (!used.has(c)) {
+                color = c;
+                this.planningColorIndex = (this.planningColorIndex + i + 1) % this.planningColors.length;
+                break;
+            }
+        }
+        // 如果颜色池已用尽（飞机数量超过颜色数量），则回退到循环使用
+        if (!color) {
+            color = this.planningColors[this.planningColorIndex % this.planningColors.length];
+            this.planningColorIndex++;
+        }
+
+        this.aircraftColorMapping.set(aircraftId, color);
+        return color;
+    }
+
+    // 设置飞机颜色
+    setAircraftColor(aircraftId, color) {
+        this.aircraftColorMapping.set(aircraftId, color);
+    }
+
+    // 获取所有飞机的颜色映射
+    getAllAircraftColors() {
+        return new Map(this.aircraftColorMapping);
+    }
+
+    // 清除颜色映射
+    clearAircraftColors() {
+        this.aircraftColorMapping.clear();
+        this.activeColorIndex = 0;
+        this.planningColorIndex = 0;
+    }
+
+    // 检查飞机是否为活跃状态
+    isAircraftActive(aircraftId) {
+        return this.planePosition && this.planePosition.some(plane => plane.id === aircraftId);
+    }
+}
 const websocketStore = new WebSocketStore();
 export default websocketStore;

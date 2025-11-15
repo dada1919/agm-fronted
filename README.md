@@ -1,12 +1,154 @@
-# React + Vite
+# AGM Frontend - 机场地面管理系统前端
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 项目概述
 
-Currently, two official plugins are available:
+AGM Frontend 是一个基于 React 和 MapLibre GL 的机场地面管理系统前端应用，主要用于实时显示和管理机场滑行道上的飞机轨迹。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 技术栈
 
-## Expanding the ESLint configuration
+- **React** - 用户界面框架
+- **MapLibre GL** - 地图渲染引擎
+- **MobX** - 状态管理
+- **Vite** - 构建工具
+- **WebSocket** - 实时数据通信
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 核心功能
+
+### 1. 实时飞机轨迹显示
+- 实时接收飞机位置数据
+- 动态绘制飞机轨迹
+- 飞机图标方向自动调整
+
+### 2. 智能轨迹重叠避免系统 ✨
+
+为解决多架飞机轨迹在相同滑行道上重叠显示的问题，系统实现了智能轨迹偏移算法：
+
+#### 核心特性：
+- **智能重叠检测**：使用地理距离计算，精确检测轨迹重叠（阈值：10米）
+- **动态偏移分配**：自动为重叠轨迹分配不同的偏移位置
+- **响应式偏移**：偏移距离随地图缩放级别动态调整
+- **内存优化**：飞机离开时自动清理偏移信息
+
+#### 实现原理：
+1. **重叠检测算法**：
+   - 计算轨迹线段间的地理距离
+   - 检测平行且接近的轨迹段
+   - 使用 Haversine 公式计算精确地理距离
+
+2. **偏移分配策略**：
+   - 优先分配正偏移（右侧）
+   - 交替分配负偏移（左侧）
+   - 最大支持8层偏移，每层间距4像素
+
+3. **动态缩放适配**：
+   ```javascript
+   'line-offset': [
+     'interpolate', ['linear'], ['zoom'],
+     10, ['*', ['get', 'height'], 2],  // 缩放级别10时
+     15, ['*', ['get', 'height'], 4],  // 缩放级别15时  
+     20, ['*', ['get', 'height'], 6]   // 缩放级别20时
+   ]
+   ```
+
+### 3. 滑行道网络显示
+- 加载 GeoJSON 格式的滑行道数据
+- 支持滑行道点击查看详细信息
+- 鼠标悬停效果
+
+### 4. 冲突检测与解决
+- 实时检测飞机间的潜在冲突
+- 显示冲突解决方案
+- 冲突标记可视化
+- 冲突连线偏移：与轨迹偏移一致，按每架飞机的 `display_offset` 绘制两条平行线；偏移随缩放级别动态插值（10→×3，15→×6，20→×9），确保冲突可视化与轨迹展示统一。
+ - 冲突连线颜色：保持原始紫色（#984ea3），提高不透明度至 0.85，增强对比度与可读性。
+
+## 文件结构
+
+```
+src/
+├── view/
+│   └── Dashboard/
+│       └── TaxiwayMap/
+│           └── index.jsx          # 主地图组件
+├── utils/
+│   └── trajectoryUtils.js         # 轨迹工具函数
+├── stores/
+│   └── WebSocketStore.js          # WebSocket状态管理
+└── constants/
+    └── colors.js                  # 颜色常量
+```
+
+## 核心组件
+
+### TaxiwayMap 组件
+主要的地图显示组件，包含：
+- 地图初始化和配置
+- 飞机标记管理
+- 轨迹绘制和偏移处理
+- 事件监听和交互
+
+### trajectoryUtils 工具模块
+提供轨迹处理的核心算法：
+- `calculateGeographicDistance()` - 地理距离计算
+- `isTrajectoryOverlapping()` - 轨迹重叠检测
+- `calculateSmartOffset()` - 智能偏移计算
+- `cleanupTrajectoryData()` - 数据清理
+
+## 安装和运行
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+```
+
+## 配置说明
+
+### 地图配置
+- 中心点：[116.593238, 40.051893]
+- 初始缩放：23级
+- 地图旋转：90度（向右）
+
+### 轨迹偏移配置
+- 重叠检测阈值：10米
+- 最大偏移层数：8层
+- 每层偏移距离：4像素
+- 缩放适配：10-20级动态调整
+
+## 性能优化
+
+1. **内存管理**：飞机消失后自动清理相关数据
+2. **渲染优化**：使用 MapLibre GL 的硬件加速
+3. **数据结构**：使用 Map 和 Set 提高查找效率
+4. **事件节流**：避免频繁的重叠检测计算
+
+## 未来改进
+
+1. **更精确的重叠检测**：考虑轨迹的时间维度
+2. **用户自定义偏移**：允许手动调整轨迹显示
+3. **性能监控**：添加轨迹处理性能指标
+4. **多层级显示**：支持不同类型轨迹的分层显示
+
+## 贡献指南
+
+1. 遵循现有代码风格
+2. 添加适当的注释和文档
+3. 确保新功能不影响现有性能
+4. 提交前进行充分测试
+
+---
+
+*最后更新：2024年12月*
+
+## 近期界面更新（PlanningView）
+
+- 时间轴移至顶部并与“航班ID”同一水平线；顶部轴为粘性固定。
+- 左侧表格采用 SVG 表头粘性固定，主体可滚动；表头与主体分离。
+- 修复表格与时间线之间的带状连线：改为选择主体表格 SVG（`.svg-table-body`）与主图 SVG（`svgRef`），避免误选顶部轴或表头导致连线消失。
+- 去除顶部轴背景底色，统一透明背景；时间轴标签留足空间避免裁剪。
+- 收紧时间轴与飞机时间线的垂直间距，提升视觉聚合度。
