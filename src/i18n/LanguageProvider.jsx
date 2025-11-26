@@ -79,14 +79,14 @@ const dictionaries = {
 const LanguageContext = createContext({ lang: 'en', setLang: () => {}, t: (k) => k });
 
 export const LanguageProvider = ({ children }) => {
-  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'zh');
+  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
 
   useEffect(() => {
     localStorage.setItem('app_lang', lang);
   }, [lang]);
 
   const t = useCallback((key, params) => {
-    const dict = dictionaries[lang] || dictionaries.zh;
+    const dict = dictionaries[lang] || dictionaries.en;
     let text = dict[key] || key;
     if (params && typeof params === 'object') {
       Object.keys(params).forEach((p) => {

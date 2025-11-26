@@ -1718,7 +1718,7 @@ const TaxiwayMap = observer(() => {
 
               if (globalEnd <= globalStart) return;
 
-              const scale = 0.1; // 宽度缩放系数与旧实现保持一致
+              const scale = 0.5; // 宽度缩放系数与旧实现保持一致
               const sampleStep = 1; // Sample every 1 meter
               const nSamples = Math.max(2, Math.ceil((globalEnd - globalStart) / sampleStep));
 
@@ -1787,19 +1787,6 @@ const TaxiwayMap = observer(() => {
             };
 
             const areaId = `${conflictType}-area-${conflictKey}`;
-            // 调试：用于确认冲突带对称轴是否贴合滑行道中心线
-            const axisId = `${conflictType}-axis-${conflictKey}`;
-            const axisFeature = {
-              type: 'Feature',
-              properties: {
-                conflict_idx: conflictIdx,
-                flight1_id,
-                flight2_id,
-                conflict_time,
-                conflict_key: conflictKey
-              },
-              geometry: { type: 'LineString', coordinates: continuousPath }
-            };
             
             // 根据冲突类型设置不同的样式
             let fillColor, fillOpacity;
@@ -1822,42 +1809,35 @@ const TaxiwayMap = observer(() => {
                 return;
               }
 
-              // 如果已有同键的旧图层，则先移除旧图层与数据源（包含调试轴）
+              // 如果已有同键的旧图层，则先移除旧图层与数据源（仅移除当前类型命名空间内的图层）
               const existing = window[registryName][conflictKey];
               if (existing) {
-                console.log('重绘前移除旧图层: key=', conflictKey, 'areaId=', existing.areaId, 'axisId=', existing.axisId, 'type=', conflictType);
-                if (map.current.getLayer(existing.areaId)) map.current.removeLayer(existing.areaId);
-                if (map.current.getSource(existing.areaId)) map.current.removeSource(existing.areaId);
-                if (existing.axisId) {
+                const expectedAreaPrefix = `${conflictType}-area-`;
+                const expectedAxisPrefix = `${conflictType}-axis-`;
+
+                const removeArea = existing.areaId && String(existing.areaId).startsWith(expectedAreaPrefix);
+                const removeAxis = existing.axisId && String(existing.axisId).startsWith(expectedAxisPrefix);
+
+                console.log('重绘前移除旧图层: key=', conflictKey, 'areaId=', existing.areaId, 'type=', conflictType, '匹配前缀:', expectedAreaPrefix);
+
+                if (removeArea) {
+                  if (map.current.getLayer(existing.areaId)) map.current.removeLayer(existing.areaId);
+                  if (map.current.getSource(existing.areaId)) map.current.removeSource(existing.areaId);
+                  const idx = window[layerArrayName].indexOf(existing.areaId);
+                  if (idx > -1) window[layerArrayName].splice(idx, 1);
+                } else {
+                  console.warn('跳过移除非当前类型图层:', existing.areaId, '期望前缀:', expectedAreaPrefix);
+                }
+
+                if (removeAxis) {
                   if (map.current.getLayer(existing.axisId)) map.current.removeLayer(existing.axisId);
                   if (map.current.getSource(existing.axisId)) map.current.removeSource(existing.axisId);
+                  const idx2 = window[layerArrayName].indexOf(existing.axisId);
+                  if (idx2 > -1) window[layerArrayName].splice(idx2, 1);
+                } else if (existing.axisId) {
+                  console.warn('跳过移除非当前类型轴图层:', existing.axisId, '期望前缀:', expectedAxisPrefix);
                 }
-                // 从数组中移除旧ID
-                const idx = window[layerArrayName].indexOf(existing.areaId);
-                if (idx > -1) window[layerArrayName].splice(idx, 1);
-                const idx2 = window[layerArrayName].indexOf(existing.axisId);
-                if (idx2 > -1) window[layerArrayName].splice(idx2, 1);
               }
-
-              // 添加对称轴调试图层（细线）
-              if (map.current.getSource(axisId)) {
-                map.current.removeSource(axisId);
-              }
-              map.current.addSource(axisId, { type: 'geojson', data: axisFeature });
-              if (map.current.getLayer(axisId)) {
-                map.current.removeLayer(axisId);
-              }
-              map.current.addLayer({
-                id: axisId,
-                type: 'line',
-                source: axisId,
-                paint: {
-                  'line-color': '#00FFFF',
-                  'line-width': 2,
-                  'line-opacity': 0.9,
-                  'line-dasharray': [2, 2]
-                }
-              });
 
               map.current.addSource(areaId, { type: 'geojson', data: polygon });
               map.current.addLayer({
@@ -1882,34 +1862,46 @@ const TaxiwayMap = observer(() => {
                 }
               });
               window[layerArrayName].push(areaId);
-              window[layerArrayName].push(axisId);
               // 记录/更新注册表，存储当前冲突键的图层ID与数据快照（用于后续 diff）
               const snapshotHash = JSON.stringify({ merged_functions, taxiway_sequence, flight1_id, flight2_id });
-              window[registryName][conflictKey] = { areaId, axisId, hash: snapshotHash };
+              window[registryName][conflictKey] = { areaId, hash: snapshotHash };
             } catch (error) {
               console.error('Error creating merged area layer:', areaId, '类型:', conflictType, 'error:', error);
             }
 
 
           });
+          console.log('当前冲突键集合:', newKeys);
 
-          // 移除本次更新中不再出现的冲突键对应的图层
+          // 移除本次更新中不再出现的冲突键对应的图层（仅移除当前类型命名空间内的图层）
           const existingKeys = Object.keys(window[registryName]);
           existingKeys.forEach(key => {
             if (!newKeys.has(key)) {
               const info = window[registryName][key];
               if (info) {
-                console.log('差异清理：移除缺失的冲突', key, 'areaId=', info.areaId, 'axisId=', info.axisId, 'type=', conflictType);
-                if (map.current.getLayer(info.areaId)) map.current.removeLayer(info.areaId);
-                if (map.current.getSource(info.areaId)) map.current.removeSource(info.areaId);
-                if (info.axisId) {
+                const expectedAreaPrefix = `${conflictType}-area-`;
+                const expectedAxisPrefix = `${conflictType}-axis-`;
+                const removeArea = info.areaId && String(info.areaId).startsWith(expectedAreaPrefix);
+                const removeAxis = info.axisId && String(info.axisId).startsWith(expectedAxisPrefix);
+
+                if (removeArea) {
+                  console.log('差异清理：移除缺失的冲突', key, 'areaId=', info.areaId, 'type=', conflictType);
+                  if (map.current.getLayer(info.areaId)) map.current.removeLayer(info.areaId);
+                  if (map.current.getSource(info.areaId)) map.current.removeSource(info.areaId);
+                  const idx = window[layerArrayName].indexOf(info.areaId);
+                  if (idx > -1) window[layerArrayName].splice(idx, 1);
+                } else if (info.areaId) {
+                  console.warn('差异清理跳过：非当前类型图层', info.areaId, '期望前缀:', expectedAreaPrefix);
+                }
+
+                if (removeAxis) {
                   if (map.current.getLayer(info.axisId)) map.current.removeLayer(info.axisId);
                   if (map.current.getSource(info.axisId)) map.current.removeSource(info.axisId);
+                  const idx2 = window[layerArrayName].indexOf(info.axisId);
+                  if (idx2 > -1) window[layerArrayName].splice(idx2, 1);
+                } else if (info.axisId) {
+                  console.warn('差异清理跳过：非当前类型轴图层', info.axisId, '期望前缀:', expectedAxisPrefix);
                 }
-                const idx = window[layerArrayName].indexOf(info.areaId);
-                if (idx > -1) window[layerArrayName].splice(idx, 1);
-                const idx2 = window[layerArrayName].indexOf(info.axisId);
-                if (idx2 > -1) window[layerArrayName].splice(idx2, 1);
               }
               delete window[registryName][key];
             }
@@ -2143,6 +2135,7 @@ const ConflictResolutionPanel = observer(() => {
   const resolutions = websocketStore.resolutions;
   const resolution_analysis = websocketStore.resolution_analysis;
   const loading = websocketStore.conflictResolutionLoading;
+  const errorMessage = websocketStore.lastError;
   
   // 获取特定冲突的解决方案 - 直接调用WebSocketStore的方法
   const getConflictResolutions = (conflictId) => {
@@ -2158,6 +2151,25 @@ const ConflictResolutionPanel = observer(() => {
 
   // 模拟应用解决方案
   const simulateResolution = (conflictId, solutionId) => {
+    // 如果当前已在模拟同一个方案，则视为“关闭模拟”并清除效果
+    const current = websocketStore.getCurrentSimulation();
+    const isSameSimulation = current &&
+      current.conflict_id === conflictId &&
+      current.solution_id === solutionId &&
+      !!current.simulated_state;
+
+    if (isSameSimulation) {
+      console.log('再次点击模拟，同步停止并清理模拟效果', { conflictId, solutionId });
+      try {
+        // websocketStore.stoptSimulate();
+        websocketStore.clearCurrentSimulation();
+      } catch (e) {
+        console.error('停止/清理模拟时出错:', e);
+      }
+      return;
+    }
+
+    // 否则正常触发模拟该解决方案
     if (websocketStore.socket && websocketStore.socket.connected) {
       console.log("模拟应用冲突解决方案", conflictId, solutionId);
       websocketStore.socket.emit('simulate_conflict_resolution', {
@@ -2166,6 +2178,7 @@ const ConflictResolutionPanel = observer(() => {
       });
     } else {
       console.error('WebSocket未连接，无法发送模拟应用请求');
+      websocketStore.lastError = 'WebSocket未连接，无法发送模拟应用请求';
     }
   };
 
@@ -2198,6 +2211,56 @@ const ConflictResolutionPanel = observer(() => {
       getConflictResolutions(id);
     }
   }, [selectedConflict, loading, resolutions, resolution_analysis]);
+
+  // 冲突消失时，自动清理模拟效果（地图和时间线都会响应 currentSimulation 被清除）
+  React.useEffect(() => {
+    try {
+      const current = websocketStore.getCurrentSimulation();
+      const hasCurrentSimulation = !!(current && current.simulated_state);
+      if (!hasCurrentSimulation) return;
+
+      // 设置最短宽限期，避免数据抖动导致的误清理
+      const now = Date.now();
+      const tsMs = current?.timestamp ? new Date(current.timestamp).getTime() : 0;
+      const MIN_GRACE_MS = 2000;
+      if (tsMs && now - tsMs < MIN_GRACE_MS) {
+        return;
+      }
+
+      const extractLastPart = (id) => {
+        if (!id) return null;
+        if (typeof id === 'string') {
+          const parts = id.split('_');
+          return parts[parts.length - 1];
+        }
+        return String(id);
+      };
+
+      const expectedId = extractLastPart(current.conflict_id);
+
+      // 组合当前/未来冲突和面板列表作为存在性的依据，提升健壮性
+      const listCurrent = Array.isArray(websocketStore.current_conflicts) ? websocketStore.current_conflicts : [];
+      const listFuture = Array.isArray(websocketStore.future_conflicts) ? websocketStore.future_conflicts : [];
+      const listPanel = Array.isArray(conflicts) ? conflicts : [];
+
+      const activeIds = new Set();
+      [listCurrent, listFuture, listPanel].forEach(list => {
+        list.forEach(c => {
+          const rawId = c?.conflict_id ?? c?.id ?? c?.analysis?.conflict_id;
+          const norm = extractLastPart(rawId);
+          if (norm) activeIds.add(norm);
+        });
+      });
+
+      // 若存在模拟且对应冲突不在任何列表中（已消失或被解决），则清理模拟
+      if (hasCurrentSimulation && expectedId && !activeIds.has(expectedId)) {
+        console.log('检测到冲突消失，清理模拟效果', { currentConflictId: current.conflict_id, expectedId, activeIds: Array.from(activeIds) });
+        websocketStore.clearCurrentSimulation();
+      }
+    } catch (e) {
+      console.error('冲突消失自动清理模拟时出错:', e);
+    }
+  }, [conflicts, websocketStore.current_conflicts, websocketStore.future_conflicts]);
 
 
 
@@ -2293,7 +2356,7 @@ const ConflictResolutionPanel = observer(() => {
                     fontWeight: 'bold',
                     fontSize: '13px'
                   }}>
-                    {conflict.id}
+                    {conflict.conflict_id || conflict.id}
                   </span>
                 </div>
 
@@ -2367,6 +2430,7 @@ const ConflictResolutionPanel = observer(() => {
               onClick={() => {
                 websocketStore.selectedConflict = null;
                 websocketStore.resolutions = [];
+                websocketStore.clearLastError();
               }}
               style={{
                 background: 'none',
@@ -2397,6 +2461,32 @@ const ConflictResolutionPanel = observer(() => {
               {selectedConflict.conflict_id} {t('solutions')}
             </h4>
           </div>
+          {errorMessage && (
+            <div style={{
+              border: '1px solid #dc3545',
+              color: '#dc3545',
+              backgroundColor: '#f8d7da',
+              padding: '8px',
+              borderRadius: '4px',
+              marginBottom: '12px',
+              fontSize: '12px'
+            }}>
+              {errorMessage}
+            </div>
+          )}
+          {!loading && Array.isArray(resolutions) && resolutions.length === 0 && !errorMessage && (
+            <div style={{
+              border: '1px solid #adb5bd',
+              color: '#6c757d',
+              backgroundColor: '#f1f3f5',
+              padding: '8px',
+              borderRadius: '4px',
+              marginBottom: '12px',
+              fontSize: '12px'
+            }}>
+              未找到解决方案
+            </div>
+          )}
 
           {/* 计算度量最大值用于归一化显示 */}
           {(() => {
