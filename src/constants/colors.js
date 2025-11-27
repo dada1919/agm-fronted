@@ -37,3 +37,9 @@ export const BUTTON_COLORS = {
   LIGHT_GRAY: '#9ca3af',
   LIGHT_GRAY_HOVER: '#6b7280'
 };
+
+// 滑行道颜色（命名/未命名）
+export const TAXIWAY_COLORS = {
+  UNNAMED: '#c8c8c8',
+  NAMED: '#b0b0b0'
+};

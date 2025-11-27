@@ -1,0 +1,101 @@
+{
+  "version": 8,
+  "name": "Elegant OSM Style",
+  "sources": {
+    "osm": {
+      "type": "vector",
+      "tiles": [
+        "https://tileserver.example.com/data/v3/{z}/{x}/{y}.pbf"
+      ],
+      "maxzoom": 14
+    },
+    "osm-raster": {
+      "type": "raster",
+      "tiles": [
+        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png", 
+        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      ],
+      "tileSize": 256,
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#f8f9fa"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "osm",
+      "source-layer": "water",
+      "filter": ["==", "$type", "Polygon"],
+      "paint": {
+        "fill-color": "#d0e8ff",
+        "fill-opacity": 0.6
+      }
+    },
+    {
+      "id": "landuse",
+      "type": "fill", 
+      "source": "osm",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["get", "type"],
+          "forest", "#e8f4e8",
+          "park", "#e8f4e8", 
+          "grass", "#f0f7f0",
+          "residential", "#f5f5f5",
+          "commercial", "#f8f8f8",
+          "industrial", "#fafafa",
+          "#f5f5f5"
+        ],
+        "fill-opacity": 0.5
+      }
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "osm",
+      "source-layer": "roads",
+      "filter": ["==", "$type", "LineString"],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": [
+          "match", 
+          ["get", "class"],
+          "motorway", "#cccccc",
+          "trunk", "#cccccc", 
+          "primary", "#d9d9d9",
+          "secondary", "#e6e6e6",
+          "tertiary", "#f0f0f0",
+          "residential", "#f5f5f5",
+          "#f5f5f5"
+        ],
+        "line-width": [
+          "interpolate", ["linear"], ["zoom"],
+          6, 0.5,
+          12, [
+            "match",
+            ["get", "class"],
+            "motorway", 4,
+            "trunk", 3, 
+            "primary", 2.5,
+            "secondary", 2,
+            "tertiary", 1.5,
+            1
+          ]
+        ]
+      }
+    }
+  ]
+}

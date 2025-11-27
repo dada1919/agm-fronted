@@ -515,9 +515,9 @@ const svgAxisRef = useRef(); // 顶部粘性时间轴 SVG 引用
     const chartRef = useRef(); // 图表容器引用
     const overlayRef = useRef(); // 跨区域连线的覆盖层
     const isSyncingScroll = useRef(false); // 防止滚动事件互相触发造成循环
-    const ROW_HEIGHT = 40;
+const ROW_HEIGHT = 32;
     const ROW_HEIGHT_P = 40; // 每行高度，用于同步滚动
-    const HEADER_HEIGHT = 40; // 表头高度
+const HEADER_HEIGHT = 32; // 表头高度（缩小）
 
     // 本地化列定义
     const columnsI18n = React.useMemo(() => ([

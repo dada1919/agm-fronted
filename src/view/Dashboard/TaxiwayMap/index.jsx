@@ -4,7 +4,7 @@ import maplibregl, { Marker, Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { observer } from 'mobx-react-lite';
 import websocketStore from '@/stores/WebSocketStore';
-import { AIRCRAFT_COLORS } from '@/constants/colors';
+import { AIRCRAFT_COLORS, TAXIWAY_COLORS } from '@/constants/colors';
 import { autorun } from 'mobx';
 import { BUTTON_COLORS } from '@/constants/colors';
 
@@ -38,6 +38,86 @@ const TaxiwayMap = observer(() => {
   
   // 地图视图飞机图标统一尺寸常量（可根据需求调整）
   const MAP_AIRPLANE_ICON_SIZE = 40; // 实时飞机图标（原32）
+
+  // ---------------- 运行道坐标转换工具（UTM Zone 50N → WGS84）----------------
+  // 运行道数据为 UTM 投影（Zone 50N），为在地图上叠加，需要转换为经纬度
+  const utmToLatLon = (easting, northing, zoneNumber, northernHemisphere = true) => {
+    const a = 6378137.0; // WGS84 半径
+    const f = 1 / 298.257223563;
+    const b = a * (1 - f);
+    const e = Math.sqrt(1 - (b * b) / (a * a));
+    const e1sq = e * e / (1 - e * e);
+    const k0 = 0.9996;
+
+    let x = easting - 500000.0;
+    let y = northing;
+    if (!northernHemisphere) {
+      y -= 10000000.0;
+    }
+
+    const m = y / k0;
+    const mu = m / (a * (1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256));
+
+    const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
+    const j1 = (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32);
+    const j2 = (21 * Math.pow(e1, 2) / 16 - 55 * Math.pow(e1, 4) / 32);
+    const j3 = (151 * Math.pow(e1, 3) / 96);
+    const j4 = (1097 * Math.pow(e1, 4) / 512);
+
+    const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu) + j4 * Math.sin(8 * mu);
+
+    const sinfp = Math.sin(fp);
+    const cosfp = Math.cos(fp);
+    const tanfp = Math.tan(fp);
+
+    const c1 = e1sq * cosfp * cosfp;
+    const t1 = tanfp * tanfp;
+    const r1 = a * (1 - e * e) / Math.pow(1 - e * e * sinfp * sinfp, 1.5);
+    const n1 = a / Math.sqrt(1 - e * e * sinfp * sinfp);
+    const d = x / (n1 * k0);
+
+    // 经度中心子午线（Zone * 6 - 180 + 3）
+    const lon0 = ((zoneNumber - 1) * 6 - 180 + 3) * Math.PI / 180.0;
+
+    const q1 = n1 * tanfp / r1;
+    const q2 = (d * d / 2);
+    const q3 = (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * e1sq) * Math.pow(d, 4) / 24;
+    const q4 = (61 + 90 * t1 + 298 * c1 + 45 * t1 * t1 - 252 * e1sq - 3 * c1 * c1) * Math.pow(d, 6) / 720;
+
+    const lat = fp - q1 * (q2 - q3 + q4);
+
+    const q5 = d;
+    const q6 = (1 + 2 * t1 + c1) * Math.pow(d, 3) / 6;
+    const q7 = (5 - 2 * c1 + 28 * t1 - 3 * c1 * c1 + 8 * e1sq + 24 * t1 * t1) * Math.pow(d, 5) / 120;
+    const lon = lon0 + (q5 - q6 + q7) / cosfp;
+
+    return { lng: lon * 180 / Math.PI, lat: lat * 180 / Math.PI };
+  };
+
+  const convertRunwayToWGS84 = (geojson, zoneNumber = 50, northernHemisphere = true) => {
+    if (!geojson || !geojson.features) return geojson;
+    const converted = {
+      type: 'FeatureCollection',
+      name: geojson.name || 'runway_wgs84',
+      features: geojson.features.map(f => {
+        const g = f.geometry || {};
+        if (g.type === 'MultiPolygon') {
+          const newCoords = g.coordinates.map(poly =>
+            poly.map(ring =>
+              ring.map(([x, y]) => {
+                const { lng, lat } = utmToLatLon(x, y, zoneNumber, northernHemisphere);
+                return [lng, lat];
+              })
+            )
+          );
+          return { ...f, geometry: { type: 'MultiPolygon', coordinates: newCoords } };
+        }
+        // 其他类型不转换，透传
+        return f;
+      })
+    };
+    return converted;
+  };
   const MAP_PLANNED_START_ICON_SIZE = 32; // 规划起点飞机图标（原24）
   
   // const { socket } = useContext(WebSocketContext);
@@ -85,7 +165,7 @@ const TaxiwayMap = observer(() => {
         
         map.current = new maplibregl.Map({
           container: mapContainer.current,
-          style: { version: 8, sources: {}, layers: [] },
+           style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
           center: [116.593238, 40.051893],  // 初始中心点
           zoom: 23, // 提高初始缩放级别，让地图更大
           maxZoom: 24, // 允许更大的缩放范围
@@ -94,6 +174,59 @@ const TaxiwayMap = observer(() => {
 
         map.current.on('load', () => {
           logInfo('地图加载完成1');
+
+          // 只修改背景和水体等基础图层，不影响其他要素
+          map.current.setPaintProperty('background', 'background-color', '#f8f9fa');
+          map.current.setPaintProperty('water', 'fill-color', 'hsl(210, 50%, 95%)');
+
+        // 建筑图层颜色调整
+          if (map.current.getLayer('building')) {
+            map.current.setPaintProperty('building', 'fill-color', 'hsl(0, 0%, 90%)'); // 浅灰色
+            map.current.setPaintProperty('building', 'fill-opacity', 0.2); // 降低不透明度
+          }
+          
+          if (map.current.getLayer('building-top')) {
+            map.current.setPaintProperty('building-top', 'fill-color', 'hsl(0, 0%, 88%)'); // 稍深一点的灰色
+            map.current.setPaintProperty('building-top', 'fill-opacity', 0.2);
+          }
+          
+          // 可选：调整其他相关图层，使整体更协调
+          if (map.current.getLayer('landcover')) {
+            map.current.setPaintProperty('landcover', 'fill-color', 'hsl(100, 20%, 95%)');
+          }
+          
+          if (map.current.getLayer('landuse_residential')) {
+            map.current.setPaintProperty('landuse_residential', 'fill-color', 'hsl(0, 0%, 92%)');
+            map.current.setPaintProperty('landuse_residential', 'fill-opacity', 0.4);
+          }
+
+          // 底图：OpenStreetMap 栅格瓦片
+          // try {
+          //   if (!map.current.getSource('osm-raster')) {
+          //     map.current.addSource('osm-raster', {
+          //       type: 'raster',
+          //       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          //       tileSize: 256,
+          //       attribution: '© OpenStreetMap contributors'
+          //     });
+          //   }
+          //   if (!map.current.getLayer('osm-basemap')) {
+          //     map.current.addLayer({
+          //       id: 'osm-basemap',
+          //       type: 'raster',
+          //       source: 'osm-raster',
+          //       minzoom: 0,
+          //       maxzoom: 22,
+          //       paint: {
+          //         'raster-opacity': 0.2
+          //       }
+          //     });
+          //   }
+          // } catch (e) {
+          //   console.error('添加底图失败:', e);
+          // }
+
+          // mapContainer.current.style.filter = 'brightness(0.7) sepia(0.2)'; 
 
           // 添加数据源
           map.current.addSource('taxiways', {
@@ -111,19 +244,19 @@ const TaxiwayMap = observer(() => {
               'line-color': [
                 'case',
                 ['==', ['get', 'name'], null],
-                '#e8e8e8',  // 未命名滑行道颜色（更浅）
-                '#f8f8f8'   // 命名滑行道颜色（更浅）
+                TAXIWAY_COLORS.UNNAMED,
+                TAXIWAY_COLORS.NAMED
               ],
               'line-width': [
                 'interpolate', // 使用插值函数
                 ['linear'], // 线性插值
                 ['zoom'], // 使用缩放级别
-                0,  // 在缩放级别 0 时，线宽为 0.5
-                0.5, // 线宽为 0.5
-                12, // 在缩放级别 12 时，线宽为 2
-                2, // 线宽为 2
-                18, // 在最大缩放级别 18 时，线宽为 8
-                8 // 线宽为 8
+                0,   // 缩放级别 0
+                0.3, // 更细的初始线宽
+                12,  // 缩放级别 12
+                1.5, // 中级缩放线宽
+                18,  // 缩放级别 18 及以上
+                4    // 高缩放级别线宽（减少）
               ],
               'line-opacity': 1
             },
@@ -132,6 +265,52 @@ const TaxiwayMap = observer(() => {
               'line-join': 'round'
             }
           });
+
+          // 叠加跑道（从 UTM Zone 50N 转换至 WGS84）并放置在滑行道线之下
+          try {
+            fetch('/runway.geojson')
+              .then(r => r.json())
+              .then(runwayData => {
+                const runwayWGS84 = convertRunwayToWGS84(runwayData, 50, true);
+
+                if (!map.current.getSource('runways')) {
+                  map.current.addSource('runways', {
+                    type: 'geojson',
+                    data: runwayWGS84
+                  });
+                }
+
+                // 填充层（柔和灰蓝）
+                if (!map.current.getLayer('runway-fill')) {
+                  map.current.addLayer({
+                    id: 'runway-fill',
+                    type: 'fill',
+                    source: 'runways',
+                    paint: {
+                      'fill-color': '#9aa7b0',
+                      'fill-opacity': 0.55
+                    }
+                  }, 'taxiway-lines'); // 插入在滑行道线之前（下方）
+                }
+
+                // 轮廓线（稍深）
+                if (!map.current.getLayer('runway-outline')) {
+                  map.current.addLayer({
+                    id: 'runway-outline',
+                    type: 'line',
+                    source: 'runways',
+                    paint: {
+                      'line-color': '#6b7780',
+                      'line-width': 1.2,
+                      'line-opacity': 0.6
+                    }
+                  }, 'taxiway-lines');
+                }
+              })
+              .catch(err => console.error('加载/转换跑道数据失败:', err));
+          } catch (e) {
+            console.error('叠加跑道失败:', e);
+          }
 
           // 添加道路点击事件监听器
           map.current.on('click', 'taxiway-lines', (e) => {
@@ -2075,48 +2254,24 @@ const TaxiwayMap = observer(() => {
 
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-      {/* 冲突解决界面 - 左侧 33.33% 宽度，与PlanningView表格对齐 */}
+    <div style={{ display: 'flex', width: '100%', height: '100%', gap: '12px' }}>
+      {/* 左侧：冲突解决面板（固定宽度，不与地图重叠） */}
       <div style={{
-        position: 'absolute',
-        top: '12px',
-        left: '12px',
         width: '28%',
         maxWidth: '420px',
-        height: 'auto',
-        maxHeight: '92%',
-        backgroundColor: 'rgba(255, 255, 255, 0.35)',
+        height: '100%',
+        backgroundColor: 'rgba(255, 255, 255, 0.65)',
         borderRadius: '8px',
-        display: 'none',
+        display: 'flex',
         flexDirection: 'column',
         overflow: 'auto',
-        zIndex: 10,
         padding: '12px'
       }}>
         <ConflictResolutionPanel />
       </div>
 
-      {/* 地图区域 */}
-      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-        {/* 悬浮面板：仅浮在地图视图内 */}
-        <div style={{
-          position: 'absolute',
-          top: '12px',
-          left: '12px',
-          width: '28%',
-          maxWidth: '420px',
-          height: 'auto',
-        maxHeight: '92%',
-        backgroundColor: 'rgba(255, 255, 255, 0.35)',
-        borderRadius: '8px',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'auto',
-        zIndex: 10,
-        padding: '12px'
-      }}>
-          <ConflictResolutionPanel />
-        </div>
+      {/* 右侧：地图区域，占剩余宽度 */}
+      <div style={{ flex: 1, height: '100%', position: 'relative' }}>
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       </div>
     </div>
