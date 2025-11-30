@@ -34,14 +34,22 @@ class WebSocketStore {
     // 飞机颜色映射状态管理
     aircraftColorMapping = new Map(); // 飞机ID到颜色的映射
     // activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
-    planningColors = ['#fbb4ae',
-        '#b3cde3',
-        '#ccebc5',
-        '#decbe4',
-        '#fed9a6',
-        '#ffffcc',
-        '#e5d8bd',
-        '#fddaec']; // 计划飞机：冷色调a
+    // 计划/分配给飞机的颜色调色板（按需循环使用）
+    planningColors = [
+        '#E61A9C',
+        '#FF6600',
+ 
+        '#AA22FF',
+        '#FF3366',
+        '#99CC00',
+        '#CC5500',
+        '#CC00CC',
+        '#8dd3c7',
+        '#984ea3',
+        '#a65628',
+        '#f781bf',
+        '#999999'
+    ]; // 用户指定的七色方案
     activeColorIndex = 0;
     planningColorIndex = 0;
     
@@ -597,8 +605,10 @@ class WebSocketStore {
     // 获取飞机颜色（同一飞机在active/planning状态保持同色）。
     // 如果不存在则从规划颜色池中分配一个未使用的颜色，保证不与其他飞机重复；颜色唯一性由映射维护。
     getAircraftColor(aircraftId, isActive = false) {
+        // 如果已有分配的基础颜色，按状态返回不透明或半透明
         if (this.aircraftColorMapping.has(aircraftId)) {
-            return this.aircraftColorMapping.get(aircraftId);
+            const base = this.aircraftColorMapping.get(aircraftId);
+            return isActive ? base : this.hexToRgba(base, 0.55);
         }
 
         // 分配新颜色：优先选择未被使用的颜色，确保不与其他飞机重复
@@ -618,13 +628,28 @@ class WebSocketStore {
             this.planningColorIndex++;
         }
 
+        // 存储基础颜色（不带透明度），返回根据状态的颜色
         this.aircraftColorMapping.set(aircraftId, color);
-        return color;
+        return isActive ? color : this.hexToRgba(color, 0.55);
     }
 
     // 设置飞机颜色
     setAircraftColor(aircraftId, color) {
         this.aircraftColorMapping.set(aircraftId, color);
+    }
+
+    // 将十六进制颜色转换为 rgba 字符串，支持 #rgb 或 #rrggbb
+    hexToRgba(hex, alpha = 0.5) {
+        if (!hex) return `rgba(0,0,0,${alpha})`;
+        let h = hex.replace('#', '').trim();
+        if (h.length === 3) {
+            h = h.split('').map(ch => ch + ch).join('');
+        }
+        const r = parseInt(h.slice(0, 2), 16);
+        const g = parseInt(h.slice(2, 4), 16);
+        const b = parseInt(h.slice(4, 6), 16);
+        const a = Math.max(0, Math.min(1, alpha));
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
     }
 
     // 获取所有飞机的颜色映射

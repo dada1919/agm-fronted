@@ -1,7 +1,7 @@
 // 飞机颜色常量
 export const AIRCRAFT_COLORS = {
-  ACTIVE: '#95de64',
-  PLANNING: '#69c0ff'
+  ACTIVE: '#4daf4a',
+  PLANNING: '#377eb8'
 };
 
 // 冲突颜色常量

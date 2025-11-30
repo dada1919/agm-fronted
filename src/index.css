@@ -69,7 +69,7 @@ button:focus-visible {
 /* 细浅蓝滚动条（参考 PlanningView 样式） */
 .prettyScrollbar {
   scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(24, 144, 255, 0.35) transparent; /* Firefox */
+  scrollbar-color: rgba(55, 126, 184, 0.35) transparent; /* Firefox */
 }
 .prettyScrollbar::-webkit-scrollbar {
   width: 6px;

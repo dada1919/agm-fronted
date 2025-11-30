@@ -388,7 +388,7 @@ const TaxiwayMap = observer(() => {
       })
       .catch(error => console.error('数据加载失败:', error));
 
-    const colors = ['rgb(228,26,28)', 'rgb(55,126,184)', 'rgb(77,175,74)', 'rgb(152,78,163)', 'rgb(255,127,0)', 'rgb(255,255,51)', 'rgb(166,86,40)', 'rgb(247,129,191)']
+    const colors = [ 'rgb(152,78,163)', 'rgb(255,127,0)', 'rgb(255,255,51)', 'rgb(166,86,40)', 'rgb(247,129,191)']
 
     // const colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f','#bf5b17','#666666', '#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666']
     const colorSet = new Set(); // 使用 Set 来存储颜色，避免重复
@@ -859,8 +859,8 @@ const TaxiwayMap = observer(() => {
      // console.log('绘制轨迹', id, trajectorys);
 
       // 使用绿色渐变（与时间线 ACTIVE 基色一致）
-      // 使用由深到浅（加白）的绿色渐变，与时间线的ACTIVE基色(#95de64)一致
-      const greenGradientScale = generateWhiteMixVariants('rgb(149, 222, 100)', 10);
+// 使用由深到浅（加白）的绿色渐变，与时间线的ACTIVE基色(#4daf4a)一致
+const greenGradientScale = generateWhiteMixVariants('rgb(77, 175, 74)', 10);
 
       trajectorys.forEach(trajectory => {
         // console.log('绘制轨迹',  trajectory);
@@ -951,7 +951,7 @@ const TaxiwayMap = observer(() => {
     };
 
     // 绘制模拟结果的轨迹（使用浅蓝色系列）
-    const drawSimulatedTrajectory = (id, trajectorys, baseColor = 'rgb(24, 144, 255)', h = 0) => {
+const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) => {
       let geodata = { type: 'FeatureCollection', features: [] };
       let index = 0;
       const multiColor = generateAlphaVariants(baseColor, 10, 10);
@@ -1038,11 +1038,24 @@ const TaxiwayMap = observer(() => {
 
     // 移除飞机的轨迹
     const removeTrajectory = (id) => {
-      if (map.current.getLayer(id)) {
-        map.current.removeLayer(id);
+      // 防御：地图未初始化或样式未就绪时直接返回，避免空引用
+      const m = map.current;
+      if (!m || !id) return;
+      const styleReady = typeof m.getStyle === 'function' ? !!m.getStyle() : (typeof m.isStyleLoaded === 'function' ? m.isStyleLoaded() : true);
+      if (!styleReady) return;
+      try {
+        if (typeof m.getLayer === 'function' && m.getLayer(id)) {
+          m.removeLayer(id);
+        }
+      } catch (err) {
+        console.warn('removeTrajectory 移除图层异常:', id, err);
       }
-      if (map.current.getSource(id)) {
-        map.current.removeSource(id);
+      try {
+        if (typeof m.getSource === 'function' && m.getSource(id)) {
+          m.removeSource(id);
+        }
+      } catch (err) {
+        console.warn('removeTrajectory 移除数据源异常:', id, err);
       }
     };
 
@@ -1601,7 +1614,7 @@ const TaxiwayMap = observer(() => {
             const trajectory = aircraftData?.trajectory || [];
             const simLayerId = `sim-${aircraftId}`;
             // 使用浅蓝色系列，和规划视图颜色系保持一致（更浅）
-            drawSimulatedTrajectory(simLayerId, trajectory, 'rgb(24, 144, 255)', idx);
+      drawSimulatedTrajectory(simLayerId, trajectory, '#377eb8', idx);
           });
         } else {
           // 无模拟数据时清理
@@ -1668,11 +1681,19 @@ const TaxiwayMap = observer(() => {
             'line-blur': 0.5
           }
         });
+        // 新增后将冲突线层置顶
+        if (map.current.moveLayer) {
+          try { map.current.moveLayer(id); } catch (e) { /* ignore */ }
+        }
       } else {
         // 更新轨迹数据
         const source = map.current.getSource(id);
         if (source) {
           source.setData(geodata);
+        }
+        // 更新后确保冲突线层置顶
+        if (map.current.moveLayer) {
+          try { map.current.moveLayer(id); } catch (e) { /* ignore */ }
         }
       }
     };
@@ -1972,11 +1993,11 @@ const TaxiwayMap = observer(() => {
             if (conflictType === 'future') {
               // 未来冲突：降低透明度以减弱视觉占用
               fillColor = 'rgba(30, 144, 255, 0.25)';
-              fillOpacity = 0.5;
+              fillOpacity = 0.8;
             } else {
               // 当前冲突：降低透明度以减弱视觉占用
               fillColor = 'rgba(255,165,0, 0.25)';
-              fillOpacity = 0.5;
+              fillOpacity = 0.8;
             }
             
             try {

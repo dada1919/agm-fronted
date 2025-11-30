@@ -21,11 +21,11 @@ const ARROW_TIP_X = 10; // 箭头尖端的 x 坐标，缩短箭头长度（原�
 // 时间线端点圆半径常量
 const TIMELINE_POINT_RADIUS = 4;  // 统一时间线端点圆半径
 
-// Overlap 类型颜色常量（集中管理相向/同向/交叉的颜色）
+// Overlap 类型颜色常量（统一成单一颜色）
 const OVERLAP_COLORS = {
-    OPPOSITE: CONFLICT_COLORS.OPPOSITE,
-    SAME_DIRECTION: CONFLICT_COLORS.SAME_DIRECTION,
-    CROSSING: CONFLICT_COLORS.CROSSING,
+    OPPOSITE: '#FFCC00',
+    SAME_DIRECTION: '#FFCC00',
+    CROSSING: '#FFCC00',
 };
 
 // 冲突点圆半径常量
