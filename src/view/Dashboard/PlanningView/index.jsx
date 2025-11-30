@@ -11,9 +11,9 @@ import { AIRCRAFT_COLORS, CONFLICT_COLORS, STRATEGY_COLORS, SIMULATION_COLORS, T
 // 统一底部额外空间，保证左右内容高度一致
 const EXTRA_BOTTOM_SPACE = 200;
 
-// 连线样式配置常量
-const CONNECTION_LINE_WIDTH = 8;  // 统一连线宽度
-const CONNECTION_LINE_OPACITY = 0.15;  // 统一连线透明度
+// 连线样式配置常量（overlap 的连线改为不透明细线）
+const CONNECTION_LINE_WIDTH = 3;  // 稍微加粗
+const CONNECTION_LINE_OPACITY = 1;  // 不透明
 const ARROW_FILL_OPACITY = 0.4;  // 箭头填充半透明，但比线更不透明
 const ARROW_GAP_PX = 10; // 箭头与连线端点的间隔，避免重叠
 const ARROW_TIP_X = 10; // 箭头尖端的 x 坐标，缩短箭头长度（原为 16）
@@ -1329,48 +1329,43 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
             let defs = svg.select('defs');
             if (defs.empty()) defs = svg.append('defs');
             
-            // 相向冲突箭头标记 - 红色
+            // 相向冲突图标标记：两个相对的实心圆球（替换原双箭头）
             if (defs.select('#overlap-chevron-arrow-opposite').empty()) {
                 let chevronMarkerOpposite = defs.append('marker')
                     .attr('id', 'overlap-chevron-arrow-opposite')
-                    .attr('viewBox', '0 0 20 20')
-                    .attr('refX', 0) // 箭头底边对齐路径终点，避免与路径重合
-                    .attr('refY', 10)
-                    .attr('markerWidth', 20) // 进一步增大箭头尺寸
-                    .attr('markerHeight', 20) // 进一步增大箭头尺寸
+                    .attr('viewBox', '0 0 1024 1024')
+                    .attr('refX', 512)
+                    .attr('refY', 512)
+                    .attr('markerWidth', 20)
+                    .attr('markerHeight', 20)
                     .attr('orient', 'auto')
                     .attr('markerUnits', 'userSpaceOnUse');
 
-                // 相向冲突红色箭头，减小高度并添加白色描边
-                chevronMarkerOpposite.append('polygon')
-                    .attr('points', `0,5 0,15 ${ARROW_TIP_X},10`)  // 减小高度：从y=5到y=15，缩短箭头长度
-                    .attr('fill', OVERLAP_COLORS.OPPOSITE)  // 相向冲突红色
-                    .attr('stroke', 'white')  // 添加白色描边
-                    .attr('stroke-width', 1)  // 描边宽度
-                    .attr('fill-opacity', ARROW_FILL_OPACITY)  // 箭头填充半透明
-                    .attr('stroke-opacity', 1);               // 保持描边不透明，增强可读性
+                // 使用用户提供的 SVG 图形（两个相对的实心圆球）
+                chevronMarkerOpposite.append('path')
+                    .attr('d', 'M1024 421.888C1024 189.568 834.304 0 602.112 0c-163.584 0-303.36 92.416-374.528 227.584C92.416 298.752 0 438.528 0 602.112 0 834.432 189.568 1024 421.888 1024c163.584 0 303.36-92.416 374.528-227.584C931.584 725.376 1024 583.168 1024 421.888zM673.152 853.376C640 886.528 601.984 912.64 559.36 929.28c-45.056 18.944-90.112 28.416-139.904 28.416-47.36 0-94.848-9.472-139.904-28.416-42.624-18.944-80.64-42.624-113.792-75.904-33.152-33.152-59.264-71.168-75.904-113.792-18.944-45.056-28.416-90.112-28.416-139.904 0-47.36 9.472-94.848 28.416-139.904 18.944-42.624 42.624-80.64 75.904-113.792l21.376-21.376c-4.736 21.376-7.168 42.624-9.472 66.432v26.112c0 137.472 66.432 258.432 165.888 336.64l4.736 4.736c2.432 2.432 4.736 2.432 4.736 4.736 4.736 2.432 7.168 4.736 11.904 9.472 66.432 42.624 144.64 68.736 229.888 68.736h26.112c23.68-2.304 45.056-4.736 66.432-9.472 0 7.168-7.04 14.208-14.208 21.376zM832 694.528c4.736-21.376 7.168-42.624 9.472-66.432v-26.112c0-154.112-82.944-289.152-208.64-362.624-2.304-2.432-4.736-2.432-7.168-2.432-2.432-2.432-4.736-2.432-7.168-4.736l-14.208-7.168c-56.832-28.416-120.832-42.624-187.264-42.624h-26.112c-23.68 2.304-45.056 4.736-66.432 9.472l21.376-21.376c33.152-33.152 71.168-59.264 113.792-75.904 45.056-18.944 90.112-28.416 139.904-28.416 47.36 0 94.848 9.472 139.904 28.416 42.624 18.944 80.64 42.624 113.792 75.904 33.152 33.152 59.264 71.168 75.904 113.792 18.944 45.056 28.416 90.112 28.416 139.904 0 47.36-9.472 94.848-28.416 139.904-18.944 42.624-42.624 80.64-75.904 113.792-4.736 2.432-14.208 9.6-21.248 16.64z')
+                    .attr('fill', OVERLAP_COLORS.OPPOSITE)
+                    .attr('stroke', 'none');
             }
             
             // 同向冲突箭头标记 - 橙色
             if (defs.select('#overlap-chevron-arrow-same').empty()) {
                 let chevronMarkerSame = defs.append('marker')
                     .attr('id', 'overlap-chevron-arrow-same')
-                    .attr('viewBox', '0 0 20 20')
-                    .attr('refX', 0) // 箭头底边对齐路径终点，避免与路径重合
-                    .attr('refY', 10)
-                    .attr('markerWidth', 20) // 进一步增大箭头尺寸
-                    .attr('markerHeight', 20) // 进一步增大箭头尺寸
+                    .attr('viewBox', '0 0 1024 1024')
+                    .attr('refX', 700)
+                    .attr('refY', 400)
+                    .attr('markerWidth', 18)
+                    .attr('markerHeight', 18)
                     .attr('orient', 'auto')
                     .attr('markerUnits', 'userSpaceOnUse');
 
-                // 同向冲突橙色箭头，减小高度并添加白色描边
-                chevronMarkerSame.append('polygon')
-                    .attr('points', `0,5 0,15 ${ARROW_TIP_X},10`)  // 减小高度：从y=5到y=15，缩短箭头长度
-                    .attr('fill', OVERLAP_COLORS.SAME_DIRECTION)  // 同向冲突橙色
-                    .attr('stroke', 'white')  // 添加白色描边
-                    .attr('stroke-width', 1)  // 描边宽度
-                    .attr('fill-opacity', ARROW_FILL_OPACITY)  // 箭头填充半透明
-                    .attr('stroke-opacity', 1);               // 保持描边不透明，增强可读性
+                // 同向冲突箭头：使用提供的 SVG 路径，统一黄色
+                chevronMarkerSame.append('path')
+                    .attr('d', 'M512 693.333333c-14.933333 0-29.866667-4.266667-40.533333-14.933333l-277.33333399-234.666667c-27.733333-23.466667-29.866667-64-8.53333301-89.6 23.466667-27.733333 64-29.866667 89.6-8.53333299L512 546.133333l236.8-200.53333299c27.733333-23.466667 68.266667-19.19999999 89.6 8.53333299 23.466667 27.733333 19.19999999 68.266667-8.53333301 89.6l-277.33333399 234.666667c-10.666667 10.666667-25.6 14.933333-40.533333 14.933333z')
+                    .attr('transform', 'rotate(-90 512 512) scale(1.2)')
+                    .attr('fill', OVERLAP_COLORS.SAME_DIRECTION)
+                    .attr('stroke', 'none');
             }
 
             // 计算实际绘图区域尺寸
@@ -1503,23 +1498,22 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                     strokeDasharray = TIMELINE_STYLES.PLANNING_DASH; // 虚线
                 }
 
-                // 根据是否有模拟数据设置透明度
-                const timelineOpacity = hasSimulationData ? 0.4 : 1.0; // 有模拟数据时原时间线半透明
-
-                // 绘制时间线
-                flightGroup.selectAll("line")
+                // 绘制时间线为半透明带状矩形
+                const bandHeight = TIMELINE_STYLES.BAND_HEIGHT;
+                const bandOpacity = TIMELINE_STYLES.BAND_OPACITY;
+                flightGroup.selectAll("rect.timeline-band")
                     .data(plannedResult.paths)
                     .enter()
-                    .append("line")
-                    .attr("x1", d => xScale(d.start_time))
-                    .attr("x2", d => xScale(d.end_time))
-                    .attr("y1", (d, j) => getYPosition(plannedResult.aircraft_id) + j * 3)
-                    .attr("y2", (d, j) => getYPosition(plannedResult.aircraft_id) + j * 3)
+                    .append("rect")
+                    .attr("class", "timeline-band")
+                    .attr("x", d => xScale(d.start_time))
+                    .attr("y", (d, j) => (getYPosition(plannedResult.aircraft_id) + j * 3) - bandHeight / 2)
+                    .attr("width", d => Math.max(0, xScale(d.end_time) - xScale(d.start_time)))
+                    .attr("height", bandHeight)
+                    .attr("fill", color)
+                    .attr("fill-opacity", bandOpacity)
                     .attr("stroke", color)
-                    .attr("stroke-width", strokeWidth)
-                    .attr("stroke-linecap", "round")
-                    .attr("stroke-dasharray", strokeDasharray)
-                    .attr("opacity", timelineOpacity); // 应用透明度
+                    .attr("stroke-width", 0);
 
                 // 添加起始点图标
                 flightGroup.selectAll(".start-point")
@@ -1533,7 +1527,7 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                     .attr("fill", color)
                     .attr("stroke", color)
                     .attr("stroke-width", 2)
-                    .attr("opacity", timelineOpacity); // 起始点也应用透明度;
+                    .attr("opacity", bandOpacity); // 同步为带状透明度
 
                 // 添加结束点图标
                 flightGroup.selectAll(".end-point")
@@ -1591,7 +1585,10 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
 
                 const overlapLayer = g.append('g')
                     .attr('class', 'overlap-layer')
-                    .attr('pointer-events', 'none');
+                    .attr('pointer-events', 'none')
+                    .style('mix-blend-mode', 'normal');
+                // 确保重叠连接与箭头位于最上层，避免被时间带或其他元素遮挡
+                overlapLayer.raise();
                 const groupColor = d3.scaleOrdinal(d3.schemeTableau10);
 
 
@@ -1704,7 +1701,7 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                             const midY = (ay + by) / 2; // 与同向保持一致，垂直对齐到中线
                             const mx = (xFrom + xTo) / 2; // 中点x，用于双箭头相向汇合
 
-                            // 左段折线：起点 -> 垂直至中线 -> 水平到中点（留出箭头间隔）；箭头指向中点
+                            // 左段折线：起点 -> 垂直至中线 -> 水平到中点（留出图标间隔）
                             overlapLayer.append('path')
                                 .attr('class', `overlap-connector opposing-left polyline ${best.label}`)
                                 .attr('d', `M${xFrom},${yFrom} L${xFrom},${midY} L${mx - ARROW_GAP_PX},${midY}`)
@@ -1712,9 +1709,9 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                                 .attr('stroke-width', CONNECTION_LINE_WIDTH)
                                 .attr('fill', 'none')
                                 .attr('stroke-opacity', CONNECTION_LINE_OPACITY)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow-opposite)');
+                                .attr('marker-end', null);
 
-                            // 右段折线：终点 -> 垂直至中线 -> 水平到中点（留出箭头间隔）；箭头指向中点
+                            // 右段折线：终点 -> 垂直至中线 -> 水平到中点（留出图标间隔）
                             overlapLayer.append('path')
                                 .attr('class', `overlap-connector opposing-right polyline ${best.label}`)
                                 .attr('d', `M${xTo},${yTo} L${xTo},${midY} L${mx + ARROW_GAP_PX},${midY}`)
@@ -1722,7 +1719,18 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                                 .attr('stroke-width', CONNECTION_LINE_WIDTH)
                                 .attr('fill', 'none')
                                 .attr('stroke-opacity', CONNECTION_LINE_OPACITY)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow-opposite)');
+                                .attr('marker-end', null);
+
+                            // 在中点渲染一个SVG图标（两个相对的实心圆球），居中对齐
+                            const ICON_SIZE_PX = 20;
+                            const scale = ICON_SIZE_PX / 1024; // viewBox 为 1024
+                            overlapLayer.append('path')
+                                .attr('class', 'opposing-center-icon')
+                                .attr('d', 'M1024 421.888C1024 189.568 834.304 0 602.112 0c-163.584 0-303.36 92.416-374.528 227.584C92.416 298.752 0 438.528 0 602.112 0 834.432 189.568 1024 421.888 1024c163.584 0 303.36-92.416 374.528-227.584C931.584 725.376 1024 583.168 1024 421.888zM673.152 853.376C640 886.528 601.984 912.64 559.36 929.28c-45.056 18.944-90.112 28.416-139.904 28.416-47.36 0-94.848-9.472-139.904-28.416-42.624-18.944-80.64-42.624-113.792-75.904-33.152-33.152-59.264-71.168-75.904-113.792-18.944-45.056-28.416-90.112-28.416-139.904 0-47.36 9.472-94.848 28.416-139.904 18.944-42.624 42.624-80.64 75.904-113.792l21.376-21.376c-4.736 21.376-7.168 42.624-9.472 66.432v26.112c0 137.472 66.432 258.432 165.888 336.64l4.736 4.736c2.432 2.432 4.736 2.432 4.736 4.736 4.736 2.432 7.168 4.736 11.904 9.472 66.432 42.624 144.64 68.736 229.888 68.736h26.112c23.68-2.304 45.056-4.736 66.432-9.472 0 7.168-7.04 14.208-14.208 21.376zM832 694.528c4.736-21.376 7.168-42.624 9.472-66.432v-26.112c0-154.112-82.944-289.152-208.64-362.624-2.304-2.432-4.736-2.432-7.168-2.432-2.432-2.432-4.736-2.432-7.168-4.736l-14.208-7.168c-56.832-28.416-120.832-42.624-187.264-42.624h-26.112c-23.68 2.304-45.056 4.736-66.432 9.472l21.376-21.376c33.152-33.152 71.168-59.264 113.792-75.904 45.056-18.944 90.112-28.416 139.904-28.416 47.36 0 94.848 9.472 139.904 28.416 42.624 18.944 80.64 42.624 113.792 75.904 33.152 33.152 59.264 71.168 75.904 113.792 18.944 45.056 28.416 90.112 28.416 139.904 0 47.36-9.472 94.848-28.416 139.904-18.944 42.624-42.624 80.64-75.904 113.792-4.736 2.432-14.208 9.6-21.248 16.64z')
+                                .attr('transform', `translate(${mx - 512 * scale}, ${midY - 512 * scale}) scale(${scale})`)
+                                .attr('fill', OVERLAP_COLORS.OPPOSITE)
+                                .attr('stroke', 'none')
+                                .attr('pointer-events', 'none');
                         } else {
                             // 同向：比较两个飞机的 start，选 start 较大的为 aLate，另一架为 bEarly；
                             // 绘制从 aLate 的 end 指向 bEarly 的 end 的箭头曲线（箭头指向 bEarly）。
@@ -1755,7 +1763,10 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                 // 绘制节点重叠：改为折线样式，从后面的飞机连向前一个飞机，并在终点添加左边有缺口的圆
                 const nodeLayer = g.append('g')
                     .attr('class', 'overlap-node-layer')
-                    .attr('pointer-events', 'none');
+                    .attr('pointer-events', 'none')
+                    .style('mix-blend-mode', 'normal');
+                // 同时提升节点连线层到最上方
+                nodeLayer.raise();
 
                 // 定义左边有缺口的圆形标记
                 const svgRoot2 = d3.select(g.node().ownerSVGElement);

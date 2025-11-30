@@ -38,7 +38,75 @@ const TaxiwayMap = observer(() => {
   
   // 地图视图飞机图标统一尺寸常量（可根据需求调整）
   const MAP_AIRPLANE_ICON_SIZE = 40; // 实时飞机图标（原32）
+  
+  // 根据缩放级别动态计算飞机图标尺寸（像素）
+  const getMarkerSizeForZoom = (z, base = MAP_AIRPLANE_ICON_SIZE) => {
+    const zoom = Number(z) || 0;
+    // 线性插值：10→0.7×、15→1.0×、20→1.3×、24→1.6×
+    let scale;
+    if (zoom <= 10) scale = 0.7;
+    else if (zoom >= 24) scale = 1.6;
+    else if (zoom <= 15) {
+      const t = (zoom - 10) / (15 - 10);
+      scale = 0.7 + t * (1.0 - 0.7);
+    } else if (zoom <= 20) {
+      const t = (zoom - 15) / (20 - 15);
+      scale = 1.0 + t * (1.3 - 1.0);
+    } else {
+      const t = (zoom - 20) / (24 - 20);
+      scale = 1.3 + t * (1.6 - 1.3);
+    }
+    return Math.round(base * scale);
+  };
 
+  // 调整所有飞机标记尺寸以匹配当前缩放
+  const updateAllMarkerSizes = () => {
+    if (!map.current) return;
+    const zoom = map.current.getZoom ? map.current.getZoom() : 0;
+    const rtSize = getMarkerSizeForZoom(zoom, MAP_AIRPLANE_ICON_SIZE);
+    const plannedBase = MAP_PLANNED_START_ICON_SIZE;
+    const plannedSize = getMarkerSizeForZoom(zoom, plannedBase);
+
+    // 实时飞机标记尺寸与缩放
+    Object.values(markers.current || {}).forEach(({ marker }) => {
+      if (!marker) return;
+      const el = marker.getElement();
+      if (!el) return;
+      el.style.width = `${rtSize}px`;
+      el.style.height = `${rtSize}px`;
+      const rotateEl = el.querySelector('.airplane-rotate');
+      if (rotateEl) {
+        const existing = rotateEl.style.transform || '';
+        const m = existing.match(/rotate\(([-0-9.]+)deg\)/);
+        const angle = m ? Number(m[1]) : 0;
+        const scale = rtSize / MAP_AIRPLANE_ICON_SIZE;
+        rotateEl.style.width = `${MAP_AIRPLANE_ICON_SIZE}px`;
+        rotateEl.style.height = `${MAP_AIRPLANE_ICON_SIZE}px`;
+        rotateEl.style.transform = `rotate(${angle}deg) scale(${scale})`;
+        rotateEl.style.transformOrigin = 'center center';
+      }
+    });
+
+    // 规划起点标记尺寸与缩放
+    Object.values(plannedStartMarkers.current || {}).forEach((marker) => {
+      if (!marker) return;
+      const el = marker.getElement();
+      if (!el) return;
+      el.style.width = `${plannedSize}px`;
+      el.style.height = `${plannedSize}px`;
+      const rotateEl = el.querySelector('.airplane-rotate');
+      if (rotateEl) {
+        const existing = rotateEl.style.transform || '';
+        const m = existing.match(/rotate\(([-0-9.]+)deg\)/);
+        const angle = m ? Number(m[1]) : 0;
+        const scale = plannedSize / plannedBase;
+        rotateEl.style.width = `${plannedBase}px`;
+        rotateEl.style.height = `${plannedBase}px`;
+        rotateEl.style.transform = `rotate(${angle}deg) scale(${scale})`;
+        rotateEl.style.transformOrigin = 'center center';
+      }
+    });
+  };
   // ---------------- 运行道坐标转换工具（UTM Zone 50N → WGS84）----------------
   // 运行道数据为 UTM 投影（Zone 50N），为在地图上叠加，需要转换为经纬度
   const utmToLatLon = (easting, northing, zoneNumber, northernHemisphere = true) => {
@@ -345,6 +413,11 @@ const TaxiwayMap = observer(() => {
             map.current.getCanvas().style.cursor = '';
           });
 
+          // 根据缩放动态调整飞机图标尺寸
+          map.current.on('zoom', updateAllMarkerSizes);
+          // 初始化一次尺寸以匹配当前缩放
+          updateAllMarkerSizes();
+
 
           // 自动适应视图
           const bounds = new maplibregl.LngLatBounds();
@@ -442,7 +515,8 @@ const TaxiwayMap = observer(() => {
         
         // 新增飞机
         if (!existingPlaneIds.has(id)) {
-          const marker = new Marker({ element: createAirplaneMarker(color, MAP_AIRPLANE_ICON_SIZE, rotation) }) // 使用统一颜色和角度创建标记
+          const markerSize = getMarkerSizeForZoom(map.current?.getZoom?.() ?? 0, MAP_AIRPLANE_ICON_SIZE);
+          const marker = new Marker({ element: createAirplaneMarker(color, markerSize, rotation) }) // 使用统一颜色和角度创建标记
             .setLngLat(applyDisplayOffsetToLngLat([coords[0], coords[1]], null, trajectory, websocketStore.plannedFlights?.[id]?.display_offset || 0, null)) // 设置标记位置（应用与轨迹一致的偏移）
             .setPopup(new Popup().setHTML(`<h1>${id}</h1>`))
             .addTo(map.current);
@@ -918,7 +992,13 @@ const greenGradientScale = generateWhiteMixVariants('rgb(77, 175, 74)', 10);
             },
             paint: {
               "line-color": ['get', 'color'], // 使用指定颜色
-              "line-width": 5,  // 轨迹加粗一点，偏移效果更清晰
+              "line-width": [
+                'interpolate', ['linear'], ['zoom'],
+                10, 2.0,
+                15, 3.5,
+                20, 5.5,
+                24, 7.5
+              ],
               'line-offset': [
                 'interpolate', 
                 ['linear'], 
@@ -988,8 +1068,19 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
           },
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': 3,
-            'line-offset': ['*', ['get', 'height']],
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              10, 1.6,
+              15, 2.6,
+              20, 4.2,
+              24, 6.0
+            ],
+            'line-offset': [
+              'interpolate', ['linear'], ['zoom'],
+              10, ['*', ['get', 'height'], 2.5],
+              15, ['*', ['get', 'height'], 5],
+              20, ['*', ['get', 'height'], 8]
+            ],
             'line-opacity': 1.0,
             'line-blur': 0.5
           }
@@ -1552,7 +1643,8 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
               delete plannedStartMarkers.current[flightId];
             }
 
-            const startMarker = new Marker({ element: createAirplaneMarker(pathColor, MAP_PLANNED_START_ICON_SIZE, rotation) })
+            const startSize = getMarkerSizeForZoom(map.current?.getZoom?.() ?? 0, MAP_PLANNED_START_ICON_SIZE);
+            const startMarker = new Marker({ element: createAirplaneMarker(pathColor, startSize, rotation) })
               .setLngLat({ lng: startLL.lng, lat: startLL.lat })
               .addTo(map.current);
 

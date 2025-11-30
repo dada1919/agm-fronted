@@ -29,7 +29,9 @@ export const SIMULATION_COLORS = [
 export const TIMELINE_STYLES = {
   LINE_WIDTH: 3,
   ACTIVE_DASH: "none",
-  PLANNING_DASH: "5,5"
+  PLANNING_DASH: "5,5",
+  BAND_HEIGHT: 10,
+  BAND_OPACITY: 0.35
 };
 
 // 按钮颜色常量
