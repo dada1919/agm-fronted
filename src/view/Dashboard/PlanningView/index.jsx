@@ -12,20 +12,26 @@ import { AIRCRAFT_COLORS, CONFLICT_COLORS, STRATEGY_COLORS, SIMULATION_COLORS, T
 const EXTRA_BOTTOM_SPACE = 200;
 
 // 连线样式配置常量
-const CONNECTION_LINE_WIDTH = 8;  // 统一连线宽度
-const CONNECTION_LINE_OPACITY = 0.15;  // 统一连线透明度
-const ARROW_FILL_OPACITY = 0.4;  // 箭头填充半透明，但比线更不透明
+const CONNECTION_LINE_WIDTH = TIMELINE_STYLES.LINE_WIDTH;  // 统一连线宽度，与时间线一致
+const CONNECTION_LINE_OPACITY = 1;  // 统一连线透明度，不透明
+const ARROW_FILL_OPACITY = 1.0;  // 箭头填充完全不透明
 const ARROW_GAP_PX = 10; // 箭头与连线端点的间隔，避免重叠
 const ARROW_TIP_X = 10; // 箭头尖端的 x 坐标，缩短箭头长度（原为 16）
 
 // 时间线端点圆半径常量
 const TIMELINE_POINT_RADIUS = 4;  // 统一时间线端点圆半径
 
+// Overlap 统一红色常量
+const OVERLAP_RED = '#990000';
+
+// Overlap 条带矩形透明度常量
+const OVERLAP_RECT_OPACITY = 0.3;
+
 // Overlap 类型颜色常量（统一成单一颜色）
 const OVERLAP_COLORS = {
-    OPPOSITE: '#FFCC00',
-    SAME_DIRECTION: '#FFCC00',
-    CROSSING: '#FFCC00',
+    OPPOSITE:       OVERLAP_RED,
+    SAME_DIRECTION: OVERLAP_RED,
+    CROSSING:       OVERLAP_RED,
 };
 
 // 冲突点圆半径常量
@@ -1329,48 +1335,53 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
             let defs = svg.select('defs');
             if (defs.empty()) defs = svg.append('defs');
             
-            // 相向冲突箭头标记 - 红色
-            if (defs.select('#overlap-chevron-arrow-opposite').empty()) {
-                let chevronMarkerOpposite = defs.append('marker')
-                    .attr('id', 'overlap-chevron-arrow-opposite')
-                    .attr('viewBox', '0 0 20 20')
-                    .attr('refX', 0) // 箭头底边对齐路径终点，避免与路径重合
-                    .attr('refY', 10)
-                    .attr('markerWidth', 20) // 进一步增大箭头尺寸
-                    .attr('markerHeight', 20) // 进一步增大箭头尺寸
+            // 相向冲突图标标记 - 使用新的冲突图标替代两个相反箭头
+            if (defs.select('#overlap-conflict-icon').empty()) {
+                let conflictIconMarker = defs.append('marker')
+                    .attr('id', 'overlap-conflict-icon')
+                    .attr('viewBox', '0 0 1024 1024')
+                    .attr('refX', 512) // 图标中心对齐路径终点
+                    .attr('refY', 512)
+                    .attr('markerWidth', 32) // 图标尺寸 - 放大
+                    .attr('markerHeight', 32)
                     .attr('orient', 'auto')
                     .attr('markerUnits', 'userSpaceOnUse');
 
-                // 相向冲突红色箭头，减小高度并添加白色描边
-                chevronMarkerOpposite.append('polygon')
-                    .attr('points', `0,5 0,15 ${ARROW_TIP_X},10`)  // 减小高度：从y=5到y=15，缩短箭头长度
-                    .attr('fill', OVERLAP_COLORS.OPPOSITE)  // 相向冲突红色
-                    .attr('stroke', 'white')  // 添加白色描边
-                    .attr('stroke-width', 1)  // 描边宽度
-                    .attr('fill-opacity', ARROW_FILL_OPACITY)  // 箭头填充半透明
-                    .attr('stroke-opacity', 1);               // 保持描边不透明，增强可读性
+                // 添加冲突图标路径
+                conflictIconMarker.append('path')
+                    .attr('d', 'M1024 421.888C1024 189.568 834.304 0 602.112 0c-163.584 0-303.36 92.416-374.528 227.584C92.416 298.752 0 438.528 0 602.112 0 834.432 189.568 1024 421.888 1024c163.584 0 303.36-92.416 374.528-227.584C931.584 725.376 1024 583.168 1024 421.888zM673.152 853.376C640 886.528 601.984 912.64 559.36 929.28c-45.056 18.944-90.112 28.416-139.904 28.416-47.36 0-94.848-9.472-139.904-28.416-42.624-18.944-80.64-42.624-113.792-75.904-33.152-33.152-59.264-71.168-75.904-113.792-18.944-45.056-28.416-90.112-28.416-139.904 0-47.36 9.472-94.848 28.416-139.904 18.944-42.624 42.624-80.64 75.904-113.792l21.376-21.376c-4.736 21.376-7.168 42.624-9.472 66.432v26.112c0 137.472 66.432 258.432 165.888 336.64l4.736 4.736c2.432 2.432 4.736 2.432 4.736 4.736 4.736 2.432 7.168 4.736 11.904 9.472 66.432 42.624 144.64 68.736 229.888 68.736h26.112c23.68-2.304 45.056-4.736 66.432-9.472 0 7.168-7.04 14.208-14.208 21.376zM832 694.528c4.736-21.376 7.168-42.624 9.472-66.432v-26.112c0-154.112-82.944-289.152-208.64-362.624-2.304-2.432-4.736-2.432-7.168-2.432-2.432-2.432-4.736-2.432-7.168-4.736l-14.208-7.168c-56.832-28.416-120.832-42.624-187.264-42.624h-26.112c-23.68 2.304-45.056 4.736-66.432 9.472l21.376-21.376c33.152-33.152 71.168-59.264 113.792-75.904 45.056-18.944 90.112-28.416 139.904-28.416 47.36 0 94.848 9.472 139.904 28.416 42.624 18.944 80.64 42.624 113.792 75.904 33.152 33.152 59.264 71.168 75.904 113.792 18.944 45.056 28.416 90.112 28.416 139.904 0 47.36-9.472 94.848-28.416 139.904-18.944 42.624-42.624 80.64-75.904 113.792-4.736 2.432-14.208 9.6-21.248 16.64z')
+                    .attr('fill', OVERLAP_RED)  // 统一红色 #800020
+                    .attr('fill-opacity', 1.0);  // 完全不透明
             }
             
-            // 同向冲突箭头标记 - 橙色
-            if (defs.select('#overlap-chevron-arrow-same').empty()) {
-                let chevronMarkerSame = defs.append('marker')
-                    .attr('id', 'overlap-chevron-arrow-same')
-                    .attr('viewBox', '0 0 20 20')
-                    .attr('refX', 0) // 箭头底边对齐路径终点，避免与路径重合
-                    .attr('refY', 10)
-                    .attr('markerWidth', 20) // 进一步增大箭头尺寸
-                    .attr('markerHeight', 20) // 进一步增大箭头尺寸
-                    .attr('orient', 'auto')
-                    .attr('markerUnits', 'userSpaceOnUse');
+            // 同向冲突图标标记 - 使用新的下箭头图标
+                if (defs.select('#overlap-chevron-arrow-same').empty()) {
+                    let chevronMarkerSame = defs.append('marker')
+                        .attr('id', 'overlap-chevron-arrow-same')
+                        .attr('viewBox', '0 0 1024 1024')
+                        .attr('refX', 512) // 图标中心对齐路径终点
+                        .attr('refY', 512)
+                        .attr('markerWidth', 24) // 图标尺寸
+                        .attr('markerHeight', 24)
+                        .attr('orient', 'auto')
+                        .attr('markerUnits', 'userSpaceOnUse');
 
-                // 同向冲突橙色箭头，减小高度并添加白色描边
-                chevronMarkerSame.append('polygon')
-                    .attr('points', `0,5 0,15 ${ARROW_TIP_X},10`)  // 减小高度：从y=5到y=15，缩短箭头长度
-                    .attr('fill', OVERLAP_COLORS.SAME_DIRECTION)  // 同向冲突橙色
-                    .attr('stroke', 'white')  // 添加白色描边
-                    .attr('stroke-width', 1)  // 描边宽度
-                    .attr('fill-opacity', ARROW_FILL_OPACITY)  // 箭头填充半透明
-                    .attr('stroke-opacity', 1);               // 保持描边不透明，增强可读性
+                    // 同向冲突右箭头图标 - 旋转180度并放大
+                    chevronMarkerSame.append('path')
+                        .attr('d', 'M693.333333 512c0 14.933333-4.266667 29.866667-14.933333 40.533333l-234.666667 277.333333c-23.466667 27.733333-64 29.866667-89.6 8.533333-27.733333-23.466667-29.866667-64-8.533333-89.6L546.133333 512 345.6 275.2c-23.466667-27.733333-19.2-68.266667 8.533333-89.6 27.733333-23.466667 68.266667-19.2 89.6 8.533333l234.666667 277.333333c10.666667 10.666667 14.933333 25.6 14.933333 40.533333z')
+                        .attr('fill', OVERLAP_RED)  // 统一红色 #800020
+                        .attr('fill-opacity', 1);   // 图标完全不透明
+                }
+
+            // 相向冲突中点图标 symbol（复用用户提供的 SVG 路径，fill 设为 currentColor 以便动态换色）
+            if (defs.select('#overlap-icon-opposite').empty()) {
+                defs.append('symbol')
+                    .attr('id', 'overlap-icon-opposite')
+                    .attr('viewBox', '0 0 1024 1024')
+                    .append('path')
+                    .attr('d', 'M1024 421.888C1024 189.568 834.304 0 602.112 0c-163.584 0-303.36 92.416-374.528 227.584C92.416 298.752 0 438.528 0 602.112 0 834.432 189.568 1024 421.888 1024c163.584 0 303.36-92.416 374.528-227.584C931.584 725.376 1024 583.168 1024 421.888zM673.152 853.376C640 886.528 601.984 912.64 559.36 929.28c-45.056 18.944-90.112 28.416-139.904 28.416-47.36 0-94.848-9.472-139.904-28.416-42.624-18.944-80.64-42.624-113.792-75.904-33.152-33.152-59.264-71.168-75.904-113.792-18.944-45.056-28.416-90.112-28.416-139.904 0-47.36 9.472-94.848 28.416-139.904 18.944-42.624 42.624-80.64 75.904-113.792l21.376-21.376c-4.736 21.376-7.168 42.624-9.472 66.432v26.112c0 137.472 66.432 258.432 165.888 336.64l4.736 4.736c2.432 2.432 4.736 2.432 4.736 4.736 4.736 2.432 7.168 4.736 11.904 9.472 66.432 42.624 144.64 68.736 229.888 68.736h26.112c23.68-2.304 45.056-4.736 66.432-9.472 0 7.168-7.04 14.208-14.208 21.376zM832 694.528c4.736-21.376 7.168-42.624 9.472-66.432v-26.112c0-154.112-82.944-289.152-208.64-362.624-2.304-2.432-4.736-2.432-7.168-2.432-2.432-2.432-4.736-2.432-7.168-4.736l-14.208-7.168c-56.832-28.416-120.832-42.624-187.264-42.624h-26.112c-23.68 2.304-45.056 4.736-66.432 9.472l21.376-21.376c33.152-33.152 71.168-59.264 113.792-75.904 45.056-18.944 90.112-28.416 139.904-28.416 47.36 0 94.848 9.472 139.904 28.416 42.624 18.944 80.64 42.624 113.792 75.904 33.152 33.152 59.264 71.168 75.904 113.792 18.944 45.056 28.416 90.112 28.416 139.904 0 47.36-9.472 94.848-28.416 139.904-18.944 42.624-42.624 80.64-75.904 113.792-4.736 2.432-14.208 9.6-21.248 16.64z')
+                    .attr('fill', 'currentColor');   // 使用 currentColor 以便通过 use 的 color 属性动态换色
+
             }
 
             // 计算实际绘图区域尺寸
@@ -1605,9 +1616,7 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                 (overlaps.taxiways || []).forEach((twGroup, idx) => {
                     // 使用与连线一致的颜色：基于后端提供的 direction
                     const groupDirection = String(twGroup?.direction || '').toLowerCase();
-                    const color = groupDirection === 'opposite'
-                        ? OVERLAP_COLORS.OPPOSITE
-                        : (groupDirection === 'same' ? OVERLAP_COLORS.SAME_DIRECTION : OVERLAP_COLORS.CROSSING);
+                    const color = '#FF0000';  // 统一使用红色
                     const flightWindows = Array.isArray(twGroup.flight_windows) ? twGroup.flight_windows : [];
 
                     console.log('flightwindows',flightWindows);
@@ -1631,17 +1640,17 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                             const x2 = xScale(endMin);
                             const bandHeight = 8;
 
-                        // 零长度时间窗画为点，非零画为半透明矩形
+                        // 零长度时间窗画为点，非零画为不透明矩形（统一 OVERLAP_RED）
                         if (Math.abs(endMin - startMin) < 1e-6) {
                             overlapLayer.append('circle')
                                 .attr('class', 'overlap-point')
                                 .attr('cx', x1)
                                 .attr('cy', y)
                                 .attr('r', TIMELINE_STYLES.POINT_RADIUS)
-                                .attr('fill', color)
-                                .attr('opacity', 0.7)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1);
+                                .attr('fill', OVERLAP_RED)
+                                .attr('fill-opacity', 0.5)
+                                .attr('stroke', OVERLAP_RED)
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH); // 与时间线同宽
                         } else {
                             overlapLayer.append('rect')
                                 .attr('class', 'overlap-segment')
@@ -1650,10 +1659,9 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                                 .attr('width', Math.max(2, Math.abs(x2 - x1)))
                                 .attr('height', bandHeight)
                                 .attr('rx', 3)
-                                .attr('fill', color)
-                                .attr('opacity', 0.25)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1);
+                                .attr('fill', OVERLAP_RED)
+                                .attr('fill-opacity', OVERLAP_RECT_OPACITY)
+                                .attr('stroke', 'none'); // 无边框，保持纯色带状
                         }
                     });
 
@@ -1684,7 +1692,7 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                         const isOpposing = hasDirectionFlag ? (groupDirection === 'opposite') : ((aDir * bDir) < 0);
 
                         if (isOpposing) {
-                            // 相向：与同向一致的折线几何，但在折线中点保留两个相对的箭头
+                            // 相向：使用单个冲突图标替代两个相反箭头
                             // 选择四种端点组合中距离最近的一对端点作为连接端点
                             const candidates = [
                                 { ax: axStart, ay, bx: bxStart, by, dist: Math.abs(aStartMin - bStartMin), label: 'start-start' },
@@ -1702,28 +1710,46 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                             }
 
                             const midY = (ay + by) / 2; // 与同向保持一致，垂直对齐到中线
-                            const mx = (xFrom + xTo) / 2; // 中点x，用于双箭头相向汇合
+                            const mx = (xFrom + xTo) / 2; // 中点x，用于放置冲突图标
 
-                            // 左段折线：起点 -> 垂直至中线 -> 水平到中点（留出箭头间隔）；箭头指向中点
+                            // 左段折线：起点 -> 垂直至中线 -> 水平到中点（留出图标间隔）
                             overlapLayer.append('path')
                                 .attr('class', `overlap-connector opposing-left polyline ${best.label}`)
                                 .attr('d', `M${xFrom},${yFrom} L${xFrom},${midY} L${mx - ARROW_GAP_PX},${midY}`)
-                                .attr('stroke', OVERLAP_COLORS.OPPOSITE)
-                                .attr('stroke-width', CONNECTION_LINE_WIDTH)
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                                 .attr('fill', 'none')
-                                .attr('stroke-opacity', CONNECTION_LINE_OPACITY)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow-opposite)');
+                                .attr('stroke-opacity', 1.0);  // 不透明
 
-                            // 右段折线：终点 -> 垂直至中线 -> 水平到中点（留出箭头间隔）；箭头指向中点
+                            // 右段折线：终点 -> 垂直至中线 -> 水平到中点（留出图标间隔）
                             overlapLayer.append('path')
                                 .attr('class', `overlap-connector opposing-right polyline ${best.label}`)
                                 .attr('d', `M${xTo},${yTo} L${xTo},${midY} L${mx + ARROW_GAP_PX},${midY}`)
-                                .attr('stroke', OVERLAP_COLORS.OPPOSITE)
-                                .attr('stroke-width', CONNECTION_LINE_WIDTH)
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                                 .attr('fill', 'none')
-                                .attr('stroke-opacity', CONNECTION_LINE_OPACITY)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow-opposite)');
+                                .attr('stroke-opacity', 1.0);  // 不透明
+
+                            // 在中点放置单个冲突图标（使用marker-mid使其在路径中点显示）
+                            const iconLine = overlapLayer.append('path')
+                                .attr('class', `overlap-conflict-icon ${best.label}`)
+                                .attr('d', `M${mx - 5},${midY} L${mx + 5},${midY}`)
+                                .attr('stroke', OVERLAP_RED)   // 让路径可见，确保 marker 能被渲染
+                                .attr('stroke-width', 0.5)     // 极细，肉眼几乎不可见
+                                .attr('fill', 'none')
+                                .attr('marker-mid', 'url(#overlap-conflict-icon)');
+
+                            // 使用 use 元素在中点放置自定义图标，颜色与连线一致
+                            overlapLayer.append('use')
+                                .attr('href', '#overlap-icon-opposite')
+                                .attr('x', mx - 10)   // 水平居中偏移 10（宽度 20）
+                                .attr('y', midY - 10)  // 垂直居中偏移 10（高度 20）
+                                .attr('width', 20)
+                                .attr('height', 20)
+                                .style('color', OVERLAP_RED) // 使用 currentColor 继承
+                                .style('pointer-events', 'none');
                         } else {
+                            // "explanation":"修改相向冲突绘制逻辑，使用单个冲突图标替代两个相反箭头，在中点放置图标"}
                             // 同向：比较两个飞机的 start，选 start 较大的为 aLate，另一架为 bEarly；
                             // 绘制从 aLate 的 end 指向 bEarly 的 end 的箭头曲线（箭头指向 bEarly）。
                             const aIsLate = aStartMin >= bStartMin;
@@ -1741,12 +1767,12 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                             overlapLayer.append('path')
                                 .attr('class', 'overlap-connector same-direction end-to-end')
                                 .attr('d', `M${xFrom},${aLateY} L${xFrom},${midY} L${xTo},${midY} L${xTo},${endYAdjusted}`)
-                                .attr('stroke', OVERLAP_COLORS.SAME_DIRECTION) // 同向冲突：橙色
-                                .attr('stroke-width', CONNECTION_LINE_WIDTH) // 使用统一宽度
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                                 .attr('fill', 'none')
-                                .attr('stroke-opacity', CONNECTION_LINE_OPACITY) // 仅对线透明度生效
+                                .attr('stroke-opacity', 0.7)  // 不透明
                                 .attr('marker-end', 'url(#overlap-chevron-arrow-same)')
-                                .style('color', OVERLAP_COLORS.SAME_DIRECTION);
+                                .style('color', OVERLAP_RED);
                         }
                     }
 
@@ -1775,12 +1801,12 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                     marker.append('path')
                         .attr('d', 'M 1.5,0.25 A 1.25,1.25 0 1,1 1.5,2.75') // 再缩小一半：半径从2.5减小到1.25
                         .attr('fill', 'none')
-                        .attr('stroke', OVERLAP_COLORS.CROSSING)
-                        .attr('stroke-width', 0.8); // 减小线宽：从1减小到0.8
+                        .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                        .attr('stroke-width', CONNECTION_LINE_WIDTH); // 与时间线同宽
                 }
                 (overlaps.nodes || []).forEach((nodeGroup, nidx) => {
-                    // 节点重叠统一使用与连线一致的颜色（CROSSING）
-                    const color = OVERLAP_COLORS.CROSSING;
+                    // 节点重叠统一使用红色
+                    const color = '#FF0000';  // 红色
                     const flightWindows = Array.isArray(nodeGroup.flight_windows)
                         ? nodeGroup.flight_windows
                         : (Array.isArray(nodeGroup.flights) ? nodeGroup.flights : []);
@@ -1803,14 +1829,14 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
 
                         if (Math.abs(endMin - startMin) < 1e-6) {
                             nodeLayer.append('circle')
-                                .attr('class', 'overlap-point')
-                                .attr('cx', x1)
-                                .attr('cy', y)
+                                .attr('class', 'overlap-node')
+                                .attr('cx', cx)
+                                .attr('cy', cy)
                                 .attr('r', TIMELINE_STYLES.POINT_RADIUS)
-                                .attr('fill', OVERLAP_COLORS.CROSSING)
+                                .attr('fill', OVERLAP_RED)  // 统一红色 #800020
                                 .attr('opacity', 0.7)
-                                .attr('stroke', OVERLAP_COLORS.CROSSING)
-                                .attr('stroke-width', 1);
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH); // 与时间线同宽
                         } else {
                             nodeLayer.append('rect')
                                 .attr('class', 'overlap-segment')
@@ -1819,10 +1845,9 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                                 .attr('width', Math.max(2, Math.abs(x2 - x1)))
                                 .attr('height', bandHeight)
                                 .attr('rx', 3)
-                                .attr('fill', OVERLAP_COLORS.CROSSING)
-                                .attr('opacity', 0.25)
-                                .attr('stroke', OVERLAP_COLORS.CROSSING)
-                                .attr('stroke-width', 1);
+                                .attr('fill', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('fill-opacity', OVERLAP_RECT_OPACITY)  // 统一透明度常量
+                                .attr('stroke', 'none'); // 无边框，保持纯色带状
                         }
                     });
 
@@ -1873,10 +1898,10 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                         nodeLayer.append('path')
                             .attr('class', 'overlap-node-connector polyline')
                             .attr('d', pathD)
-                            .attr('stroke', OVERLAP_COLORS.CROSSING) // 交叉冲突：蓝灰色
-                            .attr('stroke-width', CONNECTION_LINE_WIDTH) // 使用统一宽度
+                            .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                            .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                             .attr('fill', 'none')
-                            .attr('stroke-opacity', CONNECTION_LINE_OPACITY) // 仅对线透明度生效
+                            .attr('stroke-opacity', 1.0)  // 不透明
                             .attr('stroke-linejoin', 'round')
                             .attr('stroke-linecap', 'round')
                             .attr('marker-end', 'url(#gap-circle-marker)'); // 在终点添加左边有缺口的圆
