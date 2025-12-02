@@ -3,6 +3,12 @@ import { makeAutoObservable } from 'mobx';
 import { io } from 'socket.io-client';
 
 class WebSocketStore {
+    // 前端代码中，API请求使用相对路径
+    API_BASE = '/api_proxy'; // 不是完整的http地址
+
+
+// WebSocket连接也通过代理
+
     socket = null;
     planePosition = [];
     isConnected = false;
@@ -20,9 +26,32 @@ class WebSocketStore {
     analysis = null;
     resolutions = []; // 当前冲突的解决方案
     conflictResolutionLoading = false; // 冲突解决加载状态
+    lastError = ''; // 最近一次错误信息（用于 UI 提示）
 
     future_conflicts = [];
     current_conflicts = [];
+    
+    // 飞机颜色映射状态管理
+    aircraftColorMapping = new Map(); // 飞机ID到颜色的映射
+    // activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
+    // 计划/分配给飞机的颜色调色板（按需循环使用）
+    planningColors = [
+        '#E61A9C',
+        '#FF6600',
+ 
+        '#AA22FF',
+        '#FF3366',
+        '#99CC00',
+        '#CC5500',
+        '#CC00CC',
+        '#8dd3c7',
+        '#984ea3',
+        '#a65628',
+        '#f781bf',
+        '#999999'
+    ]; // 用户指定的七色方案
+    activeColorIndex = 0;
+    planningColorIndex = 0;
     
     // 当前模拟状态存储
     currentSimulation = {
@@ -73,9 +102,31 @@ class WebSocketStore {
 }
 
     connect() {
-        this.socket = io('http://127.0.0.1:5000', {
-            transports: ['websocket'], // 如果所需，指定传输协议
-        });
+//         const { protocol, host } = window.location;
+// // 协议转换：http → ws，https → wss
+//         const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+//         this.socket = io(`${wsProtocol}//${host}`, {
+//             path: '/socket_proxy', // 和 Vite 代理的路径匹配
+//             autoConnect: true,
+//             reconnection: true
+//         });
+        // this.socket = io('', {
+        //     path: '/socket.io', // 确保使用 /socket.io
+        //     transports: ['websocket', 'polling']
+        // });
+        // this.socket = io();
+
+        this.socket = io('', {
+      transports: ['polling', 'websocket'], // 优先 polling
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      timeout: 20000
+    });
+        // this.socket = io('./socket.io', {
+        //     transports: ['websocket'], // 如果所需，指定传输协议
+        // });
         //1.系统状态控制OK
         this.socket.on('simulation_status', (data) => { 
             console.log(`模拟状态: ${data.status} - ${data.message}`);
@@ -143,10 +194,20 @@ class WebSocketStore {
         //5. 冲突检测与解决，需要解决5
         //冲突的数据
         this.socket.on('conflicts_update', (data) => {
-            console.log("conflicts_update:", data);
+            // 后端推送最新冲突数据
+            // 1) 更新重叠滑行道
             this.updateOverlapTaxiways(data);
-            this.updateConflictResolutions(data.current)
-            this.updateConflicts(data)
+            // 2) 更新面板展示的冲突列表（当前冲突）
+            this.updateConflictResolutions(data.current);
+            // 3) 更新当前/未来冲突集合
+            this.updateConflicts(data);
+
+            // 4) 如果已展开的冲突在新消息中不存在，则清空选中并回到列表视图
+            try {
+                this.pruneSelectionOnConflictUpdate(data);
+            } catch (e) {
+                console.error('Prune selection on conflicts_update failed:', e);
+            }
         });
 
       
@@ -174,9 +235,14 @@ class WebSocketStore {
                 this.selectedConflict = response.data.conflict;
                 this.resolution_analysis = response.data.analysis;
                 this.resolutions = response.data.recommendations;
+                this.lastError = '';
                  
             } else {
                 console.error('获取解决方案失败:', response.message);
+                // 失败时清空当前分析与方案，并记录错误供 UI 展示
+                this.resolution_analysis = null;
+                this.resolutions = [];
+                this.lastError = response.message || '未找到解决方案';
             }
         });
 
@@ -190,8 +256,10 @@ class WebSocketStore {
                 
                 console.log('解决方案应用成功:', result.message);
                 // 更新冲突状态
+                this.lastError = '';
             } else {
                 console.error('解决方案应用失败:', result.message);
+                this.lastError = result.message || '解决方案应用失败';
             }
         });
 
@@ -216,10 +284,55 @@ class WebSocketStore {
             if (result.success) {
                 console.log(`当前模拟 - 冲突ID: ${result.conflict_id}, 方案ID: ${result.solution_id}`);
                 console.log('模拟状态:', result.simulated_state);
+                this.lastError = '';
             } else {
                 console.error('冲突解决方案模拟失败:', result.message);
+                this.lastError = result.message || '解决方案模拟失败';
             }
         });
+    }
+    
+    // 归一化冲突ID：字符串按下划线分割取最后一段，否则转为字符串
+    _normalizeConflictId(id) {
+        if (!id) return null;
+        if (typeof id === 'string') {
+            const parts = id.split('_');
+            return parts[parts.length - 1];
+        }
+        return String(id);
+    }
+
+    // 冲突更新后，如果当前选中的冲突不在新数据中，则清空选中（返回冲突列表）
+    pruneSelectionOnConflictUpdate(payload) {
+        const selected = this.selectedConflict;
+        if (!selected) return;
+
+        const selectedIdNorm = this._normalizeConflictId(selected.conflict_id ?? selected.id);
+        if (!selectedIdNorm) return;
+
+        const set = new Set();
+        const addFromList = (list) => {
+            if (!Array.isArray(list)) return;
+            list.forEach(c => {
+                const rawId = c?.conflict_id ?? c?.id ?? c?.analysis?.conflict_id;
+                const norm = this._normalizeConflictId(rawId);
+                if (norm) set.add(norm);
+            });
+        };
+
+        addFromList(payload?.current);
+        addFromList(payload?.future);
+
+        console.log('当前冲突ID集合:', set);
+        console.log('当前选中的冲突ID:', selectedIdNorm);
+
+        // 若选中的冲突ID不在新的集合中，清空选中并重置详情
+        if (!set.has(selectedIdNorm)) {
+            this.selectedConflict = null;
+            this.resolution_analysis = null;
+            this.resolutions = [];
+            this.conflictResolutionLoading = false;
+        }
     }
     //-----------------------接口函数---------------------------
     //1.系统控制
@@ -262,12 +375,6 @@ class WebSocketStore {
     }
     
 
-
-
-
-
-
-
     //----------------------------------功能函数--------------------------
     //    // System state updated:活跃飞机的轨迹数据
     updatePlanePosition(newPosition) {
@@ -298,29 +405,29 @@ class WebSocketStore {
     updateFlightPlans(flightData) {
        
         if (flightData) {
-        // 在存储数据前先转换numpy数据类型
-        const convertedData = this.convertNumpyData(flightData);
-        // console.log('转换前的数据:', flightData);
-        // console.log('转换后的数据:', convertedData);
-        console.log('更新规划数据:', convertedData);
-        // 直接使用包含planned_flights、active_flights和conflicts的完整数据
-        this.plannedFlights = convertedData.planned_flights;
-        this.activeFlights = convertedData.active_flights;
+            // 在存储数据前先转换numpy数据类型
+            const convertedData = this.convertNumpyData(flightData);
+            // console.log('转换前的数据:', flightData);
+            // console.log('转换后的数据:', convertedData);
+            console.log('更新规划数据:', convertedData);
+            // 直接使用包含planned_flights、active_flights和conflicts的完整数据
+            this.plannedFlights = convertedData.planned_flights;
+            this.activeFlights = convertedData.active_flights;
+        }
     }
-    }
-    updatePlannedFlightsTime(planned_results) {
-        if(planned_results.planned_flights){
-            this.plannedFlights = planned_results.planned_flights;
-        }
-        if(planned_results.active_flights){
-            this.activeFlights = planned_results.active_flights;
-        }
-        if(planned_results.conflicts){
-            this.conflicts = planned_results.conflicts;
-        }
+    // updatePlannedFlightsTime(planned_results) {
+    //     if(planned_results.planned_flights){
+    //         this.plannedFlights = planned_results.planned_flights;
+    //     }
+    //     if(planned_results.active_flights){
+    //         this.activeFlights = planned_results.active_flights;
+    //     }
+    //     if(planned_results.conflicts){
+    //         this.conflicts = planned_results.conflicts;
+    //     }
        
 
-    }
+    // }
     
     // 更新指定航班的开始时间
     updateFlightStartTime(flightId, adjustTime) {
@@ -354,6 +461,8 @@ class WebSocketStore {
     updateConflicts(newConflicts) {
         // this.conflicts = newConflicts;
         console.log('更新冲突数据:', newConflicts);
+        console.log('current_conflicts:', newConflicts.current);
+        console.log('future_conflicts:', newConflicts.future);
         this.current_conflicts = newConflicts.current;
         this.future_conflicts = newConflicts.future;
          
@@ -410,6 +519,7 @@ class WebSocketStore {
         } else {
             console.error('WebSocket未连接，无法获取冲突解决方案');
             this.conflictResolutionLoading = false;
+            this.lastError = 'WebSocket未连接，无法获取解决方案';
         }
     }
 
@@ -425,6 +535,7 @@ class WebSocketStore {
         } else {
             console.error('WebSocket未连接，无法应用冲突解决方案');
             this.conflictResolutionLoading = false;
+            this.lastError = 'WebSocket未连接，无法应用解决方案';
         }
     }
 
@@ -458,10 +569,7 @@ class WebSocketStore {
                 return c; // 不匹配，返回原对象
             }
         });
-        
-        
-        
-       
+
     }
 
     // 获取当前模拟结果
@@ -487,6 +595,78 @@ class WebSocketStore {
             message: '',
             timestamp: null
         };
+    }
+
+    // 清除最近错误（供 UI 在用户切换或重试时调用）
+    clearLastError() {
+        this.lastError = '';
+    }
+
+    // 获取飞机颜色（同一飞机在active/planning状态保持同色）。
+    // 如果不存在则从规划颜色池中分配一个未使用的颜色，保证不与其他飞机重复；颜色唯一性由映射维护。
+    getAircraftColor(aircraftId, isActive = false) {
+        // 如果已有分配的基础颜色，按状态返回不透明或半透明
+        if (this.aircraftColorMapping.has(aircraftId)) {
+            const base = this.aircraftColorMapping.get(aircraftId);
+            return isActive ? base : this.hexToRgba(base, 0.55);
+        }
+
+        // 分配新颜色：优先选择未被使用的颜色，确保不与其他飞机重复
+        const used = new Set(this.aircraftColorMapping.values());
+        let color = null;
+        for (let i = 0; i < this.planningColors.length; i++) {
+            const c = this.planningColors[(this.planningColorIndex + i) % this.planningColors.length];
+            if (!used.has(c)) {
+                color = c;
+                this.planningColorIndex = (this.planningColorIndex + i + 1) % this.planningColors.length;
+                break;
+            }
+        }
+        // 如果颜色池已用尽（飞机数量超过颜色数量），则回退到循环使用
+        if (!color) {
+            color = this.planningColors[this.planningColorIndex % this.planningColors.length];
+            this.planningColorIndex++;
+        }
+
+        // 存储基础颜色（不带透明度），返回根据状态的颜色
+        this.aircraftColorMapping.set(aircraftId, color);
+        return isActive ? color : this.hexToRgba(color, 0.55);
+    }
+
+    // 设置飞机颜色
+    setAircraftColor(aircraftId, color) {
+        this.aircraftColorMapping.set(aircraftId, color);
+    }
+
+    // 将十六进制颜色转换为 rgba 字符串，支持 #rgb 或 #rrggbb
+    hexToRgba(hex, alpha = 0.5) {
+        if (!hex) return `rgba(0,0,0,${alpha})`;
+        let h = hex.replace('#', '').trim();
+        if (h.length === 3) {
+            h = h.split('').map(ch => ch + ch).join('');
+        }
+        const r = parseInt(h.slice(0, 2), 16);
+        const g = parseInt(h.slice(2, 4), 16);
+        const b = parseInt(h.slice(4, 6), 16);
+        const a = Math.max(0, Math.min(1, alpha));
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
+
+    // 获取所有飞机的颜色映射
+    getAllAircraftColors() {
+        return new Map(this.aircraftColorMapping);
+    }
+
+    // 清除颜色映射
+    clearAircraftColors() {
+        this.aircraftColorMapping.clear();
+        this.activeColorIndex = 0;
+        this.planningColorIndex = 0;
+    }
+
+    // 检查飞机是否为活跃状态
+    isAircraftActive(aircraftId) {
+        return this.planePosition && this.planePosition.some(plane => plane.id === aircraftId);
     }
 }
 const websocketStore = new WebSocketStore();

@@ -1,19 +1,60 @@
 import React, { useEffect, useRef, useState, useContext } from 'react';
+import { useI18n } from '@/i18n/LanguageProvider';
 import websocketStore from '@/stores/WebSocketStore';
 import { observer } from 'mobx-react';
 import { autorun } from 'mobx';
 import * as d3 from 'd3';
 import { Table } from 'antd';
 import { createStyles } from 'antd-style';
+import { AIRCRAFT_COLORS, CONFLICT_COLORS, STRATEGY_COLORS, SIMULATION_COLORS, TIMELINE_STYLES } from '@/constants/colors';
 
-// SVG表格组件
-const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef }) => {
+// 统一底部额外空间，保证左右内容高度一致
+const EXTRA_BOTTOM_SPACE = 200;
+
+// 连线样式配置常量
+const CONNECTION_LINE_WIDTH = TIMELINE_STYLES.LINE_WIDTH;  // 统一连线宽度，与时间线一致
+const CONNECTION_LINE_OPACITY = 1;  // 统一连线透明度，不透明
+const ARROW_FILL_OPACITY = 1.0;  // 箭头填充完全不透明
+const ARROW_GAP_PX = 10; // 箭头与连线端点的间隔，避免重叠
+const ARROW_TIP_X = 10; // 箭头尖端的 x 坐标，缩短箭头长度（原为 16）
+
+// 时间线端点圆半径常量
+const TIMELINE_POINT_RADIUS = 4;  // 统一时间线端点圆半径
+
+// Overlap 统一红色常量
+const OVERLAP_RED = '#990000';
+
+// Overlap 条带矩形透明度常量
+const OVERLAP_RECT_OPACITY = 0.3;
+
+// Overlap 类型颜色常量（统一成单一颜色）
+const OVERLAP_COLORS = {
+    OPPOSITE:       OVERLAP_RED,
+    SAME_DIRECTION: OVERLAP_RED,
+    CROSSING:       OVERLAP_RED,
+};
+let planningY=400;
+// 冲突点圆半径常量
+const CONFLICT_POINT_RADIUS_CURRENT = 6;  // 当前冲突点半径
+const CONFLICT_POINT_RADIUS_FUTURE = 6;   // 未来冲突点半径
+
+// SVG表格组件（圆角矩形独立行，保留表头与行内分割）
+const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef, className,containerHeight}) => {
     const svgTableRef = useRef();
     const containerRef = useRef();
 
-    // 计算表格尺寸
+    // 计算表格尺寸（将表头与主体拆分，主体高度不再包含表头）
     const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
-    const totalHeight = headerHeight + dataSource.length * rowHeight;
+    const bodyHeight = dataSource.length * rowHeight + EXTRA_BOTTOM_SPACE;
+    //新增计算高度,认为减40
+  
+// 在 SVGTable 组件内部
+const totalContentHeight = headerHeight + dataSource.length * rowHeight;
+
+// bodyHeight 必须足够大以支持滚动（保留 EXTRA_BOTTOM_SPACE）
+    //  const bodyHeight = Math.max(containerHeight, totalContentHeight + EXTRA_BOTTOM_SPACE);
+     const verticalOffset = Math.max(0, (planningY - totalContentHeight) / 2)+10;
+
 
     useEffect(() => {
         if (tableRef) {
@@ -32,7 +73,7 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
     // 获取单元格文本颜色
     const getCellTextColor = (column, record, value) => {
         if (column.key === 'flight_id') {
-            return record.status === 'normal' ? '#52c41a' : '#1890ff';
+            return record.status === 'normal' ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
         }
         return '#000000';
     };
@@ -60,160 +101,174 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
     };
 
     return (
+       
         <div
-            ref={containerRef}
-            onScroll={onScroll}
-            style={{
-                width: '100%',
-                height: '100%',
-                overflow: 'auto',
-                backgroundColor: '#ffffff'
-            }}
-            className="svg-table-container"
-        >
-            <svg
-                ref={svgTableRef}
-                width={tableWidth}
-                height={totalHeight}
-                style={{
-                    display: 'block',
-                    backgroundColor: '#ffffff',
-                    minWidth: tableWidth,
-                }}
-            >
-                {/* 表头背景 */}
-                <rect
-                    x={0}
-                    y={0}
-                    width={tableWidth}
-                    height={headerHeight}
-                    fill="#fafafa"
-                    stroke="#f0f0f0"
-                    strokeWidth={1}
+  ref={containerRef}
+  onScroll={onScroll}
+  style={{
+    width: '100%',
+    height: '100%',
+    overflow: 'auto',
+    backgroundColor: '#ffffff'
+  }}
+  className={`svg-table-container ${className || ''}`}
+>
+  {/* 主 SVG：包含表头 + 数据行 */}
+  <svg
+    ref={svgTableRef}
+    className="svg-table-body"
+    width={tableWidth}
+    height={bodyHeight} // 注意：bodyHeight 应 = headerHeight + dataRowsHeight + EXTRA_BOTTOM_SPACE
+    style={{
+      display: 'block',
+      backgroundColor: 'transparent',
+      minWidth: tableWidth,
+    }}
+  >
+    {/* 👇 统一偏移：让整个表格（含表头）居中 */}
+    <g transform={`translate(0, ${verticalOffset})`}>
+      
+      {/* === 表头（原 sticky 部分）=== */}
+      <g className="svg-table-header-group">
+        <rect
+          x={0}
+          y={0}
+          width={tableWidth}
+          height={headerHeight}
+          fill="#fafafa"
+          stroke="#f0f0f0"
+          strokeWidth={1}
+        />
+        {columns.map((column, colIndex) => {
+          const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
+          return (
+            <g key={`header-${colIndex}`}>
+              {Array.isArray(column.title) ? (
+                column.title.map((line, lineIndex) => (
+                  <text
+                    key={`header-line-${lineIndex}`}
+                    x={x + column.width / 2}
+                    y={headerHeight / 2 + (lineIndex - (column.title.length - 1) / 2) * 14}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="11px"
+                    fontWeight="bold"
+                    fill="#000000"
+                  >
+                    {line}
+                  </text>
+                ))
+              ) : (
+                <text
+                  x={x + column.width / 2}
+                  y={headerHeight / 2}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="12px"
+                  fontWeight="bold"
+                  fill="#000000"
+                >
+                  {column.title}
+                </text>
+              )}
+              {colIndex < columns.length - 1 && (
+                <line
+                  x1={x + column.width}
+                  y1={0}
+                  x2={x + column.width}
+                  y2={headerHeight}
+                  stroke="#f0f0f0"
+                  strokeWidth={1}
                 />
+              )}
+            </g>
+          );
+        })}
+      </g>
 
-                {/* 表头文本和分割线 */}
-                {columns.map((column, colIndex) => {
-                    const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
-                    return (
-                        <g key={`header-${colIndex}`}>
-                            {/* 表头文本 */}
-                            <text
-                                x={x + column.width / 2}
-                                y={headerHeight / 2}
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                fontSize="12px"
-                                fontWeight="bold"
-                                fill="#000000"
-                            >
-                                {column.title}
-                            </text>
+      {/* === 数据行 === */}
+      <g transform={`translate(0, ${headerHeight})`}>
+        {dataSource.map((record, rowIndex) => {
+          const y = rowIndex * rowHeight;
+          const borderColor = record.status === 'normal' ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
+          const fillNormal = '#ffffff';
+          const fillHover = '#f5faff';
+          const rectX = 6;
+          const rectY = y + 4;
+          const rectW = tableWidth - 12;
+          const rectH = rowHeight - 8;
+          return (
+            <g key={`row-${rowIndex}`} data-flight-id={record.flight_id} className="svg-table-row">
+              <rect
+                x={rectX}
+                y={rectY}
+                width={rectW}
+                height={rectH}
+                rx={4}
+                ry={4}
+                fill={fillNormal}
+                stroke={borderColor}
+                strokeWidth={1}
+                className="rounded-row"
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={(e) => e.target.setAttribute('fill', fillHover)}
+                onMouseLeave={(e) => e.target.setAttribute('fill', fillNormal)}
+              />
+              {columns.map((column, colIndex) => {
+                const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
+                const value = record[column.dataIndex];
+                const displayText = formatDisplayText(column, record, value);
+                const textColor = getCellTextColor(column, record, value);
 
-                            {/* 列分割线 */}
-                            {colIndex < columns.length - 1 && (
-                                <line
-                                    x1={x + column.width}
-                                    y1={0}
-                                    x2={x + column.width}
-                                    y2={headerHeight}
-                                    stroke="#f0f0f0"
-                                    strokeWidth={1}
-                                />
-                            )}
-                        </g>
-                    );
-                })}
+                return (
+                  <g key={`cell-${rowIndex}-${colIndex}`}>
+                    {Array.isArray(displayText) ? (
+                      <text
+                        x={rectX + x + column.width / 2}
+                        y={y + rowHeight / 2 - 6}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="10px"
+                        fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
+                        fill={textColor}
+                      >
+                        <tspan x={rectX + x + column.width / 2} dy="0">{displayText[0]}</tspan>
+                        <tspan x={rectX + x + column.width / 2} dy="12">{displayText[1]}</tspan>
+                      </text>
+                    ) : (
+                      <text
+                        x={rectX + x + column.width / 2}
+                        y={y + rowHeight / 2}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="12px"
+                        fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
+                        fill={textColor}
+                      >
+                        {displayText}
+                      </text>
+                    )}
+                    {colIndex < columns.length - 1 && (
+                      <line
+                        x1={rectX + x + column.width}
+                        y1={rectY}
+                        x2={rectX + x + column.width}
+                        y2={rectY + rectH}
+                        stroke="#f0f0f0"
+                        strokeWidth={1}
+                      />
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+      </g>
 
-                {/* 表格数据行 */}
-                {dataSource.map((record, rowIndex) => {
-                    const y = headerHeight + rowIndex * rowHeight;
-                    return (
-                        <g key={`row-${rowIndex}`}>
-                            {/* 行背景 */}
-                            <rect
-                                x={0}
-                                y={y}
-                                width={tableWidth}
-                                height={rowHeight}
-                                fill="#ffffff"
-                                stroke="#f0f0f0"
-                                strokeWidth={1}
-                                className="table-row"
-                                style={{
-                                    cursor: 'pointer'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.target.setAttribute('fill', '#f5f5f5');
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.target.setAttribute('fill', '#ffffff');
-                                }}
-                            />
-
-                            {/* 行中心线（用于与右侧对齐） */}
-                            <line
-                                x1={0}
-                                y1={y + rowHeight / 2}
-                                x2={tableWidth}
-                                y2={y + rowHeight / 2}
-                                stroke="transparent"
-                                strokeWidth={1}
-                                className="row-center-line"
-                            />
-
-                            {/* 单元格内容 */}
-                            {columns.map((column, colIndex) => {
-                                const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
-                                const value = record[column.dataIndex];
-                                const displayText = formatDisplayText(column, record, value);
-                                const textColor = getCellTextColor(column, record, value);
-
-                                return (
-                                    <g key={`cell-${rowIndex}-${colIndex}`}>
-                                        {/* 单元格文本 */}
-                                        <text
-                                            x={x + column.width / 2}
-                                            y={y + rowHeight / 2}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                            fontSize="12px"
-                                            fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
-                                            fill={textColor}
-                                        >
-                                            {displayText}
-                                        </text>
-
-                                        {/* 列分割线 */}
-                                        {colIndex < columns.length - 1 && (
-                                            <line
-                                                x1={x + column.width}
-                                                y1={y}
-                                                x2={x + column.width}
-                                                y2={y + rowHeight}
-                                                stroke="#f0f0f0"
-                                                strokeWidth={1}
-                                            />
-                                        )}
-                                    </g>
-                                );
-                            })}
-                        </g>
-                    );
-                })}
-
-                {/* 表格外边框 */}
-                <rect
-                    x={0}
-                    y={0}
-                    width={tableWidth}
-                    height={totalHeight}
-                    fill="none"
-                    stroke="#f0f0f0"
-                    strokeWidth={1}
-                />
-            </svg>
-        </div>
+    </g> {/* 👈 end of transform group */}
+  </svg>
+</div>
     );
 };
 
@@ -231,6 +286,26 @@ const useStyle = createStyles(({ css, token }) => {
           
           scrollbar-width: none; /* Firefox */
           -ms-overflow-style: none; /* IE and Edge */
+        `,
+        // 更细、更透明、蓝色的自定义滚动条样式
+        prettyScrollbar: css`
+          ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+          }
+          ::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          ::-webkit-scrollbar-thumb {
+            background-color: rgba(24, 144, 255, 0.35);
+            border-radius: 3px;
+            border: 1px solid rgba(24, 144, 255, 0.15);
+          }
+          ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(24, 144, 255, 0.55);
+          }
+          scrollbar-width: thin; /* Firefox */
+          scrollbar-color: rgba(24, 144, 255, 0.35) transparent; /* Firefox */
         `,
         customTable: css`
       ${antCls}-table {
@@ -311,16 +386,16 @@ const useStyle = createStyles(({ css, token }) => {
 const columns = [
     {
         title: 'Flight ID', // 航班ID
-        width: 100,
+        width: 80,
         dataIndex: 'flight_id',
         key: 'flight_id',
         fixed: 'left', // 固定列
         ellipsis: true,
         render: (flightId, record) => {
             // 根据航班状态显示不同颜色
-            // 绿色：既在planned又在active中（normal状态）
-            // 蓝色：只在planned中（planned状态）
-            const color = record.status === 'normal' ? '#52c41a' : '#1890ff';
+            // 浅绿色：既在planned又在active中（normal状态）
+            // 浅蓝色：只在planned中（planned状态）
+            const color = record.status === 'normal' ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
             return (
                 <span style={{ color: color, fontWeight: 'bold', fontSize: '12px' }}>
                     {flightId}
@@ -329,18 +404,18 @@ const columns = [
         }
     },
     {
-        title: 'Taxi Time', // 滑行时间
+        title: ['Taxi', 'Time'], // 滑行时间 - 两行标题
         dataIndex: 'taxi_time',
         key: 'taxi_time',
-        width: 90,
+        width: 70,
         ellipsis: true,
         render: (time) => time ? time.toFixed(1) : '-'
     },
     {
-        title: 'Start Time', // 开始时间
+        title: ['Start', 'Time'], // 开始时间 - 两行标题
         dataIndex: 'start_time',
         key: 'start_time',
-        width: 100,
+        width: 70,
         ellipsis: true,
         render: (time) => {
             if (typeof time === 'string') {
@@ -354,20 +429,46 @@ const columns = [
         }
     },
     {
-        title: 'Time to Takeoff', // 起飞时间
+        title: ['Time to', 'Takeoff'], // 起飞时间 - 两行标题
         dataIndex: 'time_to_takeoff',
         key: 'time_to_takeoff',
-        width: 110,
-        ellipsis: true,
-        render: (time) => time !== undefined ? time.toFixed(1) : '-'
+        width: 90,
+        ellipsis: false,
+        render: (time) => {
+            const value = time !== undefined ? time.toFixed(1) : '-';
+            return (
+                <div style={{ 
+                    whiteSpace: 'normal', 
+                    lineHeight: '1.2',
+                    fontSize: '11px',
+                    textAlign: 'center'
+                }}>
+                    <div>Time to</div>
+                    <div>Takeoff: {value}</div>
+                </div>
+            );
+        }
     },
     {
-        title: 'Remaining Time', // 剩余时间
+        title: ['Remaining', 'Time'], // 剩余时间 - 两行标题
         dataIndex: 'remaining_taxi_time',
         key: 'remaining_taxi_time',
-        width: 110,
-        ellipsis: true,
-        render: (time) => time ? (time / 60).toFixed(1) : '-'
+        width: 90,
+        ellipsis: false,
+        render: (time) => {
+            const value = time ? (time / 60).toFixed(1) : '-';
+            return (
+                <div style={{ 
+                    whiteSpace: 'normal', 
+                    lineHeight: '1.2',
+                    fontSize: '11px',
+                    textAlign: 'center'
+                }}>
+                    <div>Remaining</div>
+                    <div>Time: {value}</div>
+                </div>
+            );
+        }
     },
     {
         title: 'Origin', // 起点
@@ -386,18 +487,112 @@ const columns = [
 ];
 
 const PlanningView = observer(() => {
+    const { t } = useI18n();
+    const [showLegend, setShowLegend] = useState(true);
     const { styles } = useStyle();
     const width = 1200, height = 400; // 增加尺寸以容纳更多数据
-    const svgRef = useRef();
+const svgRef = useRef();
+const svgAxisRef = useRef(); // 顶部粘性时间轴 SVG 引用
     const d3Container = useRef({});
     const [timeScale, setTimeScale] = useState({ min: 0, max: 100 });
     const [tableDataSource, setTableDataSource] = useState([]); // 表格数据源
     const [aircraftOrder, setAircraftOrder] = useState([]); // 航班顺序，用于同步滚动
     const tableRef = useRef(); // 表格引用
     const chartRef = useRef(); // 图表容器引用
-    const ROW_HEIGHT = 40;
+    const overlayRef = useRef(); // 跨区域连线的覆盖层
+    const isSyncingScroll = useRef(false); // 防止滚动事件互相触发造成循环
+const ROW_HEIGHT = 32;
     const ROW_HEIGHT_P = 40; // 每行高度，用于同步滚动
-    const HEADER_HEIGHT = 40; // 表头高度
+const HEADER_HEIGHT = 32; // 表头高度（缩小）
+
+    // 本地化列定义
+    const columnsI18n = React.useMemo(() => ([
+        {
+            title: t('flight.id'),
+            width: 80,
+            dataIndex: 'flight_id',
+            key: 'flight_id',
+            fixed: 'left',
+            ellipsis: true,
+            render: (flightId, record) => {
+                const color = record.status === 'normal' ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
+                return (
+                    <span style={{ color: color, fontWeight: 'bold', fontSize: '12px' }}>
+                        {flightId}
+                    </span>
+                );
+            }
+        },
+        {
+            title: [t('taxi'), t('time')],
+            dataIndex: 'taxi_time',
+            key: 'taxi_time',
+            width: 70,
+            ellipsis: true,
+            render: (time) => time ? time.toFixed(1) : '-'
+        },
+        {
+            title: [t('start'), t('time')],
+            dataIndex: 'start_time',
+            key: 'start_time',
+            width: 70,
+            ellipsis: true,
+            render: (time) => {
+                if (typeof time === 'string') {
+                    return new Date(time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                } else if (typeof time === 'number') {
+                    return `T+${(time / 60).toFixed(1)}`;
+                }
+                return '-';
+            }
+        },
+        {
+            title: [t('time.to'), t('takeoff')],
+            dataIndex: 'time_to_takeoff',
+            key: 'time_to_takeoff',
+            width: 90,
+            ellipsis: false,
+            render: (time) => {
+                const value = time !== undefined ? time.toFixed(1) : '-';
+                return (
+                    <div style={{ whiteSpace: 'normal', lineHeight: '1.2', fontSize: '11px', textAlign: 'center' }}>
+                        <div>{t('time.to')}</div>
+                        <div>{t('takeoff')}: {value}</div>
+                    </div>
+                );
+            }
+        },
+        {
+            title: [t('remaining'), t('time')],
+            dataIndex: 'remaining_taxi_time',
+            key: 'remaining_taxi_time',
+            width: 90,
+            ellipsis: false,
+            render: (time) => {
+                const value = time ? (time / 60).toFixed(1) : '-';
+                return (
+                    <div style={{ whiteSpace: 'normal', lineHeight: '1.2', fontSize: '11px', textAlign: 'center' }}>
+                        <div>{t('remaining')}</div>
+                        <div>{t('time')}: {value}</div>
+                    </div>
+                );
+            }
+        },
+        {
+            title: t('origin'),
+            dataIndex: 'origin',
+            key: 'origin',
+            width: 80,
+            ellipsis: true
+        },
+        {
+            title: t('destination'),
+            dataIndex: 'destination',
+            key: 'destination',
+            width: 80,
+            ellipsis: true
+        }
+    ]), [t]);
 
     // 分段函数计算逻辑
     const calculatePiecewiseFunction = (t, piecewiseData) => {
@@ -425,6 +620,104 @@ const PlanningView = observer(() => {
     const createColorScale = (minValue, maxValue) => {
         return d3.scaleSequential(d3.interpolateViridis)
             .domain([minValue, maxValue]);
+    };
+
+    // 绘制从表格行到时间线飞机图标的连接线（使用覆盖层SVG）
+    const drawRowToIconConnectors = () => {
+        const overlaySvg = overlayRef.current;
+        const tableContainer = tableRef.current;
+        const chartContainer = chartRef.current;
+        if (!overlaySvg || !tableContainer || !chartContainer) return;
+
+        // 清空覆盖层
+        while (overlaySvg.firstChild) overlaySvg.removeChild(overlaySvg.firstChild);
+
+        const overlayRect = overlaySvg.getBoundingClientRect();
+        // 选择主体表格SVG（包含数据行），避免误选表头SVG
+        const tableSvg = tableContainer?.querySelector('.svg-table-body');
+        // 使用主图 SVG，而不是顶部粘性轴的 SVG
+        const chartSvg = svgRef.current;
+        if (!tableSvg || !chartSvg) return;
+
+        const rows = Array.from(tableSvg.querySelectorAll('[data-flight-id]'));
+        rows.forEach((rowEl, idx) => {
+            const flightId = rowEl.getAttribute('data-flight-id');
+            const iconEl = chartSvg.querySelector(`.aircraft-icon-${CSS.escape(flightId)}`);
+            if (!iconEl) return;
+
+            const rowRect = rowEl.getBoundingClientRect();
+            const iconRect = iconEl.getBoundingClientRect();
+
+            // 表格右侧起点（优先使用行内圆角矩形的右缘），左边高度与其上下边界完全对齐
+            const roundedRectEl = rowEl.querySelector('.rounded-row');
+            const roundedRectRect = roundedRectEl ? roundedRectEl.getBoundingClientRect() : null;
+            const xLeft = (roundedRectRect ? roundedRectRect.right : rowRect.right) - overlayRect.left;
+            const rowTop = (roundedRectRect ? roundedRectRect.top : rowRect.top) - overlayRect.top;
+            const rowBottom = (roundedRectRect ? roundedRectRect.bottom : (rowRect.top + rowRect.height)) - overlayRect.top;
+
+            // 计算滑块左缘作为折线拐点X
+            // 计划飞机滑块：.plan-bar-group-${id} 下的 .taxi-slider-${id}
+            // 活跃飞机滑块：.active-bar-group-${id} 下的第一个 .remaining-slider-block
+            const plannedSliderEl = chartSvg.querySelector(`.plan-bar-group-${CSS.escape(flightId)} .taxi-slider-${CSS.escape(flightId)}`);
+            const activeBarGroupEl = chartSvg.querySelector(`.active-bar-group-${CSS.escape(flightId)}`);
+            const planBarGroupEl  = chartSvg.querySelector(`.plan-bar-group-${CSS.escape(flightId)}`);
+            let midX = null;
+            let sliderRect = null; // 记录滑块或轨道的矩形用于带状连接
+            
+            // 规则：
+            // Active飞机 -> 使用 taxi-slider-${id} 左端点
+            // Planned飞机 -> 使用 time-track-block 左端点
+            const taxiSliderEl = chartSvg.querySelector(`.taxi-slider-${CSS.escape(flightId)}`);
+            if (activeBarGroupEl) {
+                // Active优先：没有 taxi-slider 时，使用剩余滑行块或其背景块作为参照
+                const remainingBlockEl = activeBarGroupEl.querySelector('.remaining-slider-block');
+                const activeTrackEl = activeBarGroupEl.querySelector('.active-time-track-block');
+                const refEl = taxiSliderEl || remainingBlockEl || activeTrackEl;
+                if (refEl) {
+                    const rect = refEl.getBoundingClientRect();
+                    midX = rect.left - overlayRect.left;
+                    sliderRect = rect;
+                }
+            } else if (planBarGroupEl) {
+                const planTrackEl = planBarGroupEl.querySelector('.time-track-block');
+                if (planTrackEl) {
+                    const rect = planTrackEl.getBoundingClientRect();
+                    midX = rect.left - overlayRect.left;
+                    sliderRect = rect;
+                }
+            }
+
+            // 若没有找到滑块元素，则跳过该连线（带状直线需要滑块高度）
+            if (midX == null || !sliderRect) {
+                return;
+            }
+
+            // 计算滑块左缘与其上下边界（作为带状右侧宽度），右侧高度保持为滑块自身高度
+            const xRight = sliderRect.left - overlayRect.left;
+            const sliderTop = sliderRect.top - overlayRect.top;
+            const sliderBottom = sliderTop + sliderRect.height;
+
+            // 带状左侧高度与表格行圆角矩形高度严格对齐（不收窄）
+            const topLeftY = rowTop;
+            const bottomLeftY = rowBottom;
+
+            const points = [
+                `${xLeft},${topLeftY}`,
+                `${xRight},${sliderTop}`,
+                `${xRight},${sliderBottom}`,
+                `${xLeft},${bottomLeftY}`
+            ].join(' ');
+
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', points);
+            // 使用与表格一致的颜色（active=绿色，planning=蓝色），并设为半透明
+            const isActive = !!activeBarGroupEl;
+            const bandColor = isActive ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
+            polygon.setAttribute('fill', bandColor);
+            polygon.setAttribute('opacity', '0.25');
+            polygon.setAttribute('stroke', 'none');
+            overlaySvg.appendChild(polygon);
+        });
     };
 
     // 生成带状图形的路径点
@@ -459,7 +752,7 @@ const PlanningView = observer(() => {
         const defaultStyles = {
             current: {
                 pointColor: 'red',
-                pointRadius: 6,
+                pointRadius: CONFLICT_POINT_RADIUS_CURRENT,
                 lineColor: 'red',
                 lineWidth: 3,
                 lineDashArray: '5,5',
@@ -470,7 +763,7 @@ const PlanningView = observer(() => {
             },
             future: {
                 pointColor: 'orange',
-                pointRadius: 5,
+                pointRadius: CONFLICT_POINT_RADIUS_FUTURE,
                 lineColor: 'orange',
                 lineWidth: 2,
                 lineDashArray: '3,3',
@@ -479,7 +772,14 @@ const PlanningView = observer(() => {
                 fontSize: '9px',
                 fontWeight: 'normal'
             }
+            // 绘制跨区域连接线（确保表格和图表均已渲染）
+           
+
         };
+         
+        setTimeout(() => {
+            drawRowToIconConnectors();
+        }, 0);
 
         // 合并样式配置
         const styles = {
@@ -567,8 +867,8 @@ const PlanningView = observer(() => {
                     .attr("cy", y1)
                     .attr("r", styles.pointRadius)
                     .attr("fill", styles.pointColor)
-                    .attr("stroke", "white")
-                    .attr("stroke-width", 2)
+                    .attr("stroke", styles.pointColor)
+                    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
                     .attr("opacity", styles.opacity);
 
                 g.append("circle")
@@ -577,8 +877,8 @@ const PlanningView = observer(() => {
                     .attr("cy", y2)
                     .attr("r", styles.pointRadius)
                     .attr("fill", styles.pointColor)
-                    .attr("stroke", "white")
-                    .attr("stroke-width", 2)
+                    .attr("stroke", styles.pointColor)
+                    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
                     .attr("opacity", styles.opacity);
 
                 // 绘制连接两架飞机的冲突线
@@ -727,6 +1027,13 @@ const PlanningView = observer(() => {
                 });
             });
         }
+        // 根据 time_to_takeoff 升序排序，缺失值放到最后
+        tableData.sort((a, b) => {
+            const ta = (a.time_to_takeoff ?? Number.POSITIVE_INFINITY);
+            const tb = (b.time_to_takeoff ?? Number.POSITIVE_INFINITY);
+            return ta - tb;
+        });
+
         return { tableData, aircraftIds };
     };
 
@@ -814,14 +1121,22 @@ const PlanningView = observer(() => {
                 simulationFlights.each(function (simulationResult, i) {
                     const simulationGroup = d3.select(this);
 
-                    // 为模拟数据选择颜色和样式
-                    const color = simulationColors[simulationIndex % simulationColors.length];
-                    const strokeWidth = 3; // 模拟数据线条中等粗细
-                    const strokeDasharray = "8,4"; // 长虚线，区别于原时间线
-                    simulationIndex++;
+                    // 使用与普通时间线相同的颜色和样式
+                    const isActive = simulationResult.type === 'simulation_active';
+                    const color = isActive ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
+                    
+                    // 根据飞机类型选择样式，与普通时间线保持一致
+                    let strokeWidth, strokeDasharray;
+                    if (isActive) {
+                        strokeWidth = TIMELINE_STYLES.LINE_WIDTH;
+                        strokeDasharray = TIMELINE_STYLES.ACTIVE_DASH; // 实线
+                    } else {
+                        strokeWidth = TIMELINE_STYLES.LINE_WIDTH;
+                        strokeDasharray = TIMELINE_STYLES.PLANNING_DASH; // 虚线
+                    }
 
-                    // 绘制模拟时间线（在原时间线下方偏移）
-                    const yOffset = 8; // 向下偏移8像素
+                    // 移除Y轴偏移，与普通时间线在同一条直线上
+                    const yOffset = 0;
 
                     simulationGroup.selectAll("line")
                         .data(simulationResult.paths)
@@ -839,103 +1154,47 @@ const PlanningView = observer(() => {
                         .attr("stroke-width", strokeWidth)
                         .attr("stroke-linecap", "round")
                         .attr("stroke-dasharray", strokeDasharray)
-                        .attr("opacity", 0.8); // 稍微透明以区分
+                        .attr("opacity", 1.0); // 模拟数据保持不透明
 
-                    // 添加模拟起始点图标（菱形）
+                    // 添加模拟起始点图标（圆形，与普通时间线一致）
                     simulationGroup.selectAll(".simulation-start-point")
                         .data(simulationResult.paths)
                         .enter()
-                        .append("polygon")
+                        .append("circle")
                         .attr("class", "simulation-start-point")
-                        .attr("points", d => {
-                            const x = simulationResult.type === 'simulation_planning' ? xScale(d.start_time) : xScale(0);
-                            const y = getYPosition(simulationResult.aircraft_id) + yOffset;
-                            const size = 4;
-                            return `${x},${y - size} ${x + size},${y} ${x},${y + size} ${x - size},${y}`;
+                        .attr("cx", d => {
+                            return simulationResult.type === 'simulation_planning' ? xScale(d.start_time) : xScale(0);
                         })
+                        .attr("cy", (d, j) => getYPosition(simulationResult.aircraft_id) + j * 3 + yOffset)
+                        .attr("r", TIMELINE_POINT_RADIUS)
                         .attr("fill", color)
-                        .attr("stroke", "white")
-                        .attr("stroke-width", 1)
-                        .attr("opacity", 0.9);
+                        .attr("stroke", color)
+                        .attr("stroke-width", 2)
+                        .attr("opacity", 1.0); // 模拟数据图标保持不透明
 
-                    // 添加模拟结束点图标（菱形）
+                    // 添加模拟结束点图标（圆形，与普通时间线一致）
                     simulationGroup.selectAll(".simulation-end-point")
                         .data(simulationResult.paths)
                         .enter()
-                        .append("polygon")
+                        .append("circle")
                         .attr("class", "simulation-end-point")
-                        .attr("points", d => {
-                            const x = simulationResult.type === 'simulation_planning' ? xScale(d.end_time) : xScale(d.time);
-                            const y = getYPosition(simulationResult.aircraft_id) + yOffset;
-                            const size = 4;
-                            return `${x},${y - size} ${x + size},${y} ${x},${y + size} ${x - size},${y}`;
+                        .attr("cx", d => {
+                            return simulationResult.type === 'simulation_planning' ? xScale(d.end_time) : xScale(d.time);
                         })
-                        .attr("fill", color)
-                        .attr("stroke", "white")
-                        .attr("stroke-width", 1)
-                        .attr("opacity", 0.9);
+                        .attr("cy", (d, j) => getYPosition(simulationResult.aircraft_id) + j * 3 + yOffset)
+                        .attr("r", TIMELINE_POINT_RADIUS)
+                        .attr("fill", isActive ? color : "white")
+                        .attr("stroke", color)
+                        .attr("stroke-width", 2)
+                        .attr("opacity", 1.0); // 模拟数据图标保持不透明
 
-                    // 为模拟活跃飞机添加特殊标识（星形）
-                    if (simulationResult.type === 'simulation_active') {
-                        simulationGroup.selectAll(".simulation-active-indicator")
-                            .data(simulationResult.paths)
-                            .enter()
-                            .append("polygon")
-                            .attr("class", "simulation-active-indicator")
-                            .attr("points", d => {
-                                const x = xScale(d.time);
-                                const y = getYPosition(simulationResult.aircraft_id) - 5 + yOffset;
-                                const size = 3;
-                                // 创建星形的点
-                                return `${x},${y - size} ${x + size * 0.3},${y - size * 0.3} ${x + size},${y} ${x + size * 0.3},${y + size * 0.3} ${x},${y + size} ${x - size * 0.3},${y + size * 0.3} ${x - size},${y} ${x - size * 0.3},${y - size * 0.3}`;
-                            })
-                            .attr("fill", color)
-                            .attr("stroke", "white")
-                            .attr("stroke-width", 1)
-                            .attr("opacity", 0.9);
-                    }
-
-                    // 为模拟计划飞机添加特殊标识（六边形）
-                    if (simulationResult.type === 'simulation_planning') {
-                        simulationGroup.selectAll(".simulation-planning-indicator")
-                            .data(simulationResult.paths)
-                            .enter()
-                            .append("polygon")
-                            .attr("class", "simulation-planning-indicator")
-                            .attr("points", d => {
-                                const x = xScale(d.end_time);
-                                const y = getYPosition(simulationResult.aircraft_id) - 8 + yOffset;
-                                const size = 4;
-                                // 创建六边形的点
-                                const angle = Math.PI / 3; // 60度
-                                let points = [];
-                                for (let i = 0; i < 6; i++) {
-                                    const px = x + size * Math.cos(i * angle);
-                                    const py = y + size * Math.sin(i * angle);
-                                    points.push(`${px},${py}`);
-                                }
-                                return points.join(' ');
-                            })
-                            .attr("fill", color)
-                            .attr("stroke", "white")
-                            .attr("stroke-width", 1)
-                            .attr("opacity", 0.9);
-                    }
                 });
             };
-
-            // 适配新的数据格式
-            // plannedData: {planned_flights: {...}, active_flights: {...}, conflicts: [...]}
-            // console.log('PlanningView received data:', plannedData);
-            // console.log('planned_flights:', plannedData?.planned_flights);
-            // console.log('active_flights:', plannedData?.active_flights);
 
             // 处理航班数据，生成表格数据源
             const { tableData, aircraftIds: processedAircraftIds } = processFlightData(plannedData);
             setTableDataSource(tableData);
             setAircraftOrder(processedAircraftIds);
-            // console.log('Generated table data:', tableData);
-            // console.log('Aircraft order:', processedAircraftIds);
 
             let maxTime = 0;
             let aircraftIds = processedAircraftIds; // 使用处理后的航班ID顺序
@@ -992,20 +1251,54 @@ const PlanningView = observer(() => {
             // 绘制视图
 
             const svg = d3.select(svgRef.current);
-            const width = 1200; // 与组件定义的宽度保持一致
+            const width = chartRef.current ? chartRef.current.clientWidth : 1200; // 使用容器实际宽度，避免显示不全
+            // 创建图例容器（固定位置）
 
-            // 根据飞机数量动态计算所需高度，与表格保持一致
-            const requiredHeight = HEADER_HEIGHT + aircraftIds.length * ROW_HEIGHT_P;
+            // 创建飞机ID比例尺，根据interval_to_previous字段调整间隔
+            // 计算每个飞机的累积Y位置偏移
+            const calculateYPositions = () => {
+                const yPositions = {};
+                // 行起始位置不再加表头高度，缩小顶部间隙
+                let currentY = (ROW_HEIGHT_P / 2);
+                
+                aircraftIds.forEach((flightId, index) => {
+                    yPositions[flightId] = currentY;
+                    
+                    // 获取下一个飞机的interval_to_previous值来计算间隔
+                    if (index < aircraftIds.length - 1) {
+                        const nextFlightId = aircraftIds[index + 1];
+                        const nextFlightData = plannedData.planned_flights[nextFlightId];
+                        const intervalToPrevious = nextFlightData?.interval_to_previous || ROW_HEIGHT_P;
+                        const zoomRatio=0.7;
+                        // 使用interval_to_previous作为到下一个飞机的间隔，如果没有则使用默认行高
+                        currentY += Math.max(intervalToPrevious, ROW_HEIGHT_P)*zoomRatio;
+                       
+                    }
+                });
+                planningY=currentY+32;
+                return yPositions;
+            };
+            
+            const yPositions = calculateYPositions();
+            const maxY = Math.max(...Object.values(yPositions)) + ROW_HEIGHT_P;
+            // 图表高度不再包含表头高度，缩小与时间轴间距
+            const chartHeight = maxY;
+
+            // 根据飞机数量动态计算所需高度，表格保持原来的间距
+            const tableRequiredHeight = aircraftIds.length * ROW_HEIGHT_P;
+            
+            // SVG高度基于时间线的实际需要（使用interval_to_previous调整后的高度）
+            const svgRequiredHeight = maxY;
 
             const baseHeight = 400;
 
-            // const height = Math.max(baseHeight, requiredHeight + 200); // 额外增加200px用于边距和图例
-            const height = requiredHeight + 200; // 额外增加200px用于边距和图例
+            // SVG使用基于interval_to_previous计算的高度，表格保持原来的固定间距
+            const height = Math.max(svgRequiredHeight + EXTRA_BOTTOM_SPACE, tableRequiredHeight + EXTRA_BOTTOM_SPACE);
 
             // 为右侧图例预留空间，避免与时间线重叠
             const LEGEND_WIDTH = 200;
             const LEGEND_GAP = 20;
-            const margin = { top: 0, right: LEGEND_WIDTH + LEGEND_GAP, bottom: 80, left: 150 }; // 增加右侧边距以容纳图例
+            const margin = { top: 6, right: LEGEND_WIDTH + LEGEND_GAP, bottom: 80, left: 200 }; // 顶部留少量间距，缩小与时间轴间隙
 
             // 清除之前的内容
             svg.selectAll("*").remove();
@@ -1020,64 +1313,192 @@ const PlanningView = observer(() => {
             const g = svg.append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
 
+            // 定义箭头标记（在SVG清理之后立即创建）
+            let defs = svg.select('defs');
+            if (defs.empty()) defs = svg.append('defs');
+           
+            // 相向冲突图标标记 - 使用新的冲突图标替代两个相反箭头
+            if (defs.select('#overlap-conflict-icon').empty()) {
+                let conflictIconMarker = defs.append('marker')
+                    .attr('id', 'overlap-conflict-icon')
+                    .attr('viewBox', '0 0 1024 1024')
+                    .attr('refX', 512) // 图标中心对齐路径终点
+                    .attr('refY', 512)
+                    .attr('markerWidth', 32) // 图标尺寸 - 放大
+                    .attr('markerHeight', 32)
+                    .attr('orient', 'auto')
+                    .attr('markerUnits', 'userSpaceOnUse');
+
+                // 添加冲突图标路径
+                conflictIconMarker.append('path')
+                    .attr('d', 'M1024 421.888C1024 189.568 834.304 0 602.112 0c-163.584 0-303.36 92.416-374.528 227.584C92.416 298.752 0 438.528 0 602.112 0 834.432 189.568 1024 421.888 1024c163.584 0 303.36-92.416 374.528-227.584C931.584 725.376 1024 583.168 1024 421.888zM673.152 853.376C640 886.528 601.984 912.64 559.36 929.28c-45.056 18.944-90.112 28.416-139.904 28.416-47.36 0-94.848-9.472-139.904-28.416-42.624-18.944-80.64-42.624-113.792-75.904-33.152-33.152-59.264-71.168-75.904-113.792-18.944-45.056-28.416-90.112-28.416-139.904 0-47.36 9.472-94.848 28.416-139.904 18.944-42.624 42.624-80.64 75.904-113.792l21.376-21.376c-4.736 21.376-7.168 42.624-9.472 66.432v26.112c0 137.472 66.432 258.432 165.888 336.64l4.736 4.736c2.432 2.432 4.736 2.432 4.736 4.736 4.736 2.432 7.168 4.736 11.904 9.472 66.432 42.624 144.64 68.736 229.888 68.736h26.112c23.68-2.304 45.056-4.736 66.432-9.472 0 7.168-7.04 14.208-14.208 21.376zM832 694.528c4.736-21.376 7.168-42.624 9.472-66.432v-26.112c0-154.112-82.944-289.152-208.64-362.624-2.304-2.432-4.736-2.432-7.168-2.432-2.432-2.432-4.736-2.432-7.168-4.736l-14.208-7.168c-56.832-28.416-120.832-42.624-187.264-42.624h-26.112c-23.68 2.304-45.056 4.736-66.432 9.472l21.376-21.376c33.152-33.152 71.168-59.264 113.792-75.904 45.056-18.944 90.112-28.416 139.904-28.416 47.36 0 94.848 9.472 139.904 28.416 42.624 18.944 80.64 42.624 113.792 75.904 33.152 33.152 59.264 71.168 75.904 113.792 18.944 45.056 28.416 90.112 28.416 139.904 0 47.36-9.472 94.848-28.416 139.904-18.944 42.624-42.624 80.64-75.904 113.792-4.736 2.432-14.208 9.6-21.248 16.64z')
+                    .attr('fill', OVERLAP_RED)  // 统一红色 #800020
+                    .attr('fill-opacity', 1.0);  // 完全不透明
+            }
+            
+            // 同向冲突图标标记 - 使用新的下箭头图标
+                if (defs.select('#overlap-chevron-arrow-same').empty()) {
+                    let chevronMarkerSame = defs.append('marker')
+                        .attr('id', 'overlap-chevron-arrow-same')
+                        .attr('viewBox', '0 0 1024 1024')
+                        .attr('refX', 512) // 图标中心对齐路径终点
+                        .attr('refY', 512)
+                        .attr('markerWidth', 24) // 图标尺寸
+                        .attr('markerHeight', 24)
+                        .attr('orient', 'auto')
+                        .attr('markerUnits', 'userSpaceOnUse');
+
+                    // 同向冲突右箭头图标 - 旋转180度并放大
+                    chevronMarkerSame.append('path')
+                        .attr('d', 'M693.333333 512c0 14.933333-4.266667 29.866667-14.933333 40.533333l-234.666667 277.333333c-23.466667 27.733333-64 29.866667-89.6 8.533333-27.733333-23.466667-29.866667-64-8.533333-89.6L546.133333 512 345.6 275.2c-23.466667-27.733333-19.2-68.266667 8.533333-89.6 27.733333-23.466667 68.266667-19.2 89.6 8.533333l234.666667 277.333333c10.666667 10.666667 14.933333 25.6 14.933333 40.533333z')
+                        .attr('fill', OVERLAP_RED)  // 统一红色 #800020
+                        .attr('fill-opacity', 1);   // 图标完全不透明
+                }
+
+            // 相向冲突中点图标 symbol（复用用户提供的 SVG 路径，fill 设为 currentColor 以便动态换色）
+            if (defs.select('#overlap-icon-opposite').empty()) {
+                defs.append('symbol')
+                    .attr('id', 'overlap-icon-opposite')
+                    .attr('viewBox', '0 0 1024 1024')
+                    .append('path')
+                    .attr('d', 'M1024 421.888C1024 189.568 834.304 0 602.112 0c-163.584 0-303.36 92.416-374.528 227.584C92.416 298.752 0 438.528 0 602.112 0 834.432 189.568 1024 421.888 1024c163.584 0 303.36-92.416 374.528-227.584C931.584 725.376 1024 583.168 1024 421.888zM673.152 853.376C640 886.528 601.984 912.64 559.36 929.28c-45.056 18.944-90.112 28.416-139.904 28.416-47.36 0-94.848-9.472-139.904-28.416-42.624-18.944-80.64-42.624-113.792-75.904-33.152-33.152-59.264-71.168-75.904-113.792-18.944-45.056-28.416-90.112-28.416-139.904 0-47.36 9.472-94.848 28.416-139.904 18.944-42.624 42.624-80.64 75.904-113.792l21.376-21.376c-4.736 21.376-7.168 42.624-9.472 66.432v26.112c0 137.472 66.432 258.432 165.888 336.64l4.736 4.736c2.432 2.432 4.736 2.432 4.736 4.736 4.736 2.432 7.168 4.736 11.904 9.472 66.432 42.624 144.64 68.736 229.888 68.736h26.112c23.68-2.304 45.056-4.736 66.432-9.472 0 7.168-7.04 14.208-14.208 21.376zM832 694.528c4.736-21.376 7.168-42.624 9.472-66.432v-26.112c0-154.112-82.944-289.152-208.64-362.624-2.304-2.432-4.736-2.432-7.168-2.432-2.432-2.432-4.736-2.432-7.168-4.736l-14.208-7.168c-56.832-28.416-120.832-42.624-187.264-42.624h-26.112c-23.68 2.304-45.056 4.736-66.432 9.472l21.376-21.376c33.152-33.152 71.168-59.264 113.792-75.904 45.056-18.944 90.112-28.416 139.904-28.416 47.36 0 94.848 9.472 139.904 28.416 42.624 18.944 80.64 42.624 113.792 75.904 33.152 33.152 59.264 71.168 75.904 113.792 18.944 45.056 28.416 90.112 28.416 139.904 0 47.36-9.472 94.848-28.416 139.904-18.944 42.624-42.624 80.64-75.904 113.792-4.736 2.432-14.208 9.6-21.248 16.64z')
+                    .attr('fill', 'currentColor');   // 使用 currentColor 以便通过 use 的 color 属性动态换色
+
+            }
+
             // 计算实际绘图区域尺寸
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
 
+             let legendGroup = g.select('.legend');
+if (legendGroup.empty()) {
+  legendGroup = g.append("g").attr("class", "legend");
+}
 
+// 根据状态决定是否绘制
+if (showLegend) {
+  legendGroup.attr("transform", `translate(${innerWidth+10}, 30)`)
+             .style('pointer-events', 'none') // 确保图例不会干扰鼠标事件
+             .style('display', 'block'); // 显示图例
+             
+
+  // 清空旧内容（避免重复添加）
+  legendGroup.selectAll('*').remove();
+
+  // 👇 直接在这里写图例内容（就是你最初贴的那段）
+  legendGroup.append("rect")
+    .attr("x", -10)
+    .attr("y", -10)
+    .attr("width", 200)
+    .attr("height", 100)
+    .attr("fill", "none")
+    .attr("stroke", "#ccc")
+    .attr("stroke-width", 1)
+    .attr("rx", 5);
+
+  legendGroup.append("text")
+    .attr("x", 0)
+    .attr("y", 10)
+    .attr("font-size", "14px")
+    .attr("font-weight", "bold")
+    .attr("fill", "#333")
+    .text(t('legend.title'));
+
+  // Active Aircraft
+  const activeLegend = legendGroup.append("g").attr("transform", "translate(0, 35)");
+  activeLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round");
+  activeLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", 2);
+  activeLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.active'));
+
+  // Planning Aircraft
+  const planningLegend = legendGroup.append("g").attr("transform", "translate(0, 55)");
+  planningLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round")
+    .attr("stroke-dasharray", TIMELINE_STYLES.PLANNING_DASH);
+  planningLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", "white")
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", 2);
+  planningLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.planning'));
+
+} else {
+  legendGroup.style("display", "none");
+}
+legendGroup.raise();
             // 创建时间比例尺
             const xScale = d3.scaleLinear()
                 .domain([0, maxTime])
                 .range([0, innerWidth]);
 
-            // 创建飞机ID比例尺，确保与表格行高完全一致
-            //const chartHeight = Math.max(400, aircraftIds.length * ROW_HEIGHT_P);
-            const chartHeight = (aircraftIds.length + 1) * ROW_HEIGHT_P + HEADER_HEIGHT;
-
-            // 使用序数比例尺来精确控制行位置，确保与表格完全对齐
-            const yScale = d3.scaleOrdinal()
+            // 使用序数比例尺来精确控制行位置，但现在基于interval_to_previous计算的位置
+            const yScale = d3.scaleOrdinal()  
                 .domain(aircraftIds)
-                .range(aircraftIds.map((_, index) => (HEADER_HEIGHT + index * ROW_HEIGHT_P + (ROW_HEIGHT_P / 2))));
+                .range(aircraftIds.map(flightId => yPositions[flightId]));
 
-            // 计算行的中心位置，使用yScale确保与表格行完全对齐
+            // 计算行的中心位置，使用yScale确保基于interval_to_previous的间隔
             const getYPosition = (flightId) => {
-
                 return yScale(flightId);
             };
 
-            // 创建X轴
-            const xAxis = d3.axisBottom(xScale)
+            // 创建顶部X轴
+            const xAxis = d3.axisTop(xScale)
                 .tickFormat(d => `T+${d.toFixed(0)}`)
                 .tickSizeOuter(0);
 
             const color = '#000000'; // 默认颜色
 
-            // 绘制X轴
-            g.append("g")
+            // 将X轴绘制到顶部粘性SVG中
+            const axisSvg = d3.select(svgAxisRef.current);
+            axisSvg.selectAll("*").remove();
+            axisSvg
+                .attr("width", width)
+                .attr("height", HEADER_HEIGHT)
+                .attr("viewBox", [0, 0, width, HEADER_HEIGHT])
+                .attr("style", "max-width: 100%; height: auto;");
+
+            const gAxis = axisSvg.append("g")
+                // 将轴基线下移到容器底部附近，避免 axisTop 的刻度与标签被裁剪
+                .attr("transform", `translate(${margin.left}, ${HEADER_HEIGHT - 6})`);
+
+            gAxis.append("g")
                 .attr("class", "x-axis")
-                .attr("transform", `translate(0, ${chartHeight})`)
-                .call(xAxis)
-                .append("text")
-                .attr("x", innerWidth / 2)
-                .attr("y", 40)
-                .attr("stroke", color)
+                .call(xAxis.tickPadding(6));
+
+            // 左侧添加Y轴标题（与左侧表头同一水平行，垂直居中）
+            gAxis.append("text")
+                .attr("x", -15)
+                .attr("y", 6 - HEADER_HEIGHT / 2) // 与基线偏移相反方向，确保显示在粘性容器中间
                 .attr("fill", color)
-                .attr("text-anchor", "middle")
-                .text("时间 (分钟)");
+                .attr("stroke", color)
+                .attr("text-anchor", "end")
+                .attr("dominant-baseline", "middle")
+                .text(t('flight.id'));
 
             // 手动创建Y轴以确保与表格对齐
             const yAxisGroup = g.append("g")
                 .attr("class", "y-axis");
 
-            // 添加Y轴标题
-            yAxisGroup.append("text")
-                .attr("x", -10)
-                .attr("y", 20)
-                .attr("fill", color)
-                .attr("stroke", color)
-                .attr("text-anchor", "end")
-                //.attr("transform", "rotate(-90)")
-                .text("飞机 ID")
+            // Y轴标题已移至顶部粘性区域
 
 
             // 手动添加Y轴刻度线和标签
@@ -1094,32 +1515,35 @@ const PlanningView = observer(() => {
                     .attr("stroke", "#000")
                     .attr("stroke-width", 1);
 
-                // 添加标签
-                yAxisGroup.append("text")
-                    .attr("x", -9)
-                    .attr("y", yPos)
-                    .attr("dy", "0.32em")
-                    .attr("text-anchor", "end")
-                    .attr("font-size", "12px")
-                    .attr("fill", "#000")
-                    .text(flightId);
+                // 移除Y轴标签，ID文本将移动到飞机图标位置
+                // yAxisGroup.append("text")
+                //     .attr("x", -10)
+                //     .attr("y", yPos)
+                //     .attr("dy", "0.32em")
+                //     .attr("text-anchor", "end")
+                //     .attr("font-size", "12px")
+                //     .attr("fill", "#000")
+                //     .text(flightId);
             });
 
             // 绘制时间线
 
             // 为不同类型的飞机定义不同的颜色和样式
-            const activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
-            const planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
-            const simulationColors = ['#9B59B6', '#8E44AD', '#E74C3C', '#C0392B', '#F39C12']; // 模拟数据：紫红色调
+            // 注释掉本地颜色数组，改用WebSocketStore的统一颜色管理
+            // const activeColors = ['#FF6B6B', '#FF8E53', '#FF6B9D', '#C44569', '#F8B500']; // 活跃飞机：暖色调
+            // const planningColors = ['#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']; // 计划飞机：冷色调
+            const simulationColors = SIMULATION_COLORS; // 模拟数据：紫红色调
 
-            let activeIndex = 0;
-            let planningIndex = 0;
+            // 不再需要本地索引，改用WebSocketStore的统一管理
+            // let activeIndex = 0;
+            // let planningIndex = 0;
 
 
 
 
             // 处理模拟数据
             const simulationResults = processSimulationData();
+            const hasSimulationData = simulationResults.length > 0; // 判断是否有模拟数据
 
             const flights = g.selectAll(".flight-group")
                 .data(plannedResults) // 绑定所有飞机的数据
@@ -1132,19 +1556,22 @@ const PlanningView = observer(() => {
             flights.each(function (plannedResult, i) {
                 const flightGroup = d3.select(this);
 
-                // 根据飞机类型选择颜色和样式
-                let color, strokeWidth, strokeDasharray;
-                if (plannedResult.type === 'active') {
-                    color = activeColors[activeIndex % activeColors.length];
-                    strokeWidth = 4; // 活跃飞机线条更粗
-                    strokeDasharray = "none"; // 实线
-                    activeIndex++;
+                // 使用统一颜色：滑行中飞机用一种颜色，规划飞机用另一种颜色
+                const isActive = plannedResult.type === 'active';
+                const color = isActive ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING; // 滑行中：浅绿色，规划：浅蓝色
+                
+                // 根据飞机类型选择样式
+                let strokeWidth, strokeDasharray;
+                if (isActive) {
+                    strokeWidth = hasSimulationData ? TIMELINE_STYLES.LINE_WIDTH + 2 : TIMELINE_STYLES.LINE_WIDTH; // 有模拟数据时加宽原始时间线
+                    strokeDasharray = TIMELINE_STYLES.ACTIVE_DASH; // 实线
                 } else {
-                    color = planningColors[planningIndex % planningColors.length];
-                    strokeWidth = 2; // 计划飞机线条较细
-                    strokeDasharray = "5,5"; // 虚线
-                    planningIndex++;
+                    strokeWidth = hasSimulationData ? TIMELINE_STYLES.LINE_WIDTH + 2 : TIMELINE_STYLES.LINE_WIDTH; // 有模拟数据时加宽原始时间线
+                    strokeDasharray = TIMELINE_STYLES.PLANNING_DASH; // 虚线
                 }
+
+                // 根据是否有模拟数据设置透明度
+                const timelineOpacity = hasSimulationData ? 0.4 : 1.0; // 有模拟数据时原时间线半透明
 
                 // 绘制时间线
                 flightGroup.selectAll("line")
@@ -1158,7 +1585,8 @@ const PlanningView = observer(() => {
                     .attr("stroke", color)
                     .attr("stroke-width", strokeWidth)
                     .attr("stroke-linecap", "round")
-                    .attr("stroke-dasharray", strokeDasharray);
+                    .attr("stroke-dasharray", strokeDasharray)
+                    .attr("opacity", timelineOpacity); // 应用透明度
 
                 // 添加起始点图标
                 flightGroup.selectAll(".start-point")
@@ -1168,10 +1596,11 @@ const PlanningView = observer(() => {
                     .attr("class", "start-point")
                     .attr("cx", d => xScale(d.start_time))
                     .attr("cy", (d, j) => getYPosition(plannedResult.aircraft_id) + j * 3)
-                    .attr("r", plannedResult.type === 'active' ? 6 : 4)
+                    .attr("r", TIMELINE_POINT_RADIUS)
                     .attr("fill", color)
-                    .attr("stroke", "white")
-                    .attr("stroke-width", 2);
+                    .attr("stroke", color)
+                    .attr("stroke-width", 2)
+                    .attr("opacity", timelineOpacity); // 起始点也应用透明度;
 
                 // 添加结束点图标
                 flightGroup.selectAll(".end-point")
@@ -1181,43 +1610,43 @@ const PlanningView = observer(() => {
                     .attr("class", "end-point")
                     .attr("cx", d => xScale(d.end_time))
                     .attr("cy", (d, j) => getYPosition(plannedResult.aircraft_id) + j * 3)
-                    .attr("r", plannedResult.type === 'active' ? 6 : 4)
+                    .attr("r", TIMELINE_POINT_RADIUS)
                     .attr("fill", plannedResult.type === 'active' ? color : "white")
                     .attr("stroke", color)
                     .attr("stroke-width", 2);
 
                 // 为活跃飞机添加特殊标识（三角形）
-                if (plannedResult.type === 'active') {
-                    flightGroup.selectAll(".active-indicator")
-                        .data(plannedResult.paths)
-                        .enter()
-                        .append("polygon")
-                        .attr("class", "active-indicator")
-                        .attr("points", d => {
-                            const x = xScale(d.end_time);
-                            const y = getYPosition(plannedResult.aircraft_id) - 10;
-                            return `${x},${y} ${x - 5},${y - 8} ${x + 5},${y - 8}`;
-                        })
-                        .attr("fill", color)
-                        .attr("stroke", "white")
-                        .attr("stroke-width", 1);
-                }
+                // if (plannedResult.type === 'active') {
+                //     flightGroup.selectAll(".active-indicator")
+                //         .data(plannedResult.paths)
+                //         .enter()
+                //         .append("polygon")
+                //         .attr("class", "active-indicator")
+                //         .attr("points", d => {
+                //             const x = xScale(d.end_time);
+                //             const y = getYPosition(plannedResult.aircraft_id) - 10;
+                //             return `${x},${y} ${x - 5},${y - 8} ${x + 5},${y - 8}`;
+                //         })
+                //         .attr("fill", color)
+                //         .attr("stroke", "white")
+                //         .attr("stroke-width", 1);
+                // }
 
                 // 为计划飞机添加特殊标识（方形）
-                if (plannedResult.type === 'planning') {
-                    flightGroup.selectAll(".planning-indicator")
-                        .data(plannedResult.paths)
-                        .enter()
-                        .append("rect")
-                        .attr("class", "planning-indicator")
-                        .attr("x", d => xScale(d.end_time) - 4)
-                        .attr("y", getYPosition(plannedResult.aircraft_id) - 14)
-                        .attr("width", 8)
-                        .attr("height", 8)
-                        .attr("fill", "white")
-                        .attr("stroke", color)
-                        .attr("stroke-width", 2);
-                }
+                // if (plannedResult.type === 'planning') {
+                //     flightGroup.selectAll(".planning-indicator")
+                //         .data(plannedResult.paths)
+                //         .enter()
+                //         .append("rect")
+                //         .attr("class", "planning-indicator")
+                //         .attr("x", d => xScale(d.end_time) - 4)
+                //         .attr("y", getYPosition(plannedResult.aircraft_id) - 14)
+                //         .attr("width", 8)
+                //         .attr("height", 8)
+                //         .attr("fill", "white")
+                //         .attr("stroke", color)
+                //         .attr("stroke-width", 2);
+                // }
             });
 
             // 定义绘制 overlaps 的函数（节点与滑行道重叠高亮与连接）
@@ -1232,41 +1661,7 @@ const PlanningView = observer(() => {
                     .attr('pointer-events', 'none');
                 const groupColor = d3.scaleOrdinal(d3.schemeTableau10);
 
-                // 在根 SVG 上定义圆角箭头标记（仅创建一次）
-                const svgRoot = d3.select(g.node().ownerSVGElement);
-                let defs = svgRoot.select('defs');
-                if (defs.empty()) defs = svgRoot.append('defs');
-                // 倒钩/燕尾（chevron）箭头标记
-                let chevronMarker = defs.select('#overlap-chevron-arrow');
-                if (chevronMarker.empty()) {
-                    chevronMarker = defs.append('marker')
-                        .attr('id', 'overlap-chevron-arrow')
-                        .attr('viewBox', '0 -10 20 20')
-                        .attr('refX', 19) // 箭头尖端位置靠近右端
-                        .attr('refY', 0)
-                        .attr('markerWidth', 20)
-                        .attr('markerHeight', 20)
-                        .attr('orient', 'auto')
-                        .attr('markerUnits', 'userSpaceOnUse');
 
-                    // 燕尾/倒钩箭头：尾部有缺口，视觉更尖锐
-                    // 形状说明：
-                    // M0,-8  从左下开始
-                    // L12,-3 到箭身上边
-                    // L20,0  箭尖
-                    // L12,3  箭身下边
-                    // L0,8   左上
-                    // L4,0   回到尾部中点形成燕尾缺口
-                    // Z      闭合路径
-                    chevronMarker.append('path')
-                        .attr('d', 'M0,-8 L12,-3 L20,0 L12,3 L0,8 L4,0 Z')
-                        .attr('fill', 'context-stroke')
-                        .attr('stroke', '#fff')
-                        .attr('stroke-width', 2.5)
-                        .attr('stroke-linejoin', 'round')
-                        .attr('stroke-linecap', 'round')
-                        .attr('opacity', 0.98);
-                }
 
                 const toMinutes = (v) => {
                     const num = Number(v) || 0;
@@ -1275,7 +1670,9 @@ const PlanningView = observer(() => {
 
                 // 绘制滑行道重叠
                 (overlaps.taxiways || []).forEach((twGroup, idx) => {
-                    const color = groupColor(idx);
+                    // 使用与连线一致的颜色：基于后端提供的 direction
+                    const groupDirection = String(twGroup?.direction || '').toLowerCase();
+                    const color = '#FF0000';  // 统一使用红色
                     const flightWindows = Array.isArray(twGroup.flight_windows) ? twGroup.flight_windows : [];
 
                     console.log('flightwindows',flightWindows);
@@ -1289,26 +1686,27 @@ const PlanningView = observer(() => {
                     console.log('sorted',sortedFW);
 
                     // 高亮每个飞机在该滑行道上的时间段
-                    sortedFW.forEach((fw) => {
-                        const fid = fw.flight_id;
-                        const y = getYPosition(fid);
-                        const startMin = toMinutes(fw?.time_window?.start ?? 0);
-                        const endMin = toMinutes(fw?.time_window?.end ?? fw?.time_window?.start ?? 0);
-                        const x1 = xScale(startMin);
-                        const x2 = xScale(endMin);
-                        const bandHeight = 8;
+                        sortedFW.forEach((fw) => {
+                            const fid = fw.flight_id;
+                            // 调整Y坐标以对齐时间线中心（考虑时间线绘制时的偏移）
+                            const y = getYPosition(fid); // 时间线平均偏移约1.5像素
+                            const startMin = toMinutes(fw?.time_window?.start ?? 0);
+                            const endMin = toMinutes(fw?.time_window?.end ?? fw?.time_window?.start ?? 0);
+                            const x1 = xScale(startMin);
+                            const x2 = xScale(endMin);
+                            const bandHeight = 8;
 
-                        // 零长度时间窗画为点，非零画为半透明矩形
+                        // 零长度时间窗画为点，非零画为不透明矩形（统一 OVERLAP_RED）
                         if (Math.abs(endMin - startMin) < 1e-6) {
                             overlapLayer.append('circle')
                                 .attr('class', 'overlap-point')
                                 .attr('cx', x1)
                                 .attr('cy', y)
-                                .attr('r', 5)
-                                .attr('fill', color)
-                                .attr('opacity', 0.7)
-                                .attr('stroke', '#fff')
-                                .attr('stroke-width', 1);
+                                .attr('r', TIMELINE_STYLES.POINT_RADIUS)
+                                .attr('fill', OVERLAP_RED)
+                                .attr('fill-opacity', 0.5)
+                                .attr('stroke', OVERLAP_RED)
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH); // 与时间线同宽
                         } else {
                             overlapLayer.append('rect')
                                 .attr('class', 'overlap-segment')
@@ -1317,10 +1715,9 @@ const PlanningView = observer(() => {
                                 .attr('width', Math.max(2, Math.abs(x2 - x1)))
                                 .attr('height', bandHeight)
                                 .attr('rx', 3)
-                                .attr('fill', color)
-                                .attr('opacity', 0.25)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1);
+                                .attr('fill', OVERLAP_RED)
+                                .attr('fill-opacity', OVERLAP_RECT_OPACITY)
+                                .attr('stroke', 'none'); // 无边框，保持纯色带状
                         }
                     });
 
@@ -1338,15 +1735,21 @@ const PlanningView = observer(() => {
                         const axEnd = xScale(aEndMin);
                         const bxStart = xScale(bStartMin);
                         const bxEnd = xScale(bEndMin);
+                        // 精确对齐到时间线中心
                         const ay = getYPosition(a.flight_id);
                         const by = getYPosition(b.flight_id);
 
+                        // 新增：优先使用后端提供的方向字段进行类型判断
+                        const groupDirection = String(twGroup?.direction || '').toLowerCase();
+                        const hasDirectionFlag = groupDirection === 'same' || groupDirection === 'opposite';
+                        // 当 direction 存在时使用它；否则回退到旧的时间窗方向计算
                         const aDir = aEndMin - aStartMin;
                         const bDir = bEndMin - bStartMin;
-                        const isOpposing = (aDir * bDir) < 0;
+                        const isOpposing = hasDirectionFlag ? (groupDirection === 'opposite') : ((aDir * bDir) < 0);
 
                         if (isOpposing) {
-                            // 相向：在四种端点组合中选择距离最近的一对
+                            // 相向：使用单个冲突图标替代两个相反箭头
+                            // 选择四种端点组合中距离最近的一对端点作为连接端点
                             const candidates = [
                                 { ax: axStart, ay, bx: bxStart, by, dist: Math.abs(aStartMin - bStartMin), label: 'start-start' },
                                 { ax: axStart, ay, bx: bxEnd,   by, dist: Math.abs(aStartMin - bEndMin),   label: 'start-end'   },
@@ -1355,102 +1758,111 @@ const PlanningView = observer(() => {
                             ];
                             const best = candidates.reduce((m, p) => p.dist < m.dist ? p : m, candidates[0]);
 
-                            let xLeft = best.ax, yLeft = best.ay, xRight = best.bx, yRight = best.by;
-                            if (xLeft > xRight) {
-                                xLeft = best.bx; yLeft = best.by;
-                                xRight = best.ax; yRight = best.ay;
+                            let xFrom = best.ax, yFrom = best.ay, xTo = best.bx, yTo = best.by;
+                            // 保证从左到右绘制，避免反向坐标导致折线不美观
+                            if (xFrom > xTo) {
+                                xFrom = best.bx; yFrom = best.by;
+                                xTo = best.ax; yTo = best.ay;
                             }
 
-                            // 由两段曲线组成，每段末端绘制指向中点的箭头
-                            const mx = (xLeft + xRight) / 2;
-                            const my = (yLeft + yRight) / 2;
+                            const midY = (ay + by) / 2; // 与同向保持一致，垂直对齐到中线
+                            const mx = (xFrom + xTo) / 2; // 中点x，用于放置冲突图标
 
-                            // 为保证箭头方向与曲线末端切线一致，使用对称控制点：
-                            // P1 在起点沿指向中点方向偏移，P2 在终点（中点）沿相同方向反向偏移
-                            const lx = mx - xLeft;
-                            const ly = my - yLeft;
-                            const llen = Math.sqrt(lx * lx + ly * ly) || 1;
-                            const lux = lx / llen;
-                            const luy = ly / llen;
-                            const lHandle = Math.min(40, llen * 0.35);
-                            const l1x = xLeft + lux * lHandle;
-                            const l1y = yLeft + luy * lHandle;
-                            const l2x = mx - lux * lHandle;
-                            const l2y = my - luy * lHandle;
-
-                            const rx = mx - xRight;
-                            const ry = my - yRight;
-                            const rlen = Math.sqrt(rx * rx + ry * ry) || 1;
-                            const rux = rx / rlen;
-                            const ruy = ry / rlen;
-                            const rHandle = Math.min(40, rlen * 0.35);
-                            const r1x = xRight + rux * rHandle;
-                            const r1y = yRight + ruy * rHandle;
-                            const r2x = mx - rux * rHandle;
-                            const r2y = my - ruy * rHandle;
-
-                            // 左段曲线（到中点）
+                            // 左段折线：起点 -> 垂直至中线 -> 水平到中点（留出图标间隔）
                             overlapLayer.append('path')
-                                .attr('class', `overlap-connector opposing-left ${best.label}`)
-                                .attr('d', `M${xLeft},${yLeft} C${l1x},${l1y} ${l2x},${l2y} ${mx},${my}`)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
+                                .attr('class', `overlap-connector opposing-left polyline ${best.label}`)
+                                .attr('d', `M${xFrom},${yFrom} L${xFrom},${midY} L${mx - ARROW_GAP_PX},${midY}`)
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                                 .attr('fill', 'none')
-                                .attr('opacity', 0.8)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow)');
+                                .attr('stroke-opacity', 1.0);  // 不透明
 
-                            // 右段曲线（到中点）
+                            // 右段折线：终点 -> 垂直至中线 -> 水平到中点（留出图标间隔）
                             overlapLayer.append('path')
-                                .attr('class', `overlap-connector opposing-right ${best.label}`)
-                                .attr('d', `M${xRight},${yRight} C${r1x},${r1y} ${r2x},${r2y} ${mx},${my}`)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
+                                .attr('class', `overlap-connector opposing-right polyline ${best.label}`)
+                                .attr('d', `M${xTo},${yTo} L${xTo},${midY} L${mx + ARROW_GAP_PX},${midY}`)
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                                 .attr('fill', 'none')
-                                .attr('opacity', 0.8)
-                                .attr('marker-end', 'url(#overlap-chevron-arrow)');
+                                .attr('stroke-opacity', 1.0);  // 不透明
+
+                            // 在中点放置单个冲突图标（使用marker-mid使其在路径中点显示）
+                            const iconLine = overlapLayer.append('path')
+                                .attr('class', `overlap-conflict-icon ${best.label}`)
+                                .attr('d', `M${mx - 5},${midY} L${mx + 5},${midY}`)
+                                .attr('stroke', OVERLAP_RED)   // 让路径可见，确保 marker 能被渲染
+                                .attr('stroke-width', 0.5)     // 极细，肉眼几乎不可见
+                                .attr('fill', 'none')
+                                .attr('marker-mid', 'url(#overlap-conflict-icon)');
+
+                            // 使用 use 元素在中点放置自定义图标，颜色与连线一致
+                            overlapLayer.append('use')
+                                .attr('href', '#overlap-icon-opposite')
+                                .attr('x', mx - 10)   // 水平居中偏移 10（宽度 20）
+                                .attr('y', midY - 10)  // 垂直居中偏移 10（高度 20）
+                                .attr('width', 20)
+                                .attr('height', 20)
+                                .style('color', OVERLAP_RED) // 使用 currentColor 继承
+                                .style('pointer-events', 'none');
                         } else {
-                            // 同向：保持原有连接方式（start-start 和 end-end 各绘制一条）
-                            overlapLayer.append('path')
-                                .attr('class', 'overlap-connector start')
-                                .attr('d', `M${axStart},${ay} C${axStart},${(ay + by) / 2} ${bxStart},${(ay + by) / 2} ${bxStart},${by}`)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
-                                .attr('fill', 'none')
-                                .attr('opacity', 0.6);
+                            // "explanation":"修改相向冲突绘制逻辑，使用单个冲突图标替代两个相反箭头，在中点放置图标"}
+                            // 同向：比较两个飞机的 start，选 start 较大的为 aLate，另一架为 bEarly；
+                            // 绘制从 aLate 的 end 指向 bEarly 的 end 的箭头曲线（箭头指向 bEarly）。
+                            const aIsLate = aStartMin >= bStartMin;
+                            const aLateEndMin = aIsLate ? aEndMin : bEndMin;
+                            const bEarlyEndMin = aIsLate ? bEndMin : aEndMin;
+                            const aLateY = aIsLate ? ay : by;
+                            const bEarlyY = aIsLate ? by : ay;
+                            const xFrom = xScale(aLateEndMin);
+                            const xTo = xScale(bEarlyEndMin);
 
+                            // 使用折线连接，控制点位于两行的精确中线
+                            const midY = (ay + by) / 2; // 精确对齐到中点，不偏离
+
+                            const endYAdjusted = bEarlyY > midY ? (bEarlyY - ARROW_GAP_PX) : (bEarlyY + ARROW_GAP_PX);
                             overlapLayer.append('path')
-                                .attr('class', 'overlap-connector end')
-                                .attr('d', `M${axEnd},${ay} C${axEnd},${(ay + by) / 2} ${bxEnd},${(ay + by) / 2} ${bxEnd},${by}`)
-                                .attr('stroke', color)
-                                .attr('stroke-width', 1.5)
+                                .attr('class', 'overlap-connector same-direction end-to-end')
+                                .attr('d', `M${xFrom},${aLateY} L${xFrom},${midY} L${xTo},${midY} L${xTo},${endYAdjusted}`)
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                                 .attr('fill', 'none')
-                                .attr('opacity', 0.6);
+                                .attr('stroke-opacity', 0.7)  // 不透明
+                                .attr('marker-end', 'url(#overlap-chevron-arrow-same)')
+                                .style('color', OVERLAP_RED);
                         }
                     }
 
-                    // 在组首部标注涉及的滑行道ID（可选）
-                    // 将图例标签移动到时间线右侧的空白区域，并按索引竖排，避免遮挡
-                    const labelX = (xScale.range && xScale.range()[1] !== undefined)
-                        ? xScale.range()[1] + 10
-                        : xScale(xScale.domain()[1]) + 10;
-                    const labelY = 12 + idx * 14;
-                    overlapLayer.append('text')
-                        .attr('class', 'overlap-label')
-                        .attr('x', labelX)
-                        .attr('y', labelY)
-                        .attr('text-anchor', 'start')
-                        .attr('fill', color)
-                        .attr('font-size', '10px')
-                        .attr('font-weight', 'bold')
-                        .text(`${(twGroup.taxiway_ids || []).join(',')}`);
                 });
 
-                // 绘制节点重叠：连接两架飞机的 start，改为带“一个卷”的卷曲线（在中点处形成一个卷）
+                // 绘制节点重叠：改为折线样式，从后面的飞机连向前一个飞机，并在终点添加左边有缺口的圆
                 const nodeLayer = g.append('g')
                     .attr('class', 'overlap-node-layer')
                     .attr('pointer-events', 'none');
+
+                // 定义左边有缺口的圆形标记
+                const svgRoot2 = d3.select(g.node().ownerSVGElement);
+                let defs2 = svgRoot2.select('defs');
+                if (defs2.empty()) defs2 = svgRoot2.append('defs');
+                
+                if (defs2.select('#gap-circle-marker').empty()) {
+                    const marker = defs2.append('marker')
+                        .attr('id', 'gap-circle-marker')
+                        .attr('markerWidth', 3)   // 再缩小一半：从6减小到3
+                        .attr('markerHeight', 3)  // 再缩小一半：从6减小到3
+                        .attr('refX', 1.5)        // 调整参考点：从3减小到1.5
+                        .attr('refY', 1.5)        // 调整参考点：从3减小到1.5
+                        .attr('orient', 'auto');
+                    
+                    // 绘制左边有缺口的圆（再缩小一半）
+                    marker.append('path')
+                        .attr('d', 'M 1.5,0.25 A 1.25,1.25 0 1,1 1.5,2.75') // 再缩小一半：半径从2.5减小到1.25
+                        .attr('fill', 'none')
+                        .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                        .attr('stroke-width', CONNECTION_LINE_WIDTH); // 与时间线同宽
+                }
                 (overlaps.nodes || []).forEach((nodeGroup, nidx) => {
-                    const color = groupColor(100 + nidx);
+                    // 节点重叠统一使用红色
+                    const color = '#FF0000';  // 红色
                     const flightWindows = Array.isArray(nodeGroup.flight_windows)
                         ? nodeGroup.flight_windows
                         : (Array.isArray(nodeGroup.flights) ? nodeGroup.flights : []);
@@ -1461,6 +1873,40 @@ const PlanningView = observer(() => {
                     });
                     if (sortedFW.length < 2) return;
 
+                    // 在时间线上高亮节点重叠区段（与连线颜色一致）
+                    sortedFW.forEach((fw) => {
+                        const fid = fw.flight_id;
+                        const y = getYPosition(fid);
+                        const startMin = toMinutes(fw?.time_window?.start ?? 0);
+                        const endMin = toMinutes(fw?.time_window?.end ?? fw?.time_window?.start ?? 0);
+                        const x1 = xScale(startMin);
+                        const x2 = xScale(endMin);
+                        const bandHeight = 8;
+
+                        if (Math.abs(endMin - startMin) < 1e-6) {
+                            nodeLayer.append('circle')
+                                .attr('class', 'overlap-node')
+                                .attr('cx', cx)
+                                .attr('cy', cy)
+                                .attr('r', TIMELINE_STYLES.POINT_RADIUS)
+                                .attr('fill', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('opacity', 0.7)
+                                .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('stroke-width', CONNECTION_LINE_WIDTH); // 与时间线同宽
+                        } else {
+                            nodeLayer.append('rect')
+                                .attr('class', 'overlap-segment')
+                                .attr('x', Math.min(x1, x2))
+                                .attr('y', y - bandHeight / 2)
+                                .attr('width', Math.max(2, Math.abs(x2 - x1)))
+                                .attr('height', bandHeight)
+                                .attr('rx', 3)
+                                .attr('fill', OVERLAP_RED)  // 统一红色 #800020
+                                .attr('fill-opacity', OVERLAP_RECT_OPACITY)  // 统一透明度常量
+                                .attr('stroke', 'none'); // 无边框，保持纯色带状
+                        }
+                    });
+
                     for (let i = 0; i < sortedFW.length - 1; i++) {
                         const a = sortedFW[i];
                         const b = sortedFW[i + 1];
@@ -1468,6 +1914,7 @@ const PlanningView = observer(() => {
                         const bStartMin = toMinutes(b?.time_window?.start ?? 0);
                         const ax = xScale(aStartMin);
                         const bx = xScale(bStartMin);
+                        // 精确对齐到时间线中心
                         const ay = getYPosition(a.flight_id);
                         const by = getYPosition(b.flight_id);
                         // 生成一个带“卷”的卷曲线：在中点处形成单个环，然后继续到终点
@@ -1481,43 +1928,39 @@ const PlanningView = observer(() => {
                         const ux = dvx / dlen, uy = dvy / dlen; // 方向
                         const px = -uy, py = ux;                // 垂直
 
-                        // 卷的半径与入口/出口点（相对中点）
-                        const r = Math.min(10, dlen * 0.12);
-                        const loopOffset = Math.min(12, dlen * 0.2); // 控制入口/出口与中点的距离
-                        const entryX = mx - ux * loopOffset + px * r;
-                        const entryY = my - uy * loopOffset + py * r;
-                        const exitX  = mx + ux * loopOffset - px * r;
-                        const exitY  = my + uy * loopOffset - py * r;
-                        const leftX  = mx - px * r;
-                        const leftY  = my - py * r;
-                        const rightX = mx + px * r;
-                        const rightY = my + py * r;
+                        // 确定连线方向：从后面的飞机连向前面的飞机
+                        // 根据时间排序，后面的飞机（时间较晚的）连向前面的飞机（时间较早的）
+                        let fromX, fromY, toX, toY, pathD;
+                        if (bStartMin > aStartMin) {
+                            // b是后面的飞机，从b连向a
+                            fromX = bx; fromY = by;
+                            toX = ax; toY = ay;
+                        } else {
+                            // a是后面的飞机，从a连向b
+                            fromX = ax; fromY = ay;
+                            toX = bx; toY = by;
+                        }
 
-                        // 起点控制手柄与终点控制手柄（使连接更顺畅）
-                        const h = Math.min(40, dlen * 0.35);
-                        const s1x = ax + ux * h;
-                        const s1y = ay + uy * h;
-                        const e2x = bx - ux * h;
-                        const e2y = by - uy * h;
-
-                        // 路径由三段组成：起点到入口的平滑曲线 + 中点处的完整单圈 + 出口到终点的平滑曲线
-                        const pathD = [
-                            `M${ax},${ay}`,
-                            `C${s1x},${s1y} ${entryX - px * (h * 0.25)},${entryY - py * (h * 0.25)} ${entryX},${entryY}`,
-                            `A${r},${r} 0 1 1 ${rightX},${rightY}`,
-                            `A${r},${r} 0 1 1 ${leftX},${leftY}`,
-                            `C${exitX + px * (h * 0.25)},${exitY + py * (h * 0.25)} ${e2x},${e2y} ${bx},${by}`
-                        ].join(' ');
+                        // 计算折线的中间点，避免与飞机图标重叠
+                        // 使用平行的水平折线设计
+                        const midY = (fromY + toY) / 2;
+                        const verticalOffset = 15; // 垂直偏移量，使折线更明显
+                        
+                        // 创建平行的折线路径
+                        // 垂直段 -> 水平段 -> 垂直段，确保中间的水平段是平行的
+                        const horizontalY = midY; // 水平线的Y坐标保持一致，确保平行
+                        pathD = `M${fromX},${fromY} L${fromX},${horizontalY} L${toX},${horizontalY} L${toX},${toY}`;
 
                         nodeLayer.append('path')
-                            .attr('class', 'overlap-node-connector start-to-start curl-one')
+                            .attr('class', 'overlap-node-connector polyline')
                             .attr('d', pathD)
-                            .attr('stroke', color)
-                            .attr('stroke-width', 1.5)
+                            .attr('stroke', OVERLAP_RED)  // 统一红色 #800020
+                            .attr('stroke-width', CONNECTION_LINE_WIDTH)    // 与时间线同宽
                             .attr('fill', 'none')
-                            .attr('opacity', 0.9)
+                            .attr('stroke-opacity', 1.0)  // 不透明
                             .attr('stroke-linejoin', 'round')
-                            .attr('stroke-linecap', 'round');
+                            .attr('stroke-linecap', 'round')
+                            .attr('marker-end', 'url(#gap-circle-marker)'); // 在终点添加左边有缺口的圆
                     }
                 });
             };
@@ -1527,14 +1970,115 @@ const PlanningView = observer(() => {
             // 绘制 overlaps（根据系统状态中的节点/滑行道重叠）
             drawOverlaps(g, websocketStore.overlaps, xScale, getYPosition, aircraftIds);
 
+            // 绘制影响图连接线（当有模拟数据时）
+            const drawImpactGraphConnections = (g, impactGraph, getYPosition, aircraftIds) => {
+                if (!impactGraph || !impactGraph.edges || impactGraph.edges.length === 0) return;
+                
+                const connectionLayer = g.append('g')
+                    .attr('class', 'impact-graph-connections')
+                    .attr('pointer-events', 'none');
+                
+                // 定义箭头标记
+                const svgRoot = d3.select(g.node().ownerSVGElement);
+                let defs = svgRoot.select('defs');
+                if (defs.empty()) defs = svgRoot.append('defs');
+                
+                if (defs.select('#impact-arrow').empty()) {
+                    defs.append('marker')
+                        .attr('id', 'impact-arrow')
+                        .attr('markerWidth', 12)
+                        .attr('markerHeight', 12)
+                        .attr('refX', 10)
+                        .attr('refY', 6)
+                        .attr('orient', 'auto')
+                        .append('polygon')
+                        .attr('points', '0,2 0,10 10,6')  // 与连线宽度成比例的三角形
+                        .attr('fill', '#6699CC')  // 交叉冲突颜色
+                        .attr('stroke', 'none')
+                        .attr('opacity', 1);
+                }
+                
+                // 绘制连接线
+                impactGraph.edges.forEach((edge, idx) => {
+                    const fromId = edge.from;
+                    const toId = edge.to;
+                    
+                    // 检查飞机是否在当前视图中
+                    if (!aircraftIds.includes(fromId) || !aircraftIds.includes(toId)) return;
+                    
+                    const fromY = getYPosition(fromId);
+                    const toY = getYPosition(toId);
+                    
+                    // 连接线连接到飞机图标的边缘
+                    const aircraftIconSize = 24; // 飞机图标的大小（scale 0.025 * 原始尺寸约等于24px）
+                    const iconRadius = aircraftIconSize / 2;
+                    
+                    // 计算连接点位置
+                    const deltaY = toY - fromY;
+                    const distance = Math.abs(deltaY);
+                    
+                    let startX, endX, startY, endY;
+                    
+                    if (distance > 0) {
+                        // 垂直连接
+                        if (deltaY > 0) {
+                            // 从上到下
+                            startX = 0;
+                            startY = fromY + iconRadius;
+                            endX = 0;
+                            endY = toY - iconRadius;
+                        } else {
+                            // 从下到上
+                            startX = 0;
+                            startY = fromY - iconRadius;
+                            endX = 0;
+                            endY = toY + iconRadius;
+                        }
+                    } else {
+                        // 同一水平线，连接左右边缘
+                        startX = iconRadius;
+                        startY = fromY;
+                        endX = -iconRadius;
+                        endY = toY;
+                    }
+                    
+                    // 计算影响程度（基于目标节点的延迟）
+                    const toNodeInfo = impactGraph.nodes && impactGraph.nodes[toId];
+                    const delayMinutes = toNodeInfo?.delay_minutes || 0;
+                    const impactLevel = Math.min(5, Math.max(1, Math.ceil(delayMinutes / 2)));
+                    const strokeWidth = Math.max(2, impactLevel * 1.2); // 增加线条粗细，最小2px
+                    const opacity = 0.6 + impactLevel * 0.1;
+                    
+                    // 绘制曲线连接
+                    const midX = (startX + endX) / 2;
+                    const midY = (startY + endY) / 2;
+                    const pathD = `M${startX},${startY} Q${midX - 15},${midY} ${endX},${endY}`;
+                    
+                    connectionLayer.append('path')
+                        .attr('class', `impact-connection-${fromId}-${toId}`)
+                        .attr('d', pathD)
+                        .attr('stroke', '#666')
+                        .attr('stroke-width', strokeWidth)
+                        .attr('fill', 'none')
+                        .attr('opacity', opacity)
+                        .attr('stroke-dasharray', '4,2')
+                        .attr('marker-end', 'url(#impact-arrow)');
+                });
+            };
+            
+            // 当有当前模拟数据时，绘制影响图连接
+            if (websocketStore.hasCurrentSimulation() && websocketStore.currentSimulation.solution) {
+                const impactGraph = websocketStore.currentSimulation.solution.impact_graph;
+                drawImpactGraphConnections(g, impactGraph, getYPosition, aircraftIds);
+            }
 
             // 1. 柱状图参数
             const barWidth = 12;
             const barGap = 4;
             const barChartHeight = 80; // 增加柱状图最大高度
-            const barChartOffset = -150; // 增加柱状图距离主图的偏移
-            const blockWidth = 10; // 每个块的宽度
-            const blockGap = 2; // 块之间的间隙
+            const barChartOffset = -185; // 将时间滑块向左移动5像素（从-175调整到-185）
+            const blockWidth = 5; // 缩小每个块的宽度，减少占用空间
+            const blockGap = 1.5; // 保持适当间隙，保证可读性
 
             // 2. 柱状图比例尺
             const maxBarValue = Math.max(...left_times, ...plan_times, ...fly_times);
@@ -1706,8 +2250,8 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
 
 
                 // 根据飞机类型设置柱状图颜色和样式
-                const leftTimeColor = isActive ? "#FF6B6B" : "#4ECDC4"; // 活跃飞机用暖色，计划飞机用冷色
-                const planTimeColor = isActive ? "#FF8E53" : "#45B7D1";
+                const leftTimeColor = isActive ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING; // 活跃飞机用浅绿色，计划飞机用浅蓝色
+            const planTimeColor = isActive ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
                 const barOpacity = isActive ? 0.8 : 0.6; // 活跃飞机更不透明
 
 
@@ -1829,202 +2373,209 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
 
 
 
-            // 添加图例
-            const legendGroup = svg.append("g")
-                .attr("class", "legend")
-                .attr("transform", `translate(${width - margin.right + 10}, 30)`)
-                .attr('pointer-events', 'none'); // 禁用交互，避免遮挡
+            // 在Y轴左侧添加飞机图标（原来ID文本的位置）
+            const AIRCRAFT_ICON_X_OFFSET = 12; // 飞机图标X方向偏移
+            const aircraftIconGroup = svg.append("g")
+                .attr("class", "aircraft-icons")
+                .attr("transform", `translate(${margin.left + AIRCRAFT_ICON_X_OFFSET},${margin.top})`); // 将飞机图标向右移动一点
 
-            // 图例背景 - 增加高度以容纳模拟数据图例
-            legendGroup.append("rect")
-                .attr("x", -10)
-                .attr("y", -10)
-                .attr("width", 200)
-                .attr("height", 200)
-                .attr("fill", "none") // 背景透明，避免遮挡时间线
-                .attr("stroke", "#ccc")
-                .attr("stroke-width", 1)
-                .attr("rx", 5);
+            aircraftIds.forEach((id, i) => {
+                const yBase = getYPosition(id); // 获取飞机对应的Y位置
+                
+                // 找到对应的飞机数据以确定类型
+                const allAircraftData = plannedResults.filter(result => result.aircraft_id === id);
+                const aircraftData = allAircraftData.find(data => data.type === 'active') || allAircraftData[0];
+                const isActive = aircraftData && aircraftData.type === 'active';
+                
+                // 使用WebSocketStore获取与TaxiwayMap一致的颜色
+                const aircraftColor = websocketStore.getAircraftColor(id, isActive);
+                
+                // 创建飞机图标（使用与TaxiwayMap相同的SVG路径）
+                const aircraftIcon = aircraftIconGroup.append("g")
+                    .attr("class", `aircraft-icon-${id}`)
+                    .attr("transform", `translate(0, ${yBase})`);
+                
+                // 使用与TaxiwayMap相同的飞机SVG路径
+                aircraftIcon.append("path")
+                    .attr("d", "M512 174.933333c23.466667 0 42.666667 8.533333 59.733333 25.6s25.6 36.266667 25.6 59.733334v192l206.933334 185.6c6.4 4.266667 10.666667 12.8 14.933333 21.333333s6.4 17.066667 6.4 25.6v23.466667c0 8.533333-2.133333 12.8-6.4 14.933333s-10.666667 2.133333-17.066667-2.133333l-204.8-140.8v149.333333c38.4 36.266667 57.6 57.6 57.6 64v36.266667c0 8.533333-2.133333 12.8-6.4 17.066666-4.266667 2.133333-10.666667 2.133333-19.2 0l-117.333333-72.533333-117.333333 72.533333c-6.4 4.266667-12.8 4.266667-19.2 0s-6.4-8.533333-6.4-17.066666v-36.266667c0-8.533333 19.2-29.866667 57.6-64v-149.333333l-204.8 140.8c-6.4 4.266667-12.8 6.4-17.066667 2.133333-4.266667-2.133333-6.4-8.533333-6.4-14.933333V684.8c0-8.533333 2.133333-17.066667 6.4-25.6 4.266667-8.533333 8.533333-17.066667 14.933333-21.333333l206.933334-185.6v-192c0-23.466667 8.533333-42.666667 25.6-59.733334s36.266667-25.6 59.733333-25.6z")
+                    .attr("fill", aircraftColor)
+                    .attr("opacity", 0.8)
+                    .attr("transform", "translate(-15, -15) scale(0.03) rotate(90)"); // 再次放大飞机图标
+                
+                // 添加策略指示器（当有模拟数据时）
+                if (websocketStore.hasCurrentSimulation() && websocketStore.currentSimulation.solution) {
+                    const solution = websocketStore.currentSimulation.solution;
+                    
+                    // 检查当前飞机是否为目标飞机
+                    if (solution.target_flight === id && solution.strategy) {
+                        const strategy = solution.strategy;
+                        
+                        // 策略图标组
+                        const strategyIcon = aircraftIcon.append("g")
+                            .attr("class", `strategy-indicator-${id}`)
+                            .attr("transform", "translate(12, -3)"); // 调整策略图标位置，适应Y轴左侧显示
+                        
+                        // 策略图标背景圆圈（去掉边框）
+                        strategyIcon.append("circle")
+                            .attr("cx", 0)
+                            .attr("cy", 0)
+                            .attr("r", 8)
+                            .attr("fill", "white")
+                            .attr("opacity", 0.9);
+                        
+                        // 根据策略类型绘制不同图标
+                        const iconColor = strategy === 'emergency_mode' ? STRATEGY_COLORS.EMERGENCY_MODE
+                            : strategy === 'waiting' ? STRATEGY_COLORS.WAITING
+                            : strategy === 'rerouting' ? STRATEGY_COLORS.REROUTING
+                            : STRATEGY_COLORS.DEFAULT;
+                        
+                        if (strategy === 'emergency_mode') {
+                            // 紧急模式：感叹号
+                            strategyIcon.append("rect")
+                                .attr("x", -1)
+                                .attr("y", -4)
+                                .attr("width", 2)
+                                .attr("height", 6)
+                                .attr("fill", iconColor);
+                            strategyIcon.append("circle")
+                                .attr("cx", 0)
+                                .attr("cy", 3)
+                                .attr("r", 1)
+                                .attr("fill", iconColor);
+                        } else if (strategy === 'waiting') {
+                            // 等待策略：时钟
+                            strategyIcon.append("circle")
+                                .attr("cx", 0)
+                                .attr("cy", 0)
+                                .attr("r", 5)
+                                .attr("stroke", iconColor)
+                                .attr("stroke-width", 1)
+                                .attr("fill", "none");
+                            strategyIcon.append("line")
+                                .attr("x1", 0)
+                                .attr("y1", 0)
+                                .attr("x2", 0)
+                                .attr("y2", -3)
+                                .attr("stroke", iconColor)
+                                .attr("stroke-width", 1);
+                            strategyIcon.append("line")
+                                .attr("x1", 0)
+                                .attr("y1", 0)
+                                .attr("x2", 2)
+                                .attr("y2", 1)
+                                .attr("stroke", iconColor)
+                                .attr("stroke-width", 1);
+                        } else if (strategy === 'rerouting') {
+                            // 重新路由：弯曲箭头
+                            const pathD = "M-3,-2 Q0,-4 3,-2 L2,-3 M3,-2 L2,-1";
+                            strategyIcon.append("path")
+                                .attr("d", pathD)
+                                .attr("stroke", iconColor)
+                                .attr("stroke-width", 1)
+                                .attr("fill", "none");
+                        } else {
+                            // 默认策略：圆点
+                            strategyIcon.append("circle")
+                                .attr("cx", 0)
+                                .attr("cy", 0)
+                                .attr("r", 3)
+                                .attr("fill", iconColor);
+                        }
+                    }
+                }
+                
+                // 移除飞机状态指示器（小圆点）
+                // aircraftIcon.append("circle")
+                //     .attr("cx", 8)
+                //     .attr("cy", 0)
+                //     .attr("r", 2)
+                //     .attr("fill", isActive ? "#FF6B6B" : "#4ECDC4")
+                //     .attr("stroke", "white")
+                //     .attr("stroke-width", 1);
+            });
 
-            // 图例标题
-            legendGroup.append("text")
-                .attr("x", 0)
-                .attr("y", 10)
-                .attr("font-size", "14px")
-                .attr("font-weight", "bold")
-                .attr("fill", "#333")
-                .text("飞机类型");
+            // 在飞机图标原位置（柱状图和时间线之间）添加ID文本
+            const aircraftIdGroup = svg.append("g")
+                .attr("class", "aircraft-ids")
+                .attr("transform", `translate(${margin.left - 50},${margin.top})`);
 
-            // Active Aircraft 图例
-            const activeLegend = legendGroup.append("g")
-                .attr("transform", "translate(0, 25)");
+            aircraftIds.forEach((id, i) => {
+                const yBase = getYPosition(id);
+                
+                aircraftIdGroup.append("text")
+                    .attr("x", 0)
+                    .attr("y", yBase)
+                    .attr("dy", "0.32em")
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "12px")
+                    .attr("font-weight", "bold")
+                    .attr("fill", "#333")
+                    .text(id);
+            });
 
-            activeLegend.append("line")
-                .attr("x1", 0)
-                .attr("x2", 20)
-                .attr("y1", 0)
-                .attr("y2", 0)
-                .attr("stroke", "#FF6B6B")
-                .attr("stroke-width", 4)
-                .attr("stroke-linecap", "round");
 
-            activeLegend.append("circle")
-                .attr("cx", 20)
-                .attr("cy", 0)
-                .attr("r", 6)
-                .attr("fill", "#FF6B6B")
-                .attr("stroke", "white")
-                .attr("stroke-width", 2);
 
-            activeLegend.append("polygon")
-                .attr("points", "20,0 15,-8 25,-8")
-                .attr("fill", "#FF6B6B")
-                .attr("stroke", "white")
-                .attr("stroke-width", 1)
-                .attr("transform", "translate(0, -10)");
+         const drawLegend = (legendGroup) => {
+  // 清空已有内容（避免重复）
+  legendGroup.selectAll('*').remove();
 
-            activeLegend.append("text")
-                .attr("x", 35)
-                .attr("y", 5)
-                .attr("font-size", "12px")
-                .attr("fill", "#333")
-                .text("活跃飞机 (Active)");
+  // 图例背景
+  legendGroup.append("rect")
+    .attr("x", -10)
+    .attr("y", -10)
+    .attr("width", 200)
+    .attr("height", 100)
+    .attr("fill", "none")
+    .attr("stroke", "#ccc")
+    .attr("stroke-width", 1)
+    .attr("rx", 5);
 
-            // Planning Aircraft 图例
-            const planningLegend = legendGroup.append("g")
-                .attr("transform", "translate(0, 55)");
+  // 标题
+  legendGroup.append("text")
+    .attr("x", 0)
+    .attr("y", 10)
+    .attr("font-size", "14px")
+    .attr("font-weight", "bold")
+    .attr("fill", "#333")
+    .text(t('legend.title'));
 
-            planningLegend.append("line")
-                .attr("x1", 0)
-                .attr("x2", 20)
-                .attr("y1", 0)
-                .attr("y2", 0)
-                .attr("stroke", "#4ECDC4")
-                .attr("stroke-width", 2)
-                .attr("stroke-linecap", "round")
-                .attr("stroke-dasharray", "5,5");
+  // Active Aircraft
+  const activeLegend = legendGroup.append("g").attr("transform", "translate(0, 35)");
+  activeLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round");
+  activeLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", 2);
+  activeLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.active'));
 
-            planningLegend.append("circle")
-                .attr("cx", 20)
-                .attr("cy", 0)
-                .attr("r", 4)
-                .attr("fill", "white")
-                .attr("stroke", "#4ECDC4")
-                .attr("stroke-width", 2);
-
-            planningLegend.append("rect")
-                .attr("x", 16)
-                .attr("y", -14)
-                .attr("width", 8)
-                .attr("height", 8)
-                .attr("fill", "white")
-                .attr("stroke", "#4ECDC4")
-                .attr("stroke-width", 2);
-
-            planningLegend.append("text")
-                .attr("x", 35)
-                .attr("y", 5)
-                .attr("font-size", "12px")
-                .attr("fill", "#333")
-                .text("计划飞机 (Planning)");
-
-            // 样式说明
-            legendGroup.append("text")
-                .attr("x", 0)
-                .attr("y", 85)
-                .attr("font-size", "10px")
-                .attr("fill", "#666")
-                .text("• 实线/粗线：活跃飞机");
-
-            legendGroup.append("text")
-                .attr("x", 0)
-                .attr("y", 100)
-                .attr("font-size", "10px")
-                .attr("fill", "#666")
-                .text("• 虚线/细线：计划飞机");
-
-            // 模拟数据图例分隔线
-            legendGroup.append("line")
-                .attr("x1", 0)
-                .attr("x2", 170)
-                .attr("y1", 115)
-                .attr("y2", 115)
-                .attr("stroke", "#ddd")
-                .attr("stroke-width", 1);
-
-            // 模拟数据标题
-            legendGroup.append("text")
-                .attr("x", 0)
-                .attr("y", 135)
-                .attr("font-size", "12px")
-                .attr("font-weight", "bold")
-                .attr("fill", "#666")
-                .text("模拟数据");
-
-            // 模拟活跃飞机图例
-            const simActiveGroup = legendGroup.append("g")
-                .attr("transform", "translate(0, 150)");
-
-            simActiveGroup.append("line")
-                .attr("x1", 0)
-                .attr("x2", 20)
-                .attr("y1", 0)
-                .attr("y2", 0)
-                .attr("stroke", "#FF6B6B")
-                .attr("stroke-width", 3)
-                .attr("stroke-dasharray", "8,4")
-                .attr("opacity", 0.7)
-                .attr("stroke-linecap", "round");
-
-            simActiveGroup.append("polygon")
-                .attr("points", "0,0 -6,-6 6,-6")
-                .attr("fill", "#FF6B6B")
-                .attr("stroke", "white")
-                .attr("stroke-width", 1)
-                .attr("opacity", 0.7)
-                .attr("transform", "translate(20, -8)");
-
-            simActiveGroup.append("text")
-                .attr("x", 35)
-                .attr("y", 5)
-                .attr("font-size", "11px")
-                .attr("fill", "#666")
-                .text("模拟活跃飞机");
-
-            // 模拟计划飞机图例
-            const simPlanGroup = legendGroup.append("g")
-                .attr("transform", "translate(0, 170)");
-
-            simPlanGroup.append("line")
-                .attr("x1", 0)
-                .attr("x2", 20)
-                .attr("y1", 0)
-                .attr("y2", 0)
-                .attr("stroke", "#4ECDC4")
-                .attr("stroke-width", 2)
-                .attr("stroke-dasharray", "8,4")
-                .attr("opacity", 0.7)
-                .attr("stroke-linecap", "round");
-
-            simPlanGroup.append("polygon")
-                .attr("points", "0,0 -4,-4 4,-4 4,4 -4,4")
-                .attr("fill", "white")
-                .attr("stroke", "#4ECDC4")
-                .attr("stroke-width", 2)
-                .attr("opacity", 0.7)
-                .attr("transform", "translate(20, -8)");
-
-            simPlanGroup.append("text")
-                .attr("x", 35)
-                .attr("y", 5)
-                .attr("font-size", "11px")
-                .attr("fill", "#666")
-                .text("模拟计划飞机");
-
-            // 在主图g上绘制冲突点和连接线
-            // 注意：冲突数据现在通过独立的autorun处理，这里不再处理冲突绘制
-            // 冲突数据分别来自websocketStore.current_conflicts和websocketStore.future_conflicts
-            // 由updateConflictData函数统一处理，支持不同样式配置
+  // Planning Aircraft
+  const planningLegend = legendGroup.append("g").attr("transform", "translate(0, 55)");
+  planningLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round")
+    .attr("stroke-dasharray", TIMELINE_STYLES.PLANNING_DASH);
+  planningLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", "white")
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", 2);
+  planningLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.planning'));
+};
 
             // 保存绘图相关变量到d3Container，供冲突更新函数使用
             d3Container.current = {
@@ -2164,24 +2715,32 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
             disposer();
             // disposer2();
         };
-    }, []);
+    }, [showLegend]);
+
+    // 当表格数据源变化时，重绘跨区域连接线
+    useEffect(() => {
+        requestAnimationFrame(drawRowToIconConnectors);
+    }, [tableDataSource]);
 
 
 
     // 表格容器滚动处理函数
     const handleTableContainerScroll = (e) => {
         const { scrollTop } = e.target;
-        if (chartRef.current) {
+        if (chartRef.current && chartRef.current.scrollTop !== scrollTop) {
             chartRef.current.scrollTop = scrollTop;
         }
+        // 同步更新连接线位置
+        requestAnimationFrame(drawRowToIconConnectors);
     };
 
     const handleChartScroll = (e) => {
         const { scrollTop } = e.target;
-        if (tableRef.current) {
-            // 直接设置表格容器的滚动位置
+        if (tableRef.current && tableRef.current.scrollTop !== scrollTop) {
             tableRef.current.scrollTop = scrollTop;
         }
+        // 同步更新连接线位置
+        requestAnimationFrame(drawRowToIconConnectors);
     };
 
     return (
@@ -2190,7 +2749,8 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
             height: '100%',
             overflow: 'hidden', // 防止出现滚动条
             padding: '10px',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            position: 'relative'
         }}>
             <div style={{
                 display: 'flex',
@@ -2201,18 +2761,20 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
                 {/* 左侧表格 - 使用SVG表格替换Ant Design Table */}
                 <div
                     style={{
-                        width: '40%',
+                        width: '33.33%', // 调整为1/3
                         height: '100%',
                         overflowX: 'hidden'
                     }}
                 >
                     <SVGTable
-                        columns={columns}
+                        columns={columnsI18n}
                         dataSource={tableDataSource}
                         rowHeight={ROW_HEIGHT}
                         headerHeight={HEADER_HEIGHT}
                         onScroll={handleTableContainerScroll}
                         tableRef={tableRef}
+                        containerHeight={height}
+                        className={styles.prettyScrollbar}
                     />
                 </div>
 
@@ -2222,12 +2784,70 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
                     onScroll={handleChartScroll}
                     className={styles.hideScrollbar}
                     style={{
-                        width: '60%',
+                        width: '66.67%', // 调整为2/3
                         height: '100%',
                         overflow: 'auto',
                         // backgroundColor:'red'
                     }}
                 >
+                    {/* 顶部粘性时间轴与“飞机ID”标题 */}
+                <div
+                    style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 20,
+                        background: '#ffffff',
+                        borderBottom: '1px solid #f0f0f0'
+                    }}
+                >
+                     {/* Toggle 按钮 - 右上角 */}
+<button
+  onClick={() => setShowLegend(!showLegend)}
+  style={{
+    position: 'absolute',
+    top: '0px',
+    right: '10px',
+    zIndex: 10,
+    padding: '6px 12px',
+    fontSize: '13px',
+    fontWeight: 500,
+    color: '#1f1f1f',
+    background: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    outline: 'none',
+    userSelect: 'none'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.boxShadow = '0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)';
+  }}
+  onFocus={(e) => {
+    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(26, 115, 232, 0.3)';
+  }}
+  onBlur={(e) => {
+    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)';
+  }}
+>
+  {showLegend ? t('hide legend') : t('show legend')}
+</button>
+                    <svg
+                        ref={svgAxisRef}
+                        width="100%"
+                        height={HEADER_HEIGHT}
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{
+                            maxWidth: '100%',
+                            display: 'block',
+                            background: '#ffffff'
+                        }}
+                    />
+                </div>
                     <svg
                         ref={svgRef}
                         width="100%"
@@ -2243,6 +2863,11 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
                     >
                     </svg>
                 </div>
+                {/* 覆盖层：绘制跨区域连接线 */}
+                <svg
+                    ref={overlayRef}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5, clipPath: `inset(${HEADER_HEIGHT}px 0 0 0)` }}
+                />
             </div>
         </div>
     );

@@ -15,7 +15,8 @@
 ### 基础连接
 ```javascript
 // 建立Socket.IO连接
-const socket = io('http://localhost:5000');
+// const socket = io('http://localhost:5000');
+const socket = io('https://nonpenetrating-holly-unmathematically.ngrok-free.dev');
 
 // 连接成功处理
 socket.on('connect', () => {

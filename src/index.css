@@ -66,3 +66,34 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+/* 细浅蓝滚动条（参考 PlanningView 样式） */
+.prettyScrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(55, 126, 184, 0.35) transparent; /* Firefox */
+}
+.prettyScrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.prettyScrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.prettyScrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(24, 144, 255, 0.35);
+  border-radius: 3px;
+  border: 1px solid rgba(24, 144, 255, 0.15);
+}
+.prettyScrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(24, 144, 255, 0.55);
+}
+
+/* 全局隐藏所有滚动条（保留滚动能力） */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}

@@ -3,9 +3,9 @@
     height: 100vh;
     width: 100%;
     display: grid;
-    grid-template-rows: 1fr 1fr; /* 上下布局，下方区域高度是上方的两倍 */
+    grid-template-rows: 1fr 1.5fr; /* 上下布局，PlanningView 与 TaxiwayMap 高度1:1 */
     gap: 16px;
-    padding: 66px 16px 16px 16px; /* 顶部66px为Header留空间，其他方向16px */
+    padding: 16px 16px 16px 16px; /* 取消为 Header 预留的竖向空间 */
     background: #f0f2f5;
     overflow: hidden;
     box-sizing: border-box;
