@@ -35,7 +35,7 @@ const TaxiwayMap = observer(() => {
   const areaTimers = useRef({});
   const geoJsonUrl = '/taxiwayline2.geojson'; // 文件需放在public目录下
   const { t } = useI18n();
-  
+
   // 地图视图飞机图标统一尺寸常量（可根据需求调整）
   const MAP_AIRPLANE_ICON_SIZE = 40; // 实时飞机图标（原32）
 
@@ -119,7 +119,7 @@ const TaxiwayMap = observer(() => {
     return converted;
   };
   const MAP_PLANNED_START_ICON_SIZE = 32; // 规划起点飞机图标（原24）
-  
+
   // const { socket } = useContext(WebSocketContext);
   // const [inputMessage, setInputMessage] = useState('taxiway');
 
@@ -143,29 +143,29 @@ const TaxiwayMap = observer(() => {
 
   useEffect(() => {
     let disposer3;
-    
+
     // 确保容器元素已经挂载到DOM
     if (!mapContainer.current) {
       console.error('地图容器元素未找到');
       return;
     }
-    
+
     // 加载GeoJSON数据
     fetch(geoJsonUrl)
       .then(response => response.json())
       .then(data => {
         logInfo('GeoJSON数据加载完成:', data);
         logInfo('地图容器元素:', mapContainer.current);
-        
+
         // 再次检查容器元素是否存在
         if (!mapContainer.current) {
           console.error('地图容器元素在数据加载后丢失');
           return;
         }
-        
+
         map.current = new maplibregl.Map({
           container: mapContainer.current,
-           style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+          style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
           center: [116.593238, 40.051893],  // 初始中心点
           zoom: 23, // 提高初始缩放级别，让地图更大
           maxZoom: 24, // 允许更大的缩放范围
@@ -179,22 +179,22 @@ const TaxiwayMap = observer(() => {
           map.current.setPaintProperty('background', 'background-color', '#f8f9fa');
           map.current.setPaintProperty('water', 'fill-color', 'hsl(210, 50%, 95%)');
 
-        // 建筑图层颜色调整
+          // 建筑图层颜色调整
           if (map.current.getLayer('building')) {
             map.current.setPaintProperty('building', 'fill-color', 'hsl(0, 0%, 90%)'); // 浅灰色
             map.current.setPaintProperty('building', 'fill-opacity', 0.2); // 降低不透明度
           }
-          
+
           if (map.current.getLayer('building-top')) {
             map.current.setPaintProperty('building-top', 'fill-color', 'hsl(0, 0%, 88%)'); // 稍深一点的灰色
             map.current.setPaintProperty('building-top', 'fill-opacity', 0.2);
           }
-          
+
           // 可选：调整其他相关图层，使整体更协调
           if (map.current.getLayer('landcover')) {
             map.current.setPaintProperty('landcover', 'fill-color', 'hsl(100, 20%, 95%)');
           }
-          
+
           if (map.current.getLayer('landuse_residential')) {
             map.current.setPaintProperty('landuse_residential', 'fill-color', 'hsl(0, 0%, 92%)');
             map.current.setPaintProperty('landuse_residential', 'fill-opacity', 0.4);
@@ -388,7 +388,7 @@ const TaxiwayMap = observer(() => {
       })
       .catch(error => console.error('数据加载失败:', error));
 
-    const colors = [ 'rgb(152,78,163)', 'rgb(255,127,0)', 'rgb(255,255,51)', 'rgb(166,86,40)', 'rgb(247,129,191)']
+    const colors = ['rgb(152,78,163)', 'rgb(255,127,0)', 'rgb(255,255,51)', 'rgb(166,86,40)', 'rgb(247,129,191)']
 
     // const colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f','#bf5b17','#666666', '#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666']
     const colorSet = new Set(); // 使用 Set 来存储颜色，避免重复
@@ -439,7 +439,7 @@ const TaxiwayMap = observer(() => {
 
         // 计算飞机朝向角度 - 使用当前坐标和上一个位置
         let rotation = 0;
-        
+
         // 新增飞机
         if (!existingPlaneIds.has(id)) {
           const marker = new Marker({ element: createAirplaneMarker(color, MAP_AIRPLANE_ICON_SIZE, rotation) }) // 使用统一颜色和角度创建标记
@@ -448,7 +448,7 @@ const TaxiwayMap = observer(() => {
             .addTo(map.current);
 
           // 存储新标记和当前位置，以及轨迹缓存
-          markers.current[id] = { 
+          markers.current[id] = {
             marker,
             lastPosition: [...coords], // 保存当前位置作为上一个位置
             lastTrajectory: null, // 缓存上次的轨迹数据
@@ -456,15 +456,15 @@ const TaxiwayMap = observer(() => {
             lastPerp: computePerpendicularUnitPixel(null, [coords[0], coords[1]], trajectory) || null, // 缓存最近一次法向量（屏幕空间）
             lastDisplayOffset: websocketStore.plannedFlights?.[id]?.display_offset ?? 0 // 缓存最近一次非零显示偏移
           };
-          
+
           // 新飞机需要绘制轨迹
           try {
             // 从plannedFlights获取display_offset
             const plannedFlight = websocketStore.plannedFlights?.[id];
             const offset = plannedFlight?.display_offset || 0;
-            
+
             drawTrajectory(id, trajectory, color, offset);
-            
+
             // 缓存轨迹数据
             markers.current[id].lastTrajectory = JSON.stringify(trajectory);
             markers.current[id].lastTrajectoryHash = trajectory ? trajectory.length : 0;
@@ -474,13 +474,13 @@ const TaxiwayMap = observer(() => {
         } else {
           // 更新已有飞机标记的位置和方向
           const { marker, lastPosition } = markers.current[id];
-          
+
           // 如果有上一个位置，计算朝向
           if (lastPosition && Array.isArray(lastPosition) && lastPosition.length >= 2) {
             // 计算方向角度
             const dx = coords[0] - lastPosition[0];
             const dy = coords[1] - lastPosition[1];
-            
+
             // 确保移动了足够的距离才更新角度
             if (Math.abs(dx) > 0.0000001 || Math.abs(dy) > 0.0000001) {
               // 考虑纬度缩放差异，修正经度方向的距离
@@ -496,9 +496,9 @@ const TaxiwayMap = observer(() => {
 
               // 根据SVG默认朝向（向上）做偏移；并校正地图旋转
               rotation = 90 - geoAngle - bearing;
- 
+
               // console.log(`飞机ID: ${id}, geoAngle: ${geoAngle}°, bearing: ${bearing}°, 应用角度: ${rotation}° (dx:${dx}, dy:${dy}, dxAdj:${dxAdj})`);
- 
+
               // 获取飞机元素并应用旋转
               const el = marker.getElement();
               const rotateEl = el.querySelector('.airplane-rotate');
@@ -508,7 +508,7 @@ const TaxiwayMap = observer(() => {
               }
             }
           }
-          
+
           // 更新位置（应用与轨迹一致的偏移，缺失时回退到上一次稳定值）
           const plannedFlight = websocketStore.plannedFlights?.[id];
           const displayOffset = (plannedFlight?.display_offset != null)
@@ -527,35 +527,35 @@ const TaxiwayMap = observer(() => {
           if (plannedFlight?.display_offset != null) {
             markers.current[id].lastDisplayOffset = plannedFlight.display_offset;
           }
-          
+
           // 检查轨迹是否发生变化，只有变化时才重新绘制
           const currentTrajectoryStr = JSON.stringify(trajectory);
           const currentTrajectoryHash = trajectory ? trajectory.length : 0;
-          
-          if (markers.current[id].lastTrajectory !== currentTrajectoryStr || 
-              markers.current[id].lastTrajectoryHash !== currentTrajectoryHash) {
-            
+
+          if (markers.current[id].lastTrajectory !== currentTrajectoryStr ||
+            markers.current[id].lastTrajectoryHash !== currentTrajectoryHash) {
+
             // 轨迹发生变化，重新绘制
             try {
               // 从plannedFlights获取display_offset
               const plannedFlight = websocketStore.plannedFlights?.[id];
               const offset = plannedFlight?.display_offset || 0;
-              
+
               drawTrajectory(id, trajectory, color, offset);
-              
+
               // 更新缓存
               markers.current[id].lastTrajectory = currentTrajectoryStr;
               markers.current[id].lastTrajectoryHash = currentTrajectoryHash;
-              
+
               // console.log(`飞机 ${id} 轨迹发生变化，重新绘制`);
             } catch (error) {
               console.error(`处理轨迹失败 ${id}:`, error);
             }
           }
-          
+
           // 更新上一个位置
           markers.current[id].lastPosition = [...coords];
-          
+
           // 重置计数
           markers.current[id].count = 0;
         }
@@ -823,7 +823,7 @@ const TaxiwayMap = observer(() => {
           console.log('Clicked segment ID:', clickedSegmentId);
 
           // 遍历所有图层，将被点击的线段高亮显示
-        geodata.features.forEach((feature, index) => {
+          geodata.features.forEach((feature, index) => {
             const sourceId = `segment-${index}`;
             const color = (sourceId === clickedSegmentId) ? '#FFFF00' : feature.properties.color; // 高亮为黄色
             map.current.setPaintProperty(sourceId, 'line-color', color);
@@ -836,13 +836,13 @@ const TaxiwayMap = observer(() => {
     // 绘制飞机的轨迹 - 优化版本
     const drawTrajectory = (id, trajectorys, color, offset = 0) => {
       // 检查地图是否完全初始化
-      if (!map.current || 
-          !map.current.getSource || 
-          !map.current.addSource || 
-          !map.current.getLayer || 
-          !map.current.addLayer ||
-          !map.current.removeLayer ||
-          !map.current.removeSource) {
+      if (!map.current ||
+        !map.current.getSource ||
+        !map.current.addSource ||
+        !map.current.getLayer ||
+        !map.current.addLayer ||
+        !map.current.removeLayer ||
+        !map.current.removeSource) {
         console.warn('地图未完全初始化，跳过轨迹绘制');
         return;
       }
@@ -856,11 +856,11 @@ const TaxiwayMap = observer(() => {
       let index = 0;
       // const multiColor = generateAlphaVariants(color, 10, 5); // 生成颜色透明度阶梯
 
-     // console.log('绘制轨迹', id, trajectorys);
+      // console.log('绘制轨迹', id, trajectorys);
 
       // 使用绿色渐变（与时间线 ACTIVE 基色一致）
-// 使用由深到浅（加白）的绿色渐变，与时间线的ACTIVE基色(#4daf4a)一致
-const greenGradientScale = generateWhiteMixVariants('rgb(77, 175, 74)', 10);
+      // 使用由深到浅（加白）的绿色渐变，与时间线的ACTIVE基色(#4daf4a)一致
+      const greenGradientScale = generateWhiteMixVariants('rgb(77, 175, 74)', 10);
 
       trajectorys.forEach(trajectory => {
         // console.log('绘制轨迹',  trajectory);
@@ -896,10 +896,10 @@ const greenGradientScale = generateWhiteMixVariants('rgb(77, 175, 74)', 10);
 
       // console.log( JSON.stringify(geodata, null, 2) );
       // console.log(geodata);
-      
+
       // 优化：检查数据源是否存在，避免重复创建
       const sourceExists = map.current.getSource(id);
-      
+
       if (!sourceExists) {
         // 批量添加数据源和图层
         try {
@@ -920,8 +920,8 @@ const greenGradientScale = generateWhiteMixVariants('rgb(77, 175, 74)', 10);
               "line-color": ['get', 'color'], // 使用指定颜色
               "line-width": 5,  // 轨迹加粗一点，偏移效果更清晰
               'line-offset': [
-                'interpolate', 
-                ['linear'], 
+                'interpolate',
+                ['linear'],
                 ['zoom'],
                 10, ['*', ['get', 'height'], 3],  // 增加偏移倍数
                 15, ['*', ['get', 'height'], 6],  // 增加偏移倍数
@@ -951,7 +951,7 @@ const greenGradientScale = generateWhiteMixVariants('rgb(77, 175, 74)', 10);
     };
 
     // 绘制模拟结果的轨迹（使用浅蓝色系列）
-const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) => {
+    const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) => {
       let geodata = { type: 'FeatureCollection', features: [] };
       let index = 0;
       const multiColor = generateAlphaVariants(baseColor, 10, 10);
@@ -1064,7 +1064,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
     let updateTimeout = null;
     let lastUpdateTime = 0;
     const UPDATE_INTERVAL = 100; // 100ms间隔
-    
+
     const throttledUpdatePlane = () => {
       const now = Date.now();
       if (now - lastUpdateTime >= UPDATE_INTERVAL) {
@@ -1160,7 +1160,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
 
         // 尝试从滑行道数据中找到节点坐标
         let nodeCoordinates = null;
-        
+
         // 查找包含该节点的滑行道
         const relatedTaxiway = geojsonData.features.find(feature => {
           const startNode = String(feature.properties.startnode);
@@ -1251,10 +1251,10 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
     // 监听冲突解决方案数据变化，绘制冲突节点标记
     disposer3 = autorun(() => {
       console.log('冲突解决方案数据变化:', websocketStore.conflictResolutions);
-      
+
       // 清除之前的冲突标记
       clearConflictMarkers();
-      
+
       // 绘制新的冲突标记
       if (websocketStore.conflictResolutions && Array.isArray(websocketStore.conflictResolutions)) {
         drawConflictMarkers(websocketStore.conflictResolutions);
@@ -1266,12 +1266,12 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
     // 清理planned paths图层
     const clearPlannedPaths = () => {
       // 增强地图初始化检查
-      if (!map.current || 
-          !map.current.getStyle || 
-          !map.current.getLayer || 
-          !map.current.removeLayer ||
-          !map.current.getSource || 
-          !map.current.removeSource) {
+      if (!map.current ||
+        !map.current.getStyle ||
+        !map.current.getLayer ||
+        !map.current.removeLayer ||
+        !map.current.getSource ||
+        !map.current.removeSource) {
         console.warn('地图未完全初始化，跳过规划路径清理');
         return;
       }
@@ -1338,14 +1338,14 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
     // 绘制planned飞机的规划路径
     const drawPlannedPaths = () => {
       // 增强地图初始化检查
-      if (!map.current || 
-          !map.current.getStyle || 
-          !map.current.getSource || 
-          !map.current.addSource || 
-          !map.current.getLayer || 
-          !map.current.addLayer ||
-          !geojsonData || 
-          !websocketStore.plannedFlights) {
+      if (!map.current ||
+        !map.current.getStyle ||
+        !map.current.getSource ||
+        !map.current.addSource ||
+        !map.current.getLayer ||
+        !map.current.addLayer ||
+        !geojsonData ||
+        !websocketStore.plannedFlights) {
         console.warn('地图未完全初始化或数据不可用，跳过规划路径绘制');
         return;
       }
@@ -1373,12 +1373,12 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
         }
 
         // 筛选飞机规划路径：如果飞机正在滑行中，就不绘制规划路径
-        const isCurrentlyTaxiing = websocketStore.planePosition && 
-          websocketStore.planePosition.some(plane => 
-            plane.id === flightId && 
+        const isCurrentlyTaxiing = websocketStore.planePosition &&
+          websocketStore.planePosition.some(plane =>
+            plane.id === flightId &&
             (plane.state === 'taxiing' || plane.state === 'moving')
           );
-        
+
         if (isCurrentlyTaxiing) {
           console.log(`飞机 ${flightId} 正在滑行中，跳过规划路径绘制`);
           continue;
@@ -1388,7 +1388,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
 
         // 使用原有的node_path方式绘制
         const pathCoordinates = [];
-        
+
         for (let i = 0; i < flightData.node_path.length - 1; i++) {
           const currentNodeId = String(flightData.node_path[i]);
           const nextNodeId = String(flightData.node_path[i + 1]);
@@ -1428,9 +1428,9 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
 
         // 根据航班类型确定颜色，使用WebSocketStore的统一颜色管理
         // 检查是否为活跃航班（可以通过websocketStore.planePosition或其他方式判断）
-        const isActiveFlight = websocketStore.planePosition && 
+        const isActiveFlight = websocketStore.planePosition &&
           websocketStore.planePosition.some(plane => plane.id === flightId);
-        
+
         // 使用WebSocketStore的统一颜色管理
         const pathColor = websocketStore.getAircraftColor(flightId, isActiveFlight);
 
@@ -1568,7 +1568,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
     let plannedPathsUpdateTimeout = null;
     let lastPlannedPathsUpdateTime = 0;
     const PLANNED_PATHS_UPDATE_INTERVAL = 200; // 200ms间隔
-    
+
     const throttledDrawPlannedPaths = () => {
       const now = Date.now();
       if (now - lastPlannedPathsUpdateTime >= PLANNED_PATHS_UPDATE_INTERVAL) {
@@ -1584,7 +1584,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
         }, PLANNED_PATHS_UPDATE_INTERVAL - (now - lastPlannedPathsUpdateTime));
       }
     };
-    
+
     const disposer4 = autorun(() => {
       try {
         if (websocketStore.plannedFlights && Object.keys(websocketStore.plannedFlights).length > 0) {
@@ -1614,7 +1614,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
             const trajectory = aircraftData?.trajectory || [];
             const simLayerId = `sim-${aircraftId}`;
             // 使用浅蓝色系列，和规划视图颜色系保持一致（更浅）
-      drawSimulatedTrajectory(simLayerId, trajectory, '#377eb8', idx);
+            drawSimulatedTrajectory(simLayerId, trajectory, '#377eb8', idx);
           });
         } else {
           // 无模拟数据时清理
@@ -1719,27 +1719,27 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
 
           let overlapTaxiways = websocketStore.overlapTaxiways;
           console.log('WebSocket overlapTaxiways:', overlapTaxiways);
-          
-         
-            const currentConflicts = overlapTaxiways || [];
-            console.log('当前冲突数据 (current):', currentConflicts);
 
-            if (Array.isArray(currentConflicts) && currentConflicts.length > 0) {
-              console.log('绘制当前冲突数据 (current):', currentConflicts);
-              highlightTaxiwayByLayerWithArea(currentConflicts, 'current');
-            } else {
-              console.log('当前没有冲突数据');
-              // 清除现有的当前冲突高亮显示
-              if (window._currentAreaLayers) {
-                console.log('准备清理 current 冲突图层，数量:', window._currentAreaLayers.length, 'IDs:', window._currentAreaLayers);
-                window._currentAreaLayers.forEach(id => {
-                  if (map.current.getLayer(id)) map.current.removeLayer(id);
-                  if (map.current.getSource(id)) map.current.removeSource(id);
-                });
-                window._currentAreaLayers = [];
-                console.log('已清理 current 冲突图层');
-              }
+
+          const currentConflicts = overlapTaxiways || [];
+          console.log('当前冲突数据 (current):', currentConflicts);
+
+          if (Array.isArray(currentConflicts) && currentConflicts.length > 0) {
+            console.log('绘制当前冲突数据 (current):', currentConflicts);
+            highlightTaxiwayByLayerWithArea(currentConflicts, 'current');
+          } else {
+            console.log('当前没有冲突数据');
+            // 清除现有的当前冲突高亮显示
+            if (window._currentAreaLayers) {
+              console.log('准备清理 current 冲突图层，数量:', window._currentAreaLayers.length, 'IDs:', window._currentAreaLayers);
+              window._currentAreaLayers.forEach(id => {
+                if (map.current.getLayer(id)) map.current.removeLayer(id);
+                if (map.current.getSource(id)) map.current.removeSource(id);
+              });
+              window._currentAreaLayers = [];
+              console.log('已清理 current 冲突图层');
             }
+          }
         });
 
         // 监听future_conflicts变化
@@ -1987,7 +1987,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
             };
 
             const areaId = `${conflictType}-area-${conflictKey}`;
-            
+
             // 根据冲突类型设置不同的样式
             let fillColor, fillOpacity;
             if (conflictType === 'future') {
@@ -1999,7 +1999,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
               fillColor = 'rgba(255,165,0, 0.25)';
               fillOpacity = 0.8;
             }
-            
+
             try {
               console.log('尝试添加图层:', areaId, '类型:', conflictType);
               // 如果标记为未修改且已存在，则无需重绘，直接跳过
@@ -2051,7 +2051,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
                 interactive: true
               });
               console.log('成功添加图层:', areaId, '颜色:', fillColor);
-              
+
               map.current.on('click', areaId, (e) => {
                 if (e.features && e.features.length > 0) {
                   const props = e.features[0].properties;
@@ -2247,10 +2247,10 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
       if (disposer5) disposer5(); // 清理future conflicts观察者
       if (disposerSim) disposerSim(); // 清理模拟观察者
       if (highlightTimer) clearTimeout(highlightTimer);
-      
+
       // WebWorker已移除，不再需要清理
       // trajectoryWorkerManager.destroy();
-      
+
       // 新增：清理所有面积图定时器
       Object.values(areaTimers.current).forEach(timerId => {
         clearTimeout(timerId);
@@ -2259,7 +2259,7 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
 
       // 清理planned paths图层
       clearPlannedPaths();
-      
+
       // 清理冲突标记
       clearConflictMarkers();
 
@@ -2275,11 +2275,11 @@ const drawSimulatedTrajectory = (id, trajectorys, baseColor = '#377eb8', h = 0) 
 
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: '100%', gap: '12px' }}>
+    <div style={{ display: 'flex', width: '100%', height: '100%', gap: '8px' }}>
       {/* 左侧：冲突解决面板（固定宽度，不与地图重叠） */}
       <div style={{
-        width: '28%',
-        maxWidth: '420px',
+        width: '50%',
+        maxWidth: '700px',
         height: '100%',
         backgroundColor: 'rgba(255, 255, 255, 0.65)',
         borderRadius: '8px',
@@ -2305,24 +2305,24 @@ const ConflictResolutionPanel = observer(() => {
 
   // 使用WebSocketStore中的状态，而不是本地状态
   const conflicts = websocketStore.conflictResolutions;
-  
+
 
   const selectedConflict = websocketStore.selectedConflict;
   const resolutions = websocketStore.resolutions;
   const resolution_analysis = websocketStore.resolution_analysis;
   const loading = websocketStore.conflictResolutionLoading;
   const errorMessage = websocketStore.lastError;
-  
+
   // 获取特定冲突的解决方案 - 直接调用WebSocketStore的方法
   const getConflictResolutions = (conflictId) => {
     websocketStore.getConflictResolutions(conflictId);
-    
+
   };
 
   // 应用解决方案 - 直接调用WebSocketStore的方法
   const applyResolution = (conflictId, solutionId) => {
     websocketStore.applyConflictResolution(conflictId, solutionId);
-    console.log("应用了接圈方案",conflictId,solutionId)
+    console.log("应用了接圈方案", conflictId, solutionId)
   };
 
   // 模拟应用解决方案
@@ -2497,7 +2497,7 @@ const ConflictResolutionPanel = observer(() => {
                   opacity: conflict.status === 'resolved' ? 0.6 : 1
                 }}
               >
-               
+
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -2681,8 +2681,8 @@ const ConflictResolutionPanel = observer(() => {
             const StrategyIcon = ({ strategy }) => {
               const color = strategy === 'emergency_mode' ? '#dc3545'
                 : strategy === 'waiting' ? '#ffc107'
-                : strategy === 'rerouting' ? '#17a2b8'
-                : '#6c757d';
+                  : strategy === 'rerouting' ? '#17a2b8'
+                    : '#6c757d';
               return (
                 <svg width="18" height="18" viewBox="0 0 24 24" style={{ marginRight: 8 }}>
                   {strategy === 'emergency_mode' && (
@@ -2742,7 +2742,7 @@ const ConflictResolutionPanel = observer(() => {
             const ImpactGraph = ({ impactGraph, targetFlight }) => {
               const nodes = impactGraph?.nodes ? Object.entries(impactGraph.nodes) : [];
               const edges = impactGraph?.edges || [];
-              
+
               // 根据节点数量动态计算高度
               const nodeCount = nodes.length;
               const minHeight = 90; // 缩小最小高度
@@ -2750,12 +2750,13 @@ const ConflictResolutionPanel = observer(() => {
               const heightPerNode = 24; // 每个节点占用高度更紧凑
               const calculatedHeight = Math.min(maxHeight, Math.max(minHeight, nodeCount * heightPerNode));
               
-              const w = 260, h = calculatedHeight; // 缩小整体宽度
-              
+              const w = 480, h = calculatedHeight; // 缩小整体宽度
+             
+
               // 构建有向图的树形布局
               const buildTreeLayout = (nodes, edges) => {
                 if (nodes.length === 0) return {};
-                
+
                 // 创建有向邻接表（只记录出边）
                 const outgoing = {};
                 const incoming = {};
@@ -2763,7 +2764,7 @@ const ConflictResolutionPanel = observer(() => {
                   outgoing[id] = [];
                   incoming[id] = [];
                 });
-                
+
                 edges.forEach(edge => {
                   const from = edge.from;
                   const to = edge.to;
@@ -2772,23 +2773,23 @@ const ConflictResolutionPanel = observer(() => {
                     incoming[to].push(from);
                   }
                 });
-                
+
                 // 找到根节点（没有入边的节点）
                 const rootNodes = nodes.filter(([id]) => incoming[id].length === 0);
                 const rootId = rootNodes.length > 0 ? rootNodes[0][0] : nodes[0][0];
-                
+
                 // BFS构建层级（只沿着出边方向）
                 const levels = {};
                 const visited = new Set();
                 const queue = [{ id: rootId, level: 0 }];
                 visited.add(rootId);
                 levels[rootId] = 0;
-                
+
                 let maxLevel = 0;
                 while (queue.length > 0) {
                   const { id, level } = queue.shift();
                   maxLevel = Math.max(maxLevel, level);
-                  
+
                   // 只遍历出边
                   outgoing[id].forEach(childId => {
                     if (!visited.has(childId)) {
@@ -2798,7 +2799,7 @@ const ConflictResolutionPanel = observer(() => {
                     }
                   });
                 }
-                
+
                 // 处理未访问的节点（可能是孤立节点）
                 nodes.forEach(([id]) => {
                   if (!visited.has(id)) {
@@ -2806,7 +2807,7 @@ const ConflictResolutionPanel = observer(() => {
                     maxLevel = Math.max(maxLevel, maxLevel + 1);
                   }
                 });
-                
+
                 // 按层级分组节点
                 const nodesByLevel = {};
                 nodes.forEach(([id]) => {
@@ -2814,15 +2815,22 @@ const ConflictResolutionPanel = observer(() => {
                   if (!nodesByLevel[level]) nodesByLevel[level] = [];
                   nodesByLevel[level].push(id);
                 });
-                
+
                 // 计算位置
                 const positions = {};
                 const levelWidth = maxLevel > 0 ? (w - 60) / (maxLevel + 1) : w - 60;
-                
+                if (nodes.length === 1) {
+  const id = nodes[0][0];
+  positions[id] = {
+    x: w / 3.5,      // 水平居中
+    y: h / 2       // 垂直居中（您已用 h/2，可保留）
+  };
+}
+else{
                 Object.keys(nodesByLevel).forEach(level => {
                   const levelNodes = nodesByLevel[level];
                   const levelHeight = levelNodes.length > 1 ? (h - 40) / (levelNodes.length - 1) : h / 2;
-                  
+
                   levelNodes.forEach((nodeId, index) => {
                     positions[nodeId] = {
                       x: 30 + parseInt(level) * levelWidth,
@@ -2830,22 +2838,23 @@ const ConflictResolutionPanel = observer(() => {
                     };
                   });
                 });
-                
+                }
+
                 return positions;
               };
-              
+
               const positions = buildTreeLayout(nodes, edges);
-              
+
               // 获取飞机颜色的函数
               const getAircraftColor = (aircraftId) => {
                 // 检查是否为活跃飞机
-                const isActive = websocketStore.planePosition && 
+                const isActive = websocketStore.planePosition &&
                   websocketStore.planePosition.some(plane => plane.id === aircraftId);
-                
+
                 // 使用WebSocketStore的统一颜色管理
                 return websocketStore.getAircraftColor(aircraftId, isActive);
               };
-              
+
               // 计算影响程度的函数（基于延迟时间）
               const getImpactLevel = (delayMinutes) => {
                 if (typeof delayMinutes !== 'number') return 1;
@@ -2856,23 +2865,23 @@ const ConflictResolutionPanel = observer(() => {
                 if (delayMinutes <= 10) return 4;
                 return 5;
               };
-              
+
               // 根据影响级别计算线条粗细（整体缩小宽度）
               const getStrokeWidth = (impactLevel) => {
                 return Math.max(0.5, impactLevel * 0.5); // 0.5-2.5 像素
               };
-              
+
               return (
                 <svg width={w} height={h} style={{ borderRadius: 4 }}>
                   {/* 边 - 添加箭头，根据影响程度调整粗细 */}
                   <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                            refX="9" refY="3.5" orient="auto">
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7"
+                      refX="9" refY="3.5" orient="auto">
                       <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
                     </marker>
                     {/* 统一飞机图标，用于节点显示（与地图视图一致） */}
                     <symbol id="impact-airplane-icon" viewBox="0 0 1024 1024">
-                      <path fill="currentColor" d="M512 174.933333c23.466667 0 42.666667 8.533333 59.733333 25.6s25.6 36.266667 25.6 59.733334v192l206.933334 185.6c6.4 4.266667 10.666667 12.8 14.933333 21.333333s6.4 17.066667 6.4 25.6v23.466667c0 8.533333-2.133333 12.8-6.4 14.933333s-10.666667 2.133333-17.066667-2.133333l-204.8-140.8v149.333333c38.4 36.266667 57.6 57.6 57.6 64v36.266667c0 8.533333-2.133333 12.8-6.4 17.066666-4.266667 2.133333-10.666667 2.133333-19.2 0l-117.333333-72.533333-117.333333 72.533333c-6.4 4.266667-12.8 4.266667-19.2 0s-6.4-8.533333-6.4-17.066666v-36.266667c0-8.533333 19.2-29.866667 57.6-64v-149.333333l-204.8 140.8c-6.4 4.266667-12.8 6.4-17.066667 2.133333-4.266667-2.133333-6.4-8.533333-6.4-14.933333V684.8c0-8.533333 2.133333-17.066667 6.4-25.6 4.266667-8.533333 8.533333-17.066667 14.933333-21.333333l206.933334-185.6v-192c0-23.466667 8.533333-42.666667 25.6-59.733334s36.266667-25.6 59.733333-25.6z"/>
+                      <path fill="currentColor" d="M512 174.933333c23.466667 0 42.666667 8.533333 59.733333 25.6s25.6 36.266667 25.6 59.733334v192l206.933334 185.6c6.4 4.266667 10.666667 12.8 14.933333 21.333333s6.4 17.066667 6.4 25.6v23.466667c0 8.533333-2.133333 12.8-6.4 14.933333s-10.666667 2.133333-17.066667-2.133333l-204.8-140.8v149.333333c38.4 36.266667 57.6 57.6 57.6 64v36.266667c0 8.533333-2.133333 12.8-6.4 17.066666-4.266667 2.133333-10.666667 2.133333-19.2 0l-117.333333-72.533333-117.333333 72.533333c-6.4 4.266667-12.8 4.266667-19.2 0s-6.4-8.533333-6.4-17.066666v-36.266667c0-8.533333 19.2-29.866667 57.6-64v-149.333333l-204.8 140.8c-6.4 4.266667-12.8 6.4-17.066667 2.133333-4.266667-2.133333-6.4-8.533333-6.4-14.933333V684.8c0-8.533333 2.133333-17.066667 6.4-25.6 4.266667-8.533333 8.533333-17.066667 14.933333-21.333333l206.933334-185.6v-192c0-23.466667 8.533333-42.666667 25.6-59.733334s36.266667-25.6 59.733333-25.6z" />
                     </symbol>
                   </defs>
                   {edges.map((e, idx) => {
@@ -2881,7 +2890,7 @@ const ConflictResolutionPanel = observer(() => {
                     const from = positions[fromId];
                     const to = positions[toId];
                     if (!from || !to) return null;
-                    
+
                     // 获取目标节点的延迟信息来计算影响程度
                     const toNodeInfo = nodes.find(([id]) => id === toId)?.[1];
                     const impactLevel = getImpactLevel(toNodeInfo?.delay_minutes);
@@ -2925,11 +2934,11 @@ const ConflictResolutionPanel = observer(() => {
                   {nodes.map(([id, info]) => {
                     const pos = positions[id];
                     if (!pos) return null;
-                    
+
                     // 使用WebSocketStore的颜色映射：按飞机ID分配唯一颜色
                     const aircraftColor = getAircraftColor(id);
                     const iconSize = 18;
-                    
+
                     return (
                       <g key={id}>
                         {/* 使用统一飞机icon替代圆形节点 */}
@@ -2965,8 +2974,8 @@ const ConflictResolutionPanel = observer(() => {
                       padding: '12px',
                       marginBottom: '12px',
                       backgroundColor: 'rgba(255,255,255,0.6)',
-                      width: '90%',
-                      maxWidth: '740px',
+                      width: '100%',
+                      maxWidth: '1200px',
                       marginLeft: 'auto',
                       marginRight: 'auto'
                     }}
@@ -3022,29 +3031,51 @@ const ConflictResolutionPanel = observer(() => {
                     </div>
 
                     {/* 两行布局：第一行放时间路径比较图和按钮，第二行放影响图 */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {/* 第一行：目标飞机ID标签与度量条位置保持一致对齐 */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                        {/* 左侧：仅显示目标ID标签，浅灰底 + 滑行绿色字体（固定最小宽度） */}
-                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 100 }}>
-                          <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 3, backgroundColor: '#f5f5f5', color: AIRCRAFT_COLORS.ACTIVE }}>
-                            {t('target')}: {resolution.target_flight}
-                          </span>
-                        </div>
-                        {/* 右侧：时间和路径的比较图（固定宽度以保持对齐一致） */}
-                        <div style={{ width: 300 }}>
-                          <MetricBars
-                            pathDelta={resolution.path_length_delta || 0}
-                            timeDelta={resolution.time_delta_minutes || 0}
-                            maxPath={maxPath}
-                            maxTime={maxTime}
-                          />
-                        </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      {/* 左侧：目标ID标签 */}
+                      <div style={{ display: 'flex', alignItems: 'center', minWidth: 100 }}>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            padding: '2px 6px',
+                            borderRadius: 3,
+                            backgroundColor: '#f5f5f5',
+                            color: AIRCRAFT_COLORS.ACTIVE,
+                          }}
+                        >
+                          {t('target')}: {resolution.target_flight}
+                        </span>
                       </div>
-                      
-                      {/* 第二行：影响图 */}
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <ImpactGraph impactGraph={resolution.impact_graph} targetFlight={resolution.target_flight} />
+
+                      {/* 中间：时间和路径的比较图（固定宽度） */}
+                      <div style={{ width: 300 }}>
+                        <MetricBars
+                          pathDelta={resolution.path_length_delta || 0}
+                          timeDelta={resolution.time_delta_minutes || 0}
+                          maxPath={maxPath}
+                          maxTime={maxTime}
+                        />
+                      </div>
+
+                      {/* 右侧：影响图（靠右显示） */}
+                      <div  key={resolution.option_id}
+                    style={{
+                      marginLeft: 'auto', // 推动该div到最右边
+      display: 'flex', // 使用flexbox来实现内容居中
+      justifyContent: 'center', // 水平居中
+      alignItems: 'center', // 垂直居中
+      border: '1px solid #ddd',
+      borderRadius: '6px',
+      padding: '12px',
+      marginBottom: '12px',
+                    
+                    }}>
+                     
+    <ImpactGraph
+      impactGraph={resolution.impact_graph}
+      targetFlight={resolution.target_flight}
+    />
+  
                       </div>
                     </div>
                   </div>

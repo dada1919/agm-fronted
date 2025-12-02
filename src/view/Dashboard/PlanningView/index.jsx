@@ -33,19 +33,28 @@ const OVERLAP_COLORS = {
     SAME_DIRECTION: OVERLAP_RED,
     CROSSING:       OVERLAP_RED,
 };
-
+let planningY=400;
 // 冲突点圆半径常量
 const CONFLICT_POINT_RADIUS_CURRENT = 6;  // 当前冲突点半径
 const CONFLICT_POINT_RADIUS_FUTURE = 6;   // 未来冲突点半径
 
 // SVG表格组件（圆角矩形独立行，保留表头与行内分割）
-const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef, className }) => {
+const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tableRef, className,containerHeight}) => {
     const svgTableRef = useRef();
     const containerRef = useRef();
 
     // 计算表格尺寸（将表头与主体拆分，主体高度不再包含表头）
     const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
     const bodyHeight = dataSource.length * rowHeight + EXTRA_BOTTOM_SPACE;
+    //新增计算高度,认为减40
+  
+// 在 SVGTable 组件内部
+const totalContentHeight = headerHeight + dataSource.length * rowHeight;
+
+// bodyHeight 必须足够大以支持滚动（保留 EXTRA_BOTTOM_SPACE）
+    //  const bodyHeight = Math.max(containerHeight, totalContentHeight + EXTRA_BOTTOM_SPACE);
+     const verticalOffset = Math.max(0, (planningY - totalContentHeight) / 2)+10;
+
 
     useEffect(() => {
         if (tableRef) {
@@ -92,204 +101,174 @@ const SVGTable = ({ columns, dataSource, rowHeight, headerHeight, onScroll, tabl
     };
 
     return (
+       
         <div
-            ref={containerRef}
-            onScroll={onScroll}
-            style={{
-                width: '100%',
-                height: '100%',
-                overflow: 'auto',
-                backgroundColor: '#ffffff'
-            }}
-            className={`svg-table-container ${className || ''}`}
-        >
-            {/* 粘性表头：单独的 SVG，随滚动容器固定在顶部 */}
-            <div
-                className="svg-table-header"
-                style={{
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 20,
-                    background: '#fafafa',
-                    borderBottom: '1px solid #f0f0f0'
-                }}
-            >
-                <svg
-                    className="svg-table-header-svg"
-                    width={tableWidth}
-                    height={headerHeight}
-                    style={{
-                        display: 'block',
-                        minWidth: tableWidth,
-                        backgroundColor: '#fafafa'
-                    }}
+  ref={containerRef}
+  onScroll={onScroll}
+  style={{
+    width: '100%',
+    height: '100%',
+    overflow: 'auto',
+    backgroundColor: '#ffffff'
+  }}
+  className={`svg-table-container ${className || ''}`}
+>
+  {/* 主 SVG：包含表头 + 数据行 */}
+  <svg
+    ref={svgTableRef}
+    className="svg-table-body"
+    width={tableWidth}
+    height={bodyHeight} // 注意：bodyHeight 应 = headerHeight + dataRowsHeight + EXTRA_BOTTOM_SPACE
+    style={{
+      display: 'block',
+      backgroundColor: 'transparent',
+      minWidth: tableWidth,
+    }}
+  >
+    {/* 👇 统一偏移：让整个表格（含表头）居中 */}
+    <g transform={`translate(0, ${verticalOffset})`}>
+      
+      {/* === 表头（原 sticky 部分）=== */}
+      <g className="svg-table-header-group">
+        <rect
+          x={0}
+          y={0}
+          width={tableWidth}
+          height={headerHeight}
+          fill="#fafafa"
+          stroke="#f0f0f0"
+          strokeWidth={1}
+        />
+        {columns.map((column, colIndex) => {
+          const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
+          return (
+            <g key={`header-${colIndex}`}>
+              {Array.isArray(column.title) ? (
+                column.title.map((line, lineIndex) => (
+                  <text
+                    key={`header-line-${lineIndex}`}
+                    x={x + column.width / 2}
+                    y={headerHeight / 2 + (lineIndex - (column.title.length - 1) / 2) * 14}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="11px"
+                    fontWeight="bold"
+                    fill="#000000"
+                  >
+                    {line}
+                  </text>
+                ))
+              ) : (
+                <text
+                  x={x + column.width / 2}
+                  y={headerHeight / 2}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="12px"
+                  fontWeight="bold"
+                  fill="#000000"
                 >
-                    {/* 表头背景 */}
-                    <rect
-                        x={0}
-                        y={0}
-                        width={tableWidth}
-                        height={headerHeight}
-                        fill="#fafafa"
+                  {column.title}
+                </text>
+              )}
+              {colIndex < columns.length - 1 && (
+                <line
+                  x1={x + column.width}
+                  y1={0}
+                  x2={x + column.width}
+                  y2={headerHeight}
+                  stroke="#f0f0f0"
+                  strokeWidth={1}
+                />
+              )}
+            </g>
+          );
+        })}
+      </g>
+
+      {/* === 数据行 === */}
+      <g transform={`translate(0, ${headerHeight})`}>
+        {dataSource.map((record, rowIndex) => {
+          const y = rowIndex * rowHeight;
+          const borderColor = record.status === 'normal' ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
+          const fillNormal = '#ffffff';
+          const fillHover = '#f5faff';
+          const rectX = 6;
+          const rectY = y + 4;
+          const rectW = tableWidth - 12;
+          const rectH = rowHeight - 8;
+          return (
+            <g key={`row-${rowIndex}`} data-flight-id={record.flight_id} className="svg-table-row">
+              <rect
+                x={rectX}
+                y={rectY}
+                width={rectW}
+                height={rectH}
+                rx={4}
+                ry={4}
+                fill={fillNormal}
+                stroke={borderColor}
+                strokeWidth={1}
+                className="rounded-row"
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={(e) => e.target.setAttribute('fill', fillHover)}
+                onMouseLeave={(e) => e.target.setAttribute('fill', fillNormal)}
+              />
+              {columns.map((column, colIndex) => {
+                const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
+                const value = record[column.dataIndex];
+                const displayText = formatDisplayText(column, record, value);
+                const textColor = getCellTextColor(column, record, value);
+
+                return (
+                  <g key={`cell-${rowIndex}-${colIndex}`}>
+                    {Array.isArray(displayText) ? (
+                      <text
+                        x={rectX + x + column.width / 2}
+                        y={y + rowHeight / 2 - 6}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="10px"
+                        fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
+                        fill={textColor}
+                      >
+                        <tspan x={rectX + x + column.width / 2} dy="0">{displayText[0]}</tspan>
+                        <tspan x={rectX + x + column.width / 2} dy="12">{displayText[1]}</tspan>
+                      </text>
+                    ) : (
+                      <text
+                        x={rectX + x + column.width / 2}
+                        y={y + rowHeight / 2}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="12px"
+                        fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
+                        fill={textColor}
+                      >
+                        {displayText}
+                      </text>
+                    )}
+                    {colIndex < columns.length - 1 && (
+                      <line
+                        x1={rectX + x + column.width}
+                        y1={rectY}
+                        x2={rectX + x + column.width}
+                        y2={rectY + rectH}
                         stroke="#f0f0f0"
                         strokeWidth={1}
-                    />
+                      />
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+      </g>
 
-                    {/* 表头文本和分割线 */}
-                    {columns.map((column, colIndex) => {
-                        const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
-                        return (
-                            <g key={`header-${colIndex}`}>
-                                {/* 表头文本 */}
-                                {Array.isArray(column.title) ? (
-                                    // 多行标题
-                                    column.title.map((line, lineIndex) => (
-                                        <text
-                                            key={`header-line-${lineIndex}`}
-                                            x={x + column.width / 2}
-                                            y={headerHeight / 2 + (lineIndex - (column.title.length - 1) / 2) * 14}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                            fontSize="11px"
-                                            fontWeight="bold"
-                                            fill="#000000"
-                                        >
-                                            {line}
-                                        </text>
-                                    ))
-                                ) : (
-                                    // 单行标题
-                                    <text
-                                        x={x + column.width / 2}
-                                        y={headerHeight / 2}
-                                        textAnchor="middle"
-                                        dominantBaseline="middle"
-                                        fontSize="12px"
-                                        fontWeight="bold"
-                                        fill="#000000"
-                                    >
-                                        {column.title}
-                                    </text>
-                                )}
-
-                                {/* 列分割线（仅表头范围）*/}
-                                {colIndex < columns.length - 1 && (
-                                    <line
-                                        x1={x + column.width}
-                                        y1={0}
-                                        x2={x + column.width}
-                                        y2={headerHeight}
-                                        stroke="#f0f0f0"
-                                        strokeWidth={1}
-                                    />
-                                )}
-                            </g>
-                        );
-                    })}
-                </svg>
-            </div>
-
-            {/* 可滚动主体：仅渲染数据行 */}
-            <svg
-                ref={svgTableRef}
-                className="svg-table-body"
-                width={tableWidth}
-                height={bodyHeight}
-                style={{
-                    display: 'block',
-                    backgroundColor: 'transparent',
-                    minWidth: tableWidth,
-                }}
-            >
-                {/* 表格数据行 */}
-                {dataSource.map((record, rowIndex) => {
-                    const y = rowIndex * rowHeight;
-                    const borderColor = record.status === 'normal' ? AIRCRAFT_COLORS.ACTIVE : AIRCRAFT_COLORS.PLANNING;
-                    const fillNormal = '#ffffff';
-                    const fillHover = '#f5faff';
-                    const rectX = 6;
-                    const rectY = y + 4;
-                    const rectW = tableWidth - 12;
-                    const rectH = rowHeight - 8;
-                    return (
-                        <g key={`row-${rowIndex}`} data-flight-id={record.flight_id} className="svg-table-row">
-                            {/* 圆角矩形行 */}
-                            <rect
-                                x={rectX}
-                                y={rectY}
-                                width={rectW}
-                                height={rectH}
-                                rx={4}
-                                ry={4}
-                                fill={fillNormal}
-                                stroke={borderColor}
-                                strokeWidth={1}
-                                className="rounded-row"
-                                style={{ cursor: 'pointer' }}
-                                onMouseEnter={(e) => { e.target.setAttribute('fill', fillHover); }}
-                                onMouseLeave={(e) => { e.target.setAttribute('fill', fillNormal); }}
-                            />
-
-                            {/* 行内列分割线与单元格文本 */}
-                            {columns.map((column, colIndex) => {
-                                const x = columns.slice(0, colIndex).reduce((sum, col) => sum + col.width, 0);
-                                const value = record[column.dataIndex];
-                                const displayText = formatDisplayText(column, record, value);
-                                const textColor = getCellTextColor(column, record, value);
-
-                                return (
-                                    <g key={`cell-${rowIndex}-${colIndex}`}>
-                                        {/* 单元格文本，居中显示在该列范围内 */}
-                                        {Array.isArray(displayText) ? (
-                                            // 多行文本渲染
-                                            <text
-                                                x={rectX + x + column.width / 2}
-                                                y={y + rowHeight / 2 - 6} // 向上偏移以居中两行文本
-                                                textAnchor="middle"
-                                                dominantBaseline="middle"
-                                                fontSize="10px"
-                                                fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
-                                                fill={textColor}
-                                            >
-                                                <tspan key="line-0" x={rectX + x + column.width / 2} dy="0">{displayText[0]}</tspan>
-                                                <tspan key="line-1" x={rectX + x + column.width / 2} dy="12">{displayText[1]}</tspan>
-                                            </text>
-                                        ) : (
-                                            // 单行文本渲染
-                                            <text
-                                                x={rectX + x + column.width / 2}
-                                                y={y + rowHeight / 2}
-                                                textAnchor="middle"
-                                                dominantBaseline="middle"
-                                                fontSize="12px"
-                                                fontWeight={column.key === 'flight_id' ? 'bold' : 'normal'}
-                                                fill={textColor}
-                                            >
-                                                {displayText}
-                                            </text>
-                                        )}
-
-                                        {/* 行内列分割线（只在该行范围内绘制）*/}
-                                        {colIndex < columns.length - 1 && (
-                                            <line
-                                                x1={rectX + x + column.width}
-                                                y1={rectY}
-                                                x2={rectX + x + column.width}
-                                                y2={rectY + rectH}
-                                                stroke="#f0f0f0"
-                                                strokeWidth={1}
-                                            />
-                                        )}
-                                    </g>
-                                );
-                            })}
-                        </g>
-                    );
-                })}
-
-                {/* 外层边框移除，保持简洁 */}
-            </svg>
-        </div>
+    </g> {/* 👈 end of transform group */}
+  </svg>
+</div>
     );
 };
 
@@ -509,6 +488,7 @@ const columns = [
 
 const PlanningView = observer(() => {
     const { t } = useI18n();
+    const [showLegend, setShowLegend] = useState(true);
     const { styles } = useStyle();
     const width = 1200, height = 400; // 增加尺寸以容纳更多数据
 const svgRef = useRef();
@@ -1272,6 +1252,7 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
 
             const svg = d3.select(svgRef.current);
             const width = chartRef.current ? chartRef.current.clientWidth : 1200; // 使用容器实际宽度，避免显示不全
+            // 创建图例容器（固定位置）
 
             // 创建飞机ID比例尺，根据interval_to_previous字段调整间隔
             // 计算每个飞机的累积Y位置偏移
@@ -1288,12 +1269,13 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
                         const nextFlightId = aircraftIds[index + 1];
                         const nextFlightData = plannedData.planned_flights[nextFlightId];
                         const intervalToPrevious = nextFlightData?.interval_to_previous || ROW_HEIGHT_P;
-                        
+                        const zoomRatio=0.7;
                         // 使用interval_to_previous作为到下一个飞机的间隔，如果没有则使用默认行高
-                        currentY += Math.max(intervalToPrevious, ROW_HEIGHT_P);
+                        currentY += Math.max(intervalToPrevious, ROW_HEIGHT_P)*zoomRatio;
+                       
                     }
                 });
-                
+                planningY=currentY+32;
                 return yPositions;
             };
             
@@ -1334,7 +1316,7 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
             // 定义箭头标记（在SVG清理之后立即创建）
             let defs = svg.select('defs');
             if (defs.empty()) defs = svg.append('defs');
-            
+           
             // 相向冲突图标标记 - 使用新的冲突图标替代两个相反箭头
             if (defs.select('#overlap-conflict-icon').empty()) {
                 let conflictIconMarker = defs.append('marker')
@@ -1388,7 +1370,81 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
 
+             let legendGroup = g.select('.legend');
+if (legendGroup.empty()) {
+  legendGroup = g.append("g").attr("class", "legend");
+}
 
+// 根据状态决定是否绘制
+if (showLegend) {
+  legendGroup.attr("transform", `translate(${innerWidth+10}, 30)`)
+             .style('pointer-events', 'none') // 确保图例不会干扰鼠标事件
+             .style('display', 'block'); // 显示图例
+             
+
+  // 清空旧内容（避免重复添加）
+  legendGroup.selectAll('*').remove();
+
+  // 👇 直接在这里写图例内容（就是你最初贴的那段）
+  legendGroup.append("rect")
+    .attr("x", -10)
+    .attr("y", -10)
+    .attr("width", 200)
+    .attr("height", 100)
+    .attr("fill", "none")
+    .attr("stroke", "#ccc")
+    .attr("stroke-width", 1)
+    .attr("rx", 5);
+
+  legendGroup.append("text")
+    .attr("x", 0)
+    .attr("y", 10)
+    .attr("font-size", "14px")
+    .attr("font-weight", "bold")
+    .attr("fill", "#333")
+    .text(t('legend.title'));
+
+  // Active Aircraft
+  const activeLegend = legendGroup.append("g").attr("transform", "translate(0, 35)");
+  activeLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round");
+  activeLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", 2);
+  activeLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.active'));
+
+  // Planning Aircraft
+  const planningLegend = legendGroup.append("g").attr("transform", "translate(0, 55)");
+  planningLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round")
+    .attr("stroke-dasharray", TIMELINE_STYLES.PLANNING_DASH);
+  planningLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", "white")
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", 2);
+  planningLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.planning'));
+
+} else {
+  legendGroup.style("display", "none");
+}
+legendGroup.raise();
             // 创建时间比例尺
             const xScale = d3.scaleLinear()
                 .domain([0, maxTime])
@@ -1430,7 +1486,7 @@ const HEADER_HEIGHT = 32; // 表头高度（缩小）
 
             // 左侧添加Y轴标题（与左侧表头同一水平行，垂直居中）
             gAxis.append("text")
-                .attr("x", -10)
+                .attr("x", -15)
                 .attr("y", 6 - HEADER_HEIGHT / 2) // 与基线偏移相反方向，确保显示在粘性容器中间
                 .attr("fill", color)
                 .attr("stroke", color)
@@ -2459,89 +2515,67 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
 
 
 
-            // 添加图例
-            const legendGroup = svg.append("g")
-                .attr("class", "legend")
-                .attr("transform", `translate(${width - margin.right + 10}, 30)`)
-                .attr('pointer-events', 'none'); // 禁用交互，避免遮挡
+         const drawLegend = (legendGroup) => {
+  // 清空已有内容（避免重复）
+  legendGroup.selectAll('*').remove();
 
-            // 图例背景 - 增加高度以容纳模拟数据图例
-            legendGroup.append("rect")
-                .attr("x", -10)
-                .attr("y", -10)
-                .attr("width", 200)
-                .attr("height", 100)
-                .attr("fill", "none") // 背景透明，避免遮挡时间线
-                .attr("stroke", "#ccc")
-                .attr("stroke-width", 1)
-                .attr("rx", 5);
+  // 图例背景
+  legendGroup.append("rect")
+    .attr("x", -10)
+    .attr("y", -10)
+    .attr("width", 200)
+    .attr("height", 100)
+    .attr("fill", "none")
+    .attr("stroke", "#ccc")
+    .attr("stroke-width", 1)
+    .attr("rx", 5);
 
-            // 图例标题
-            legendGroup.append("text")
-                .attr("x", 0)
-                .attr("y", 10)
-                .attr("font-size", "14px")
-                .attr("font-weight", "bold")
-                .attr("fill", "#333")
-                .text(t('legend.title'));
+  // 标题
+  legendGroup.append("text")
+    .attr("x", 0)
+    .attr("y", 10)
+    .attr("font-size", "14px")
+    .attr("font-weight", "bold")
+    .attr("fill", "#333")
+    .text(t('legend.title'));
 
-            // Active Aircraft 图例
-            const activeLegend = legendGroup.append("g")
-                .attr("transform", "translate(0, 35)");
+  // Active Aircraft
+  const activeLegend = legendGroup.append("g").attr("transform", "translate(0, 35)");
+  activeLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round");
+  activeLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
+    .attr("stroke-width", 2);
+  activeLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.active'));
 
-            activeLegend.append("line")
-                .attr("x1", 0)
-                .attr("x2", 20)
-                .attr("y1", 0)
-                .attr("y2", 0)
-                .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
-                .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
-                .attr("stroke-linecap", "round");
-
-            activeLegend.append("circle")
-                .attr("cx", 20)
-                .attr("cy", 0)
-                .attr("r", TIMELINE_POINT_RADIUS)
-                .attr("fill", AIRCRAFT_COLORS.ACTIVE)
-                .attr("stroke", AIRCRAFT_COLORS.ACTIVE)
-                .attr("stroke-width", 2);
-
-            activeLegend.append("text")
-                .attr("x", 35)
-                .attr("y", 5)
-                .attr("font-size", "12px")
-                .attr("fill", "#333")
-                .text(t('legend.active'));
-
-            // Planning Aircraft 图例
-            const planningLegend = legendGroup.append("g")
-                .attr("transform", "translate(0, 55)");
-
-            planningLegend.append("line")
-                .attr("x1", 0)
-                .attr("x2", 20)
-                .attr("y1", 0)
-                .attr("y2", 0)
-                .attr("stroke", AIRCRAFT_COLORS.PLANNING)
-                .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
-                .attr("stroke-linecap", "round")
-                .attr("stroke-dasharray", TIMELINE_STYLES.PLANNING_DASH);
-
-            planningLegend.append("circle")  
-                .attr("cx", 20)
-                .attr("cy", 0)
-                .attr("r", TIMELINE_POINT_RADIUS)
-                .attr("fill", "white")
-                .attr("stroke", AIRCRAFT_COLORS.PLANNING)
-                .attr("stroke-width", 2);
-
-            planningLegend.append("text")
-                .attr("x", 35)
-                .attr("y", 5)
-                .attr("font-size", "12px")
-                .attr("fill", "#333")
-                .text(t('legend.planning'));
-      
+  // Planning Aircraft
+  const planningLegend = legendGroup.append("g").attr("transform", "translate(0, 55)");
+  planningLegend.append("line")
+    .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", TIMELINE_STYLES.LINE_WIDTH)
+    .attr("stroke-linecap", "round")
+    .attr("stroke-dasharray", TIMELINE_STYLES.PLANNING_DASH);
+  planningLegend.append("circle")
+    .attr("cx", 20).attr("cy", 0)
+    .attr("r", TIMELINE_POINT_RADIUS)
+    .attr("fill", "white")
+    .attr("stroke", AIRCRAFT_COLORS.PLANNING)
+    .attr("stroke-width", 2);
+  planningLegend.append("text")
+    .attr("x", 35).attr("y", 5)
+    .attr("font-size", "12px").attr("fill", "#333")
+    .text(t('legend.planning'));
+};
 
             // 保存绘图相关变量到d3Container，供冲突更新函数使用
             d3Container.current = {
@@ -2681,7 +2715,7 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
             disposer();
             // disposer2();
         };
-    }, []);
+    }, [showLegend]);
 
     // 当表格数据源变化时，重绘跨区域连接线
     useEffect(() => {
@@ -2739,6 +2773,7 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
                         headerHeight={HEADER_HEIGHT}
                         onScroll={handleTableContainerScroll}
                         tableRef={tableRef}
+                        containerHeight={height}
                         className={styles.prettyScrollbar}
                     />
                 </div>
@@ -2765,6 +2800,42 @@ const createTaxiSliderDrag = (aircraftId, taxiTime, totalTimeToTakeoff, {
                         borderBottom: '1px solid #f0f0f0'
                     }}
                 >
+                     {/* Toggle 按钮 - 右上角 */}
+<button
+  onClick={() => setShowLegend(!showLegend)}
+  style={{
+    position: 'absolute',
+    top: '0px',
+    right: '10px',
+    zIndex: 10,
+    padding: '6px 12px',
+    fontSize: '13px',
+    fontWeight: 500,
+    color: '#1f1f1f',
+    background: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    outline: 'none',
+    userSelect: 'none'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.boxShadow = '0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)';
+  }}
+  onFocus={(e) => {
+    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(26, 115, 232, 0.3)';
+  }}
+  onBlur={(e) => {
+    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)';
+  }}
+>
+  {showLegend ? t('hide legend') : t('show legend')}
+</button>
                     <svg
                         ref={svgAxisRef}
                         width="100%"
